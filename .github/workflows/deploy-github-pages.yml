@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+# Manual y por push a main. El despliegue a Cloudflare Pages no usa este
+# workflow: Cloudflare compila desde su propio panel con `npm run build`, sin
+# BASE_PATH, porque sirve desde la raíz del dominio.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue por vez. No se cancela el que está corriendo para no dejar el
+# sitio a medio publicar.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          # Sitio de proyecto: vive en /<repo>/, no en la raíz.
+          BASE_PATH: /${{ github.event.repository.name }}
+          SITE_URL: https://${{ github.repository_owner }}.github.io
+        run: npm run build
+
+      - name: Verificar que no salgan indicadores vivos
+        run: node scripts/check-defang.mjs
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
