@@ -1,0 +1,321 @@
+/* ============================================================
+   Marcos de análisis (pirámide del dolor, diamante, kill chain).
+   Se abren en ventana: no forman parte del informe del caso,
+   son material de apoyo opcional.
+   ============================================================ */
+
+.fw-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.25rem 0.4rem 0.25rem 0;
+
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.fw-trigger:hover {
+  transform: translateY(-1px);
+  background: var(--bg-subtle);
+}
+
+.fw-dialog {
+  width: min(94vw, 760px);
+  max-height: 88vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-body);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.3);
+  overflow: hidden;
+}
+
+.fw-dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.fw-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.3rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fw-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.fw-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.fw-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s;
+}
+
+.fw-close:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+.fw-body {
+  padding: 1.2rem 1.3rem 1.5rem;
+  overflow-y: auto;
+  max-height: calc(88vh - 5rem);
+}
+
+.fw-note {
+  margin: 1.2rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ---------- Pirámide del dolor ---------- */
+.pop-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.7rem;
+  margin-bottom: 0.45rem;
+}
+
+.pop-step {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  color: var(--bg);
+}
+
+.pop-step .name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pop-step .pain {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.pop-values {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.pop-values .val {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  word-break: break-all;
+}
+
+.pop-values .none {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---------- Diamante ---------- */
+.dm-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(70px, 0.5fr) 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.dm-node {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  padding: 0.6rem 0.75rem;
+}
+
+.dm-node .vertex {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.25rem;
+}
+
+.dm-node .value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dm-node .detail {
+  margin: 0.25rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.dm-adversary { grid-column: 2; grid-row: 1; }
+.dm-capability { grid-column: 1; grid-row: 2; }
+.dm-center { grid-column: 2; grid-row: 2; display: flex; justify-content: center; }
+.dm-infrastructure { grid-column: 3; grid-row: 2; }
+.dm-victim { grid-column: 2; grid-row: 3; }
+
+.dm-meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.dm-meta .chip {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.45rem;
+}
+
+@media (max-width: 620px) {
+  .dm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dm-adversary,
+  .dm-capability,
+  .dm-infrastructure,
+  .dm-victim {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .dm-center {
+    display: none;
+  }
+}
+
+/* ---------- Kill chain ---------- */
+.kc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: kc;
+}
+
+.kc-item {
+  display: flex;
+  gap: 0.8rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.kc-item:last-child {
+  border-bottom: none;
+}
+
+.kc-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.kc-item[data-state='blocked'] .kc-num {
+  background: var(--verdict-clean);
+  border-color: var(--verdict-clean);
+  color: var(--bg);
+}
+
+.kc-item[data-state='reached'] .kc-num {
+  background: var(--sev-high);
+  border-color: var(--sev-high);
+  color: var(--bg);
+}
+
+.kc-body .phase {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kc-body .detail {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.kc-state {
+  margin-left: 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--bg);
+}
+
+.kc-item[data-state='blocked'] .kc-state { background: var(--verdict-clean); }
+.kc-item[data-state='reached'] .kc-state { background: var(--sev-high); }
+.kc-item[data-state='not-reached'] .kc-state {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-trigger {
+    transition: none;
+  }
+}

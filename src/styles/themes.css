@@ -1,0 +1,649 @@
+/* ============================================================
+   Sistema de temas y tipografías
+   - Tema:   <html data-theme="light | dark | nord | dracula |
+                              solarized | high-contrast |
+                              lavender | rose">
+   - Fuente: <html data-font="inter | roboto | fira-code |
+                             jetbrains-mono | merriweather">
+   Los valores los aplica el script anti-FOUC de BaseLayout.astro
+   y los cambia el componente ThemeSwitcher.
+   ============================================================ */
+
+/* ---------- Tokens base (tema Light por defecto) ---------- */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --bg-subtle: #f8fafc;
+  --bg-elevated: #ffffff;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+
+  --accent: #7c3aed;
+  --accent-soft: #f5f3ff;
+  --accent-border: #ddd6fe;
+  --accent-contrast: #ffffff;
+
+  --sev-critical: #dc2626;
+  --sev-high: #ea580c;
+  --sev-medium: #ca8a04;
+  --sev-low: #2563eb;
+  --sev-info: #0891b2;
+
+  --actor-attacker: #dc2626;
+  --actor-defender: #059669;
+  --actor-system: #6366f1;
+  --actor-user: #7c3aed;
+
+  --verdict-malicious: #dc2626;
+  --verdict-suspicious: #ea580c;
+  --verdict-clean: #059669;
+  --verdict-unknown: #64748b;
+
+  --radius: 12px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f172a;
+  --bg-subtle: #1e293b;
+  --bg-elevated: #1e293b;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border: #334155;
+
+  --accent: #a78bfa;
+  --accent-soft: #2e1065;
+  --accent-border: #5b21b6;
+  --accent-contrast: #0f172a;
+
+  --sev-critical: #f87171;
+  --sev-high: #fb923c;
+  --sev-medium: #facc15;
+  --sev-low: #60a5fa;
+  --sev-info: #22d3ee;
+
+  --actor-attacker: #f87171;
+  --actor-defender: #34d399;
+  --actor-system: #818cf8;
+  --actor-user: #a78bfa;
+
+  --verdict-malicious: #f87171;
+  --verdict-suspicious: #fb923c;
+  --verdict-clean: #34d399;
+  --verdict-unknown: #94a3b8;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+:root[data-theme='nord'] {
+  color-scheme: dark;
+
+  --bg: #2e3440;
+  --bg-subtle: #3b4252;
+  --bg-elevated: #3b4252;
+  --text: #eceff4;
+  --text-muted: #b8c1d1;
+  --border: #4c566a;
+
+  --accent: #88c0d0;
+  --accent-soft: #434c5e;
+  --accent-border: #5e81ac;
+  --accent-contrast: #2e3440;
+
+  --sev-critical: #bf616a;
+  --sev-high: #d08770;
+  --sev-medium: #ebcb8b;
+  --sev-low: #81a1c1;
+  --sev-info: #88c0d0;
+
+  --actor-attacker: #bf616a;
+  --actor-defender: #a3be8c;
+  --actor-system: #b48ead;
+  --actor-user: #88c0d0;
+
+  --verdict-malicious: #bf616a;
+  --verdict-suspicious: #d08770;
+  --verdict-clean: #a3be8c;
+  --verdict-unknown: #b8c1d1;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+}
+
+:root[data-theme='dracula'] {
+  color-scheme: dark;
+
+  --bg: #282a36;
+  --bg-subtle: #343746;
+  --bg-elevated: #44475a;
+  --text: #f8f8f2;
+  --text-muted: #b6b9c8;
+  --border: #6272a4;
+
+  --accent: #bd93f9;
+  --accent-soft: #3c3357;
+  --accent-border: #7c5fbe;
+  --accent-contrast: #282a36;
+
+  --sev-critical: #ff5555;
+  --sev-high: #ffb86c;
+  --sev-medium: #f1fa8c;
+  --sev-low: #8be9fd;
+  --sev-info: #6272a4;
+
+  --actor-attacker: #ff5555;
+  --actor-defender: #50fa7b;
+  --actor-system: #8be9fd;
+  --actor-user: #ff79c6;
+
+  --verdict-malicious: #ff5555;
+  --verdict-suspicious: #ffb86c;
+  --verdict-clean: #50fa7b;
+  --verdict-unknown: #b6b9c8;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+:root[data-theme='solarized'] {
+  color-scheme: light;
+
+  --bg: #fdf6e3;
+  --bg-subtle: #f3ecd6;
+  --bg-elevated: #eee8d5;
+  --text: #073642;
+  --text-muted: #657b83;
+  --border: #ddd5bd;
+
+  --accent: #b58900;
+  --accent-soft: #f7f0d9;
+  --accent-border: #d8c68a;
+  --accent-contrast: #fdf6e3;
+
+  --sev-critical: #dc322f;
+  --sev-high: #cb4b16;
+  --sev-medium: #b58900;
+  --sev-low: #268bd2;
+  --sev-info: #2aa198;
+
+  --actor-attacker: #dc322f;
+  --actor-defender: #859900;
+  --actor-system: #6c71c4;
+  --actor-user: #d33682;
+
+  --verdict-malicious: #dc322f;
+  --verdict-suspicious: #cb4b16;
+  --verdict-clean: #859900;
+  --verdict-unknown: #657b83;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+:root[data-theme='high-contrast'] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --bg-subtle: #000000;
+  --bg-elevated: #000000;
+  --text: #ffffff;
+  --text-muted: #ffffff;
+  --border: #ffffff;
+
+  --accent: #ffff00;
+  --accent-soft: #000000;
+  --accent-border: #ffff00;
+  --accent-contrast: #000000;
+
+  --sev-critical: #ff6b6b;
+  --sev-high: #ffa94d;
+  --sev-medium: #ffe066;
+  --sev-low: #74c0fc;
+  --sev-info: #66d9e8;
+
+  --actor-attacker: #ff6b6b;
+  --actor-defender: #69db7c;
+  --actor-system: #74c0fc;
+  --actor-user: #ffff00;
+
+  --verdict-malicious: #ff6b6b;
+  --verdict-suspicious: #ffa94d;
+  --verdict-clean: #69db7c;
+  --verdict-unknown: #ffffff;
+
+  --radius: 4px;
+  --radius-sm: 2px;
+  --shadow: none;
+}
+
+:root[data-theme='lavender'] {
+  color-scheme: light;
+
+  --bg: #faf7ff;
+  --bg-subtle: #f3ecff;
+  --bg-elevated: #ffffff;
+  --text: #2e1065;
+  --text-muted: #7c6a9c;
+  --border: #e4d9f7;
+
+  --accent: #8b5cf6;
+  --accent-soft: #f3ecff;
+  --accent-border: #ddd0fb;
+  --accent-contrast: #ffffff;
+
+  --sev-critical: #d6336c;
+  --sev-high: #e8590c;
+  --sev-medium: #c08a1e;
+  --sev-low: #6f5cf6;
+  --sev-info: #9c6ade;
+
+  --actor-attacker: #d6336c;
+  --actor-defender: #12b886;
+  --actor-system: #7048e8;
+  --actor-user: #ae3ec9;
+
+  --verdict-malicious: #d6336c;
+  --verdict-suspicious: #e8590c;
+  --verdict-clean: #12b886;
+  --verdict-unknown: #7c6a9c;
+
+  --shadow: 0 1px 3px rgb(139 92 246 / 0.12);
+}
+
+:root[data-theme='rose'] {
+  color-scheme: light;
+
+  --bg: #fffaf7;
+  --bg-subtle: #fdeee8;
+  --bg-elevated: #ffffff;
+  --text: #4c1d24;
+  --text-muted: #9c6b6b;
+  --border: #f7dcd2;
+
+  --accent: #e11d48;
+  --accent-soft: #fdeee8;
+  --accent-border: #f8cfc4;
+  --accent-contrast: #ffffff;
+
+  --sev-critical: #be123c;
+  --sev-high: #ea580c;
+  --sev-medium: #b45309;
+  --sev-low: #0e7490;
+  --sev-info: #b8607d;
+
+  --actor-attacker: #be123c;
+  --actor-defender: #0d9488;
+  --actor-system: #a16207;
+  --actor-user: #db2777;
+
+  --verdict-malicious: #be123c;
+  --verdict-suspicious: #ea580c;
+  --verdict-clean: #0d9488;
+  --verdict-unknown: #9c6b6b;
+
+  --shadow: 0 1px 3px rgb(225 29 72 / 0.1);
+}
+
+:root[data-theme='cyberpunk'] {
+  color-scheme: dark;
+
+  --bg: #05010d;
+  --bg-subtle: #0d0320;
+  --bg-elevated: #12062b;
+  --text: #e8fff4;
+  --text-muted: #9d8bc4;
+  --border: #2f1b57;
+
+  --accent: #39ff14;
+  --accent-soft: #12062b;
+  --accent-border: #2bb80f;
+  --accent-contrast: #05010d;
+
+  --sev-critical: #ff2bd6;
+  --sev-high: #ff6ec7;
+  --sev-medium: #f7ff3c;
+  --sev-low: #00e5ff;
+  --sev-info: #7a5cff;
+
+  --actor-attacker: #ff2bd6;
+  --actor-defender: #39ff14;
+  --actor-system: #00e5ff;
+  --actor-user: #f7ff3c;
+
+  --verdict-malicious: #ff2bd6;
+  --verdict-suspicious: #ffa62b;
+  --verdict-clean: #39ff14;
+  --verdict-unknown: #9d8bc4;
+
+  --shadow: 0 0 0 1px rgb(57 255 20 / 0.12), 0 6px 24px rgb(255 43 214 / 0.18);
+}
+
+:root[data-theme='minimal'] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-elevated: #ffffff;
+  --text: #171717;
+  --text-muted: #737373;
+  --border: #e5e5e5;
+
+  --accent: #171717;
+  --accent-soft: #f5f5f5;
+  --accent-border: #d4d4d4;
+  --accent-contrast: #ffffff;
+
+  --sev-critical: #b91c1c;
+  --sev-high: #a16207;
+  --sev-medium: #737373;
+  --sev-low: #525252;
+  --sev-info: #a3a3a3;
+
+  --actor-attacker: #b91c1c;
+  --actor-defender: #15803d;
+  --actor-system: #525252;
+  --actor-user: #171717;
+
+  --verdict-malicious: #b91c1c;
+  --verdict-suspicious: #a16207;
+  --verdict-clean: #15803d;
+  --verdict-unknown: #737373;
+
+  --radius: 8px;
+  --radius-sm: 4px;
+  --shadow: none;
+}
+
+:root[data-theme='forest'] {
+  color-scheme: light;
+
+  --bg: #f7f4ec;
+  --bg-subtle: #eee8da;
+  --bg-elevated: #fffdf7;
+  --text: #1e2d1c;
+  --text-muted: #6b6250;
+  --border: #ddd3bd;
+
+  --accent: #2f6b3a;
+  --accent-soft: #e7efe1;
+  --accent-border: #bcd0b4;
+  --accent-contrast: #fffdf7;
+
+  --sev-critical: #a03323;
+  --sev-high: #b5651d;
+  --sev-medium: #997a1e;
+  --sev-low: #3d6b7d;
+  --sev-info: #5a7d5a;
+
+  --actor-attacker: #a03323;
+  --actor-defender: #2f6b3a;
+  --actor-system: #6b5b3d;
+  --actor-user: #7a5230;
+
+  --verdict-malicious: #a03323;
+  --verdict-suspicious: #b5651d;
+  --verdict-clean: #2f6b3a;
+  --verdict-unknown: #6b6250;
+
+  --shadow: 0 1px 3px rgb(47 107 58 / 0.12);
+}
+
+:root[data-theme='sunset'] {
+  color-scheme: dark;
+
+  --bg: #1a1533;
+  --bg-subtle: #221c44;
+  --bg-elevated: #291f52;
+  --text: #ffeede;
+  --text-muted: #b9a5c9;
+  --border: #3d3168;
+
+  --accent: #ff7a59;
+  --accent-soft: #3a2450;
+  --accent-border: #b8543a;
+  --accent-contrast: #1a1533;
+
+  --sev-critical: #ff5c74;
+  --sev-high: #ff9a4d;
+  --sev-medium: #ffd166;
+  --sev-low: #7aa2ff;
+  --sev-info: #c78fff;
+
+  --actor-attacker: #ff5c74;
+  --actor-defender: #ffd166;
+  --actor-system: #7aa2ff;
+  --actor-user: #ff7a59;
+
+  --verdict-malicious: #ff5c74;
+  --verdict-suspicious: #ff9a4d;
+  --verdict-clean: #5fd6a5;
+  --verdict-unknown: #b9a5c9;
+
+  --shadow: 0 4px 20px rgb(255 122 89 / 0.15);
+}
+
+:root[data-theme='ocean'] {
+  color-scheme: dark;
+
+  --bg: #06263d;
+  --bg-subtle: #0a3348;
+  --bg-elevated: #0b3a56;
+  --text: #e0f7fa;
+  --text-muted: #93c3d6;
+  --border: #145370;
+
+  --accent: #2ec4b6;
+  --accent-soft: #0a3348;
+  --accent-border: #1f8f86;
+  --accent-contrast: #06263d;
+
+  --sev-critical: #ff6b8a;
+  --sev-high: #ffa45c;
+  --sev-medium: #ffd97d;
+  --sev-low: #4fc3f7;
+  --sev-info: #2ec4b6;
+
+  --actor-attacker: #ff6b8a;
+  --actor-defender: #2ec4b6;
+  --actor-system: #4fc3f7;
+  --actor-user: #a3d9ff;
+
+  --verdict-malicious: #ff6b8a;
+  --verdict-suspicious: #ffa45c;
+  --verdict-clean: #2ec4b6;
+  --verdict-unknown: #93c3d6;
+
+  --shadow: 0 4px 20px rgb(0 0 0 / 0.35);
+}
+
+/* Monochrome: ningún dato se codifica por matiz.
+   La severidad se distingue solo por luminosidad, así que sigue
+   siendo legible con cualquier tipo de daltonismo. */
+:root[data-theme='monochrome'] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --bg-subtle: #f2f2f2;
+  --bg-elevated: #ffffff;
+  --text: #111111;
+  --text-muted: #666666;
+  --border: #d4d4d4;
+
+  --accent: #333333;
+  --accent-soft: #f2f2f2;
+  --accent-border: #bbbbbb;
+  --accent-contrast: #ffffff;
+
+  --sev-critical: #1a1a1a;
+  --sev-high: #454545;
+  --sev-medium: #6b6b6b;
+  --sev-low: #8f8f8f;
+  --sev-info: #b0b0b0;
+
+  --actor-attacker: #1a1a1a;
+  --actor-defender: #6b6b6b;
+  --actor-system: #8f8f8f;
+  --actor-user: #454545;
+
+  --verdict-malicious: #1a1a1a;
+  --verdict-suspicious: #545454;
+  --verdict-clean: #8f8f8f;
+  --verdict-unknown: #b0b0b0;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+/* ---------- Fondos suaves derivados de cada color semántico ----------
+   color-mix mantiene el tinte legible tanto en temas claros como oscuros,
+   así no hay que redefinir 5 fondos por tema.                        */
+:root {
+  --sev-critical-bg: color-mix(in srgb, var(--sev-critical) 12%, var(--bg-elevated));
+  --sev-high-bg: color-mix(in srgb, var(--sev-high) 12%, var(--bg-elevated));
+  --sev-medium-bg: color-mix(in srgb, var(--sev-medium) 12%, var(--bg-elevated));
+  --sev-low-bg: color-mix(in srgb, var(--sev-low) 12%, var(--bg-elevated));
+  --sev-info-bg: color-mix(in srgb, var(--sev-info) 12%, var(--bg-elevated));
+}
+
+/* ---------- Tipografías ---------- */
+:root,
+:root[data-font='inter'] {
+  --font-body: var(--font-inter), system-ui, sans-serif;
+}
+:root[data-font='roboto'] {
+  --font-body: var(--font-roboto), system-ui, sans-serif;
+}
+:root[data-font='fira-code'] {
+  --font-body: var(--font-fira-code), ui-monospace, monospace;
+}
+:root[data-font='jetbrains-mono'] {
+  --font-body: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+:root[data-font='merriweather'] {
+  --font-body: var(--font-merriweather), Georgia, serif;
+}
+
+/* La fuente monoespaciada de datos técnicos (IPs, hashes, timestamps)
+   sigue al tema tipográfico si ya es mono; si no, usa JetBrains Mono. */
+:root {
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+:root[data-font='fira-code'] {
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+}
+
+/* ---------- Superficie "glass" del dock de configuración ----------
+   Se deriva del tema activo, así el mismo dock funciona sobre fondos
+   claros y oscuros sin definir 14 variantes a mano. */
+:root {
+  --glass-bg: color-mix(in srgb, var(--bg-elevated) 62%, transparent);
+  /* Para paneles con texto: el vidrio de la barra no da contraste suficiente. */
+  --glass-panel: color-mix(in srgb, var(--bg-elevated) 97%, transparent);
+  --glass-bg-hover: color-mix(in srgb, var(--text) 8%, transparent);
+  --glass-border: color-mix(in srgb, var(--text) 16%, transparent);
+  --glass-highlight: color-mix(in srgb, var(--bg) 70%, transparent);
+  --glass-shadow: 0 20px 50px rgb(0 0 0 / 0.28);
+}
+
+/* ---------- Idioma ----------
+   Las páginas emiten ambas versiones y se muestra la activa.
+   Sin salto de red ni rutas duplicadas al cambiar de idioma. */
+:root[data-lang='es'] [data-lang='en'],
+:root[data-lang='en'] [data-lang='es'] {
+  display: none;
+}
+
+/* ---------- Estilos globales ---------- */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+a {
+  color: var(--accent);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.25;
+}
+
+h1 {
+  color: var(--accent);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.1em 0.35em;
+}
+
+pre {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+blockquote {
+  border-left: 3px solid var(--accent);
+  margin-left: 0;
+  padding-left: 1rem;
+  color: var(--text-muted);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+}
+
+th {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

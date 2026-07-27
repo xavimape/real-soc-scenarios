@@ -1,0 +1,334 @@
+/* ============================================================
+   ConfigDock — barra flotante con efecto glass y popover.
+   Los colores salen de los tokens del tema activo (themes.css),
+   así el mismo dock funciona sobre las 14 paletas.
+   ============================================================ */
+
+/* Arriba a la izquierda: abajo al centro lo tapa la barra de herramientas
+   del servidor de desarrollo de Astro. */
+.dock {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 900;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+
+  padding: 0.5rem;
+  border-radius: 60px;
+
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* --- Botones laterales (redes / contacto) ---
+   Colapsados hasta que el puntero entra al dock. Se anima el ancho y el
+   margen a la vez: si solo se animara el ancho, el gap del flex seguiría
+   ocupando lugar y el dock colapsado quedaría con aire de sobra. */
+.dock-btn {
+  width: 0;
+  margin: 0;
+  height: 44px;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: width 0.35s ease, margin 0.35s ease, opacity 0.25s ease,
+    background 0.35s, transform 0.35s, color 0.35s;
+}
+
+.dock:hover .dock-btn,
+.dock:focus-within .dock-btn,
+.dock.open .dock-btn {
+  width: 44px;
+  margin: 0 0.175rem;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dock-btn:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text);
+  transform: translateY(-3px);
+}
+
+.dock-btn:active {
+  transform: scale(0.92);
+}
+
+.dock-btn[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dock-btn[aria-disabled='true']:hover {
+  transform: none;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* --- Botón central ---
+   `position: static` a propósito: así el popover se posiciona contra el
+   dock y no contra el botón, y su borde izquierdo queda alineado con la
+   barra en vez de arrancar tabulado sobre el texto. */
+.dock-center {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.config-btn {
+  height: 44px;
+  padding: 0 0.75rem;
+  border-radius: 40px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  color: var(--text);
+  background: var(--glass-bg-hover);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  cursor: pointer;
+  transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+}
+
+.config-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 35px rgb(0 0 0 / 0.14), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* La etiqueta aparece junto con los enlaces; colapsado queda solo el engranaje. */
+.config-btn .label {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
+}
+
+.dock:hover .config-btn .label,
+.dock:focus-within .config-btn .label,
+.dock.open .config-btn .label {
+  max-width: 8rem;
+  opacity: 1;
+  margin-right: 0.5rem;
+}
+
+.config-btn .icon {
+  transition: transform 0.45s ease;
+}
+
+.dock-center.open .config-btn .icon {
+  transform: rotate(-90deg);
+}
+
+/* --- Popover --- */
+.config-card {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 18px);
+  transform-origin: top left;
+  width: min(92vw, 360px);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 26px;
+
+  /* Casi opaco a propósito: con el vidrio de la barra (62%) el texto de la
+     página se leía a través del panel y era imposible usarlo. */
+  background: var(--glass-panel);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-14px) scale(0.96);
+  transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+}
+
+.dock-center.open .config-card {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.config-section + .config-section {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.config-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+/* --- Grilla de temas --- */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.4rem;
+}
+
+.theme-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.3s;
+}
+
+.theme-chip:hover {
+  background: var(--glass-bg-hover);
+  transform: translateX(3px);
+}
+
+.theme-chip[aria-pressed='true'] {
+  background: var(--glass-bg-hover);
+  border-color: var(--accent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Muestra en miniatura de la paleta: fondo, acento y severidad crítica. */
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(
+    135deg,
+    var(--sw-bg) 0 50%,
+    var(--sw-accent) 50% 78%,
+    var(--sw-critical) 78% 100%
+  );
+}
+
+/* --- Filas de opciones (fuente / idioma) --- */
+.option-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.option-btn {
+  flex: 1 1 auto;
+  padding: 0.35rem 0.6rem;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.3s;
+}
+
+.option-btn:hover {
+  background: var(--glass-bg-hover);
+}
+
+.option-btn[aria-pressed='true'] {
+  background: var(--glass-bg-hover);
+  border-color: var(--accent);
+}
+
+.option-btn .hint {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Cada botón de fuente se previsualiza con su propia tipografía. */
+.option-btn[data-font='inter'] { font-family: var(--font-inter), system-ui, sans-serif; }
+.option-btn[data-font='roboto'] { font-family: var(--font-roboto), system-ui, sans-serif; }
+.option-btn[data-font='fira-code'] { font-family: var(--font-fira-code), monospace; }
+.option-btn[data-font='jetbrains-mono'] { font-family: var(--font-jetbrains-mono), monospace; }
+.option-btn[data-font='merriweather'] { font-family: var(--font-merriweather), Georgia, serif; }
+
+/* Sin puntero no hay hover: en pantallas táctiles el dock va siempre abierto. */
+@media (hover: none) {
+  .dock-btn {
+    width: 44px;
+    margin: 0 0.175rem;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .config-btn .label {
+    max-width: 8rem;
+    opacity: 1;
+    margin-right: 0.5rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .dock {
+    left: 0.75rem;
+    right: 0.75rem;
+    top: 0.75rem;
+    justify-content: space-around;
+  }
+
+  .config-btn .label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-card,
+  .dock-btn,
+  .config-btn,
+  .theme-chip,
+  .option-btn {
+    transition: none;
+  }
+}
