@@ -1,0 +1,545 @@
+---
+title: "Target 2013 - Siete eslabones, ninguno cortado"
+titleEn: "Target 2013 - Seven Links, None Broken"
+description: "Caso real: el proveedor de refrigeración, las alertas ignoradas y 110 millones de registros. El incidente que puso a los terceros en la agenda de seguridad."
+descriptionEn: "Real case: the HVAC vendor, the ignored alerts and 110 million records. The incident that put third parties on the security agenda."
+pubDate: 2013-12-19
+caseId: "soc-004"
+caseNumber: 4
+difficulty: "advanced"
+caseType: "real_case_classic"
+severity: "CRITICAL"
+tags: ["supply-chain", "third-party-risk", "pos-malware", "ram-scraping", "alert-fatigue", "segmentation", "retail"]
+tagsEn: ["supply-chain", "third-party-risk", "pos-malware", "ram-scraping", "alert-fatigue", "segmentation", "retail"]
+author: "Informe del Comité de Comercio del Senado de EE.UU. (marzo 2014) y reportes de KrebsOnSecurity, Dell SecureWorks y Bloomberg Businessweek"
+duration_minutes: 45
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+
+## Resumen ejecutivo
+
+Entre noviembre y diciembre de 2013, atacantes entraron a la red de Target usando
+las credenciales de una empresa de refrigeración de Pensilvania, llegaron hasta las
+cajas registradoras, y sacaron 11 GB de datos de tarjetas a un servidor en Europa
+del Este. Hasta 110 millones de clientes afectados.
+
+Lo que hace a este caso obligatorio no es la técnica — el malware fue descrito por
+un directivo de McAfee como "absolutamente poco sofisticado y sin interés". Es que
+**los sistemas de detección funcionaron.** FireEye alertó. Symantec alertó. Nadie
+actuó.
+
+**Métricas clave:**
+
+- Tiempo desde el primer acceso hasta la confirmación pública: 37 días
+- Alertas automáticas generadas y no atendidas: al menos dos tandas de FireEye, más una de Symantec
+- Datos comprometidos: 40 millones de tarjetas y 70 millones de registros personales
+- Volumen exfiltrado: 11 GB
+- Cómo se enteró Target: por una llamada del Departamento de Justicia
+
+<Warn />**Caso real, fuentes públicas.** Todo lo que sigue sale del informe de la
+mayoría del Comité de Comercio del Senado de EE.UU. de marzo de 2014 y de los
+reportes que ese informe cita. Cuando la fuente marca algo como no confirmado, acá
+también aparece como no confirmado — distinguir lo probado de lo probable es parte
+del oficio.
+
+---
+
+## Por qué este caso sigue importando
+
+Target estaba certificada como PCI-DSS compliant en septiembre de 2013, dos meses
+antes de la intrusión. Su director financiero declaró ante el Congreso que la
+empresa tenía "múltiples capas de protección, incluyendo firewalls, software de
+detección de malware, capacidades de detección y prevención de intrusiones y
+herramientas de prevención de pérdida de datos".
+
+Todo eso era cierto. Y no alcanzó.
+
+El informe del Senado analizó el incidente con el modelo de la *intrusion kill
+chain* de Lockheed Martin, y su conclusión es la que da título a este caso: hubo
+siete eslabones donde la cadena se podía cortar, y no se cortó en ninguno.
+
+---
+
+## Timeline
+
+<AlertTimeline
+  client:load
+  caseId="soc-004"
+  title="Cronología del incidente"
+  events={[
+    {
+      time: "09-2013",
+      title: "Certificación PCI-DSS",
+      description: "Un evaluador externo certifica como compliant la porción de red que maneja datos de tarjetas.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "~09-2013",
+      title: "Robo de credenciales al proveedor",
+      description: "Correos con malware contra Fazio Mechanical Services, empresa de refrigeración con acceso al portal de proveedores.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "11-12",
+      title: "Primer acceso a la red de Target",
+      description: "Los atacantes entran a la red interna. Fecha según reporte de The New York Times.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "11-15 a 11-28",
+      title: "Prueba del malware en cajas",
+      description: "Instalación en un número reducido de terminales de punto de venta.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "11-28",
+      title: "Symantec detecta actividad maliciosa",
+      description: "El antivirus señala el mismo servidor que después marcaría FireEye. Sin acción documentada.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "11-30",
+      title: "Despliegue completo y primeras alertas de FireEye",
+      description: "La mayoría de las cajas queda infectada. Se instala el malware de exfiltración y FireEye emite alertas urgentes.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "12-02",
+      title: "Comienza la exfiltración",
+      description: "Los datos empiezan a salir hacia un servidor FTP externo. Nuevas alertas de FireEye por las versiones actualizadas del malware.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "12-12",
+      title: "El Departamento de Justicia avisa",
+      description: "Target se entera del incidente por una notificación externa, no por sus propios controles.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "12-15",
+      title: "Confirmación interna y limpieza",
+      description: "Target confirma la brecha y elimina la mayor parte del malware.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12-18",
+      title: "La historia se hace pública",
+      description: "Brian Krebs publica la investigación antes de que Target comunique.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "12-19",
+      title: "Anuncio oficial",
+      description: "Target confirma públicamente el acceso no autorizado a datos de 40 millones de tarjetas.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "01-10-2014",
+      title: "Alcance ampliado",
+      description: "Se informa el robo adicional de datos personales de hasta 70 millones de clientes.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+### Una nota sobre las fechas
+
+El informe del Senado sitúa el primer acceso a la red el **12 de noviembre**,
+citando a The New York Times. Krebs, con fuentes cercanas a la investigación,
+dice **15 de noviembre**.
+
+No es un error de nadie: son dos fuentes con acceso a distintos investigadores,
+publicando sobre una investigación forense todavía abierta. Dejo el 12 en la
+cronología porque es la fecha del informe oficial, pero la diferencia queda acá
+anotada a propósito.
+
+Es un hábito que conviene tener: **cuando dos fuentes buenas discrepan, se anota la
+discrepancia en vez de elegir en silencio.** Un informe que promete precisión que no
+tiene es peor que uno que marca sus zonas grises.
+
+---
+
+## 1. El proveedor
+
+Fazio Mechanical Services es una empresa de refrigeración de Sharpsburg,
+Pensilvania, especializada en supermercados. Tenía acceso remoto a la red de Target
+para facturación electrónica, presentación de contratos y gestión de proyectos.
+
+Dos detalles del informe explican por qué fue el punto de entrada.
+
+**Fazio usaba la versión gratuita de Malwarebytes Anti-Malware.** Esa versión no
+tiene protección en tiempo real y su licencia es solo para uso personal, no
+comercial. Un correo con adjunto malicioso no encontró nada que lo detuviera.
+
+**Target rara vez exigía doble factor a sus contratistas de bajo nivel.** Según un
+ex responsable de proveedores de la empresa. Con la credencial robada alcanzaba
+para entrar.
+
+Hay un tercer detalle, más incómodo: según el análisis de Krebs, los atacantes
+pudieron haber encontrado la lista de proveedores de Target con búsquedas comunes
+en internet. El portal de proveedores y las páginas de gestión de instalaciones
+eran públicos, y los metadatos de los documentos ahí publicados permitían mapear la
+red interna antes de tocarla.
+
+<Warn />La técnica MITRE que describe esto, T1199 (Trusted Relationship), menciona
+explícitamente entre sus ejemplos a los contratistas de climatización. Este caso es
+la razón.
+
+---
+
+## 2. De la facturación a las cajas
+
+Acá está el salto que el informe del Senado no puede explicar del todo, y conviene
+decirlo con la misma honestidad: **los reportes públicos no aclaran cómo los
+atacantes pasaron del sistema de facturación externo a las terminales de venta.**
+
+Lo que sí se sabe:
+
+- Fazio muy probablemente tenía acceso al sistema de facturación Ariba de Target.
+- Ese portal externo probablemente no estaba completamente aislado del resto de la red.
+- Una vez adentro, los atacantes podrían haber aprovechado el nombre de una cuenta
+  por defecto de un producto de gestión de BMC Software para moverse.
+
+Las tres afirmaciones son condicionales en la fuente, y así quedan acá. Lo que no
+es condicional es el resultado: un proveedor de aire acondicionado terminó siendo
+el camino hacia los datos de tarjetas de 40 millones de personas.
+
+**La lección de arquitectura es esa.** Un portal de facturación de proveedores no
+tiene ninguna razón para tener camino hacia la red de cajas. La segmentación no es
+una buena práctica opcional: es lo que convierte un incidente en un proveedor en un
+incidente acotado a ese proveedor.
+
+---
+
+## 3. El malware
+
+En las cajas se instaló una versión adaptada de **BlackPOS**, disponible en foros
+del mercado negro por entre 1.800 y 2.300 dólares.
+
+Su funcionamiento es simple. Cuando se pasa una tarjeta, los datos de la banda
+magnética viajan sin cifrar por la memoria de la terminal antes de ser enviados al
+procesador de pagos. El malware lee esa memoria en ese instante. Se lo llama *RAM
+scraping* y no explota ninguna vulnerabilidad: aprovecha una ventana en la que el
+dato tiene que estar en claro para poder procesarse.
+
+Un segundo malware, instalado en un servidor interno, movía los datos robados a
+través de la red y del firewall de la empresa. Ese componente **estaba disfrazado
+como un producto legítimo de BMC Software**.
+
+Sobre la sofisticación hay desacuerdo entre las fuentes, y vale la pena registrarlo:
+el director de inteligencia de amenazas de McAfee lo describió como "absolutamente
+poco sofisticado y sin interés", mientras que el director del centro de
+ciberseguridad del Departamento de Seguridad Nacional lo llamó "increíblemente
+sofisticado". Cuando dos fuentes calificadas dicen lo opuesto sobre el mismo
+artefacto, suele ser porque están midiendo cosas distintas: el código en sí y la
+operación completa.
+
+---
+
+## 4. Las alertas que nadie atendió
+
+Esta es la parte del caso que hay que leer dos veces.
+
+<IOCViewer
+  client:load
+  caseId="soc-004"
+  type="alertas"
+  title="Alertas generadas y respuesta"
+  data={{
+    alertas: [
+      {
+        "fecha": "11-28",
+        "origen": "Symantec Endpoint Protection",
+        "detección": "Comportamiento malicioso en un servidor interno",
+        "respuesta": "Sin acción documentada",
+        "verdict": "malicious"
+      },
+      {
+        "fecha": "11-30",
+        "origen": "FireEye",
+        "detección": "malware.binary - instalación de malware de exfiltración",
+        "respuesta": "Sin acción. Borrado automático desactivado",
+        "verdict": "malicious"
+      },
+      {
+        "fecha": "12-02",
+        "origen": "FireEye",
+        "detección": "Nuevas versiones del malware de exfiltración",
+        "respuesta": "Sin acción",
+        "verdict": "malicious"
+      },
+      {
+        "fecha": "12-12",
+        "origen": "Departamento de Justicia",
+        "detección": "Notificación externa del incidente",
+        "respuesta": "Se inicia la investigación interna",
+        "verdict": "suspicious"
+      }
+    ]
+  }}
+/>
+
+El sistema de FireEye no solo alertó: también **decodificó los servidores de
+destino** donde se acumulaban los datos robados durante días. La información
+necesaria para cortar la exfiltración estaba en la consola.
+
+Además, el software tenía una opción de borrado automático del malware detectado, y
+esa opción **estaba desactivada**.
+
+### Por qué esto pasa
+
+Es fácil leerlo como negligencia y quedarse ahí. Es más útil entender el mecanismo,
+porque es el mismo en cualquier SOC.
+
+El informe del Senado señala un detalle revelador: la alerta de FireEye llegó con el
+nombre genérico `malware.binary`. Y agrega una hipótesis prudente — es posible que
+el equipo la haya visto como un falso positivo si el sistema alarmaba con
+frecuencia.
+
+Ahí está el problema real. **Una alerta sin contexto, en una cola con muchas alertas
+sin contexto, es indistinguible del ruido.** No falló la detección: falló la
+capacidad de separar señal de ruido, que es un problema de proceso, de tuning y de
+carga de trabajo, no de herramienta.
+
+Es exactamente el mismo mecanismo que el caso 02, donde una alerta de *impossible
+travel* con alta tasa de falsos positivos casi se cierra mal. La diferencia es la
+escala de la consecuencia.
+
+---
+
+## 5. La exfiltración
+
+Los datos salieron por **FTP en texto plano** hacia servidores externos, al menos
+uno de ellos en Rusia. Once gigabytes a lo largo de dos semanas.
+
+Dos detalles del análisis de Dell SecureWorks muestran que los atacantes pensaron
+en la detección:
+
+**Exfiltraban entre las 10:00 y las 18:00, hora central.** En pleno horario
+comercial, para que su tráfico se perdiera entre el volumen normal de una cadena
+minorista en temporada alta.
+
+**Usaron servidores intermedios comprometidos dentro de la propia red de Target**
+para acumular los datos antes de sacarlos.
+
+Del lado defensivo, el informe apunta a una medida concreta que hubiera cortado
+esto: una lista blanca de destinos FTP autorizados. Una conexión desde la red de
+Target hacia un servidor en Rusia no tenía ninguna razón legítima de existir.
+
+---
+
+## 6. Cómo se enteró Target
+
+El 12 de diciembre, el Departamento de Justicia llamó a Target.
+
+Los directivos declararon ante el Congreso que no tenían conocimiento de la brecha
+hasta ese momento. La empresa confirmó el problema el 15 de diciembre, y el 18 la
+historia salió publicada por Brian Krebs, un periodista independiente, antes de que
+Target comunicara nada. El anuncio oficial llegó el 19.
+
+Vale detenerse en el orden: **las alertas internas estaban desde el 28 de noviembre,
+y el aviso efectivo llegó de afuera catorce días después.** No fue un problema de
+visibilidad. Fue un problema de qué se hace con lo que se ve.
+
+---
+
+## 7. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  caseId="soc-004"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1199", "T1566.001"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1078.001"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1005"]
+    },
+    {
+      id: "TA0005",
+      name: "Stealth",
+      techniques: ["T1036.005"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1048.003"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1199** | Trusted Relationship | Acceso a través de un proveedor de refrigeración con credenciales al portal |
+| **T1566.001** | Phishing: Spearphishing Attachment | Correos con adjunto malicioso contra Fazio Mechanical |
+| **T1078.001** | Valid Accounts: Default Accounts | Posible uso de una cuenta por defecto de BMC Software para moverse |
+| **T1005** | Data from Local System | Lectura de la memoria de las cajas para capturar datos de banda magnética |
+| **T1036.005** | Masquerading: Match Legitimate Name or Location | Malware de exfiltración disfrazado de producto legítimo de BMC |
+| **T1048.003** | Exfiltration Over Unencrypted Non-C2 Protocol | FTP en texto plano hacia servidores externos |
+
+---
+
+## Marcos de análisis
+
+<KillChain
+  client:load
+  caseId="soc-004"
+  phases={[
+    {
+      state: "reached",
+      detail: "Portal de proveedores y páginas de instalaciones accesibles públicamente. Los metadatos de esos documentos permitían mapear la red interna."
+    },
+    {
+      state: "reached",
+      detail: "Adjunto malicioso preparado contra Fazio. La empresa usaba un antimalware gratuito sin protección en tiempo real."
+    },
+    {
+      state: "reached",
+      detail: "Correos de phishing a Fazio. Target rara vez exigía doble factor a contratistas de bajo nivel."
+    },
+    {
+      state: "reached",
+      detail: "RAM scraper desplegado en las cajas. FireEye alertó y el borrado automático estaba desactivado."
+    },
+    {
+      state: "reached",
+      detail: "Persistencia y movimiento interno, con una posible cuenta por defecto de BMC y el malware disfrazado de producto legítimo."
+    },
+    {
+      state: "reached",
+      detail: "Más de un mes de acceso sostenido a la red interna con comunicación hacia afuera."
+    },
+    {
+      state: "reached",
+      detail: "11 GB exfiltrados por FTP en texto plano hacia servidores externos, uno de ellos en Rusia."
+    }
+  ]}
+  note="Este es el caso que hizo famosa a la kill chain como herramienta de rendición de cuentas: el informe del Senado la usó justamente para contar las oportunidades perdidas. El modelo dice que al atacante le hacen falta las siete fases y al defensor le alcanza con cortar una. Acá no se cortó ninguna, y ese es el punto — no hubo una falla catastrófica única sino siete fallas ordinarias, cada una de ellas corregible con una medida conocida y disponible en 2013."
+/>
+
+No incluyo el Diamond Model: la intrusión nunca fue atribuida públicamente a un
+actor identificado. El vértice del adversario quedaría vacío y el gráfico enseñaría
+menos que su ausencia.
+
+Tampoco la pirámide del dolor. Los reportes públicos no publican indicadores
+técnicos suficientes para poblarla, y forzarla acá sería inventar el contenido de
+los escalones.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  caseId="soc-004"
+  summary={{
+    incidentId: "Target Corporation, 2013",
+    title: "Compromiso de datos de tarjetas vía acceso de tercero",
+    status: "Closed",
+    severity: "CRITICAL",
+    vectorInicial: "Credenciales robadas a un proveedor de refrigeración",
+    causaRaizTecnica: "Falta de aislamiento entre el portal de proveedores y la red de cajas",
+    causaRaizDeProceso: "Alertas automáticas generadas y no atendidas durante 14 días",
+    datosComprometidos: "40 millones de tarjetas y 70 millones de registros personales",
+    volumenExfiltrado: "11 GB",
+    deteccion: "Notificación externa del Departamento de Justicia",
+    resolutionCode: "Confirmado (verdadero positivo)"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**El acceso de un tercero es acceso.** La pregunta no es si el proveedor es
+confiable, sino qué alcanza desde donde lo conectás. Fazio no tenía por qué poder
+llegar a ningún lugar cercano a las cajas.
+
+**La certificación no es seguridad.** Target estaba certificada dos meses antes.
+Una auditoría verifica controles en un momento, contra una lista; no verifica que
+alguien mire las alertas un jueves a la noche.
+
+**Una detección que nadie atiende no existe.** Es la lección central. Comprar la
+herramienta es la parte fácil y la que se puede mostrar en una diapositiva. Sostener
+el proceso que convierte una alerta en una acción es la parte cara, aburrida y
+difícil de justificar hasta que pasa algo.
+
+**Desactivar la respuesta automática es una decisión, y hay que documentarla.**
+Alguien apagó el borrado automático de FireEye. Puede haber tenido buenas razones —
+el miedo a que borre algo legítimo en producción es razonable. Lo que no puede pasar
+es que esa decisión no venga acompañada del compromiso de revisar manualmente lo que
+el sistema marque.
+
+**El nombre de la alerta importa.** `malware.binary` no le dice nada a nadie a las
+tres de la mañana. Una alerta que no comunica su gravedad ni qué hacer con ella
+compite en desventaja contra el resto de la cola.
+
+---
+
+## Recomendaciones
+
+- <Pass />Segmentar la red de pagos del resto, y en particular de cualquier sistema
+  accesible por terceros
+- <Pass />Exigir doble factor a todo acceso de proveedores, sin importar el nivel
+  del contratista
+- <Pass />Aplicar lista blanca de destinos de salida: ninguna conexión a un país sin
+  operación legítima
+- <Pass />Revisar qué información de proveedores y de infraestructura es pública, y
+  limpiar los metadatos de los documentos publicados
+- <Pass />Auditar periódicamente qué respuestas automáticas están desactivadas y por
+  qué
+- <Pass />Medir la tasa de alertas no atendidas como indicador propio: si nadie la
+  mide, nadie sabe que está creciendo
+
+---
+
+## Referencias
+
+- [A "Kill Chain" Analysis of the 2013 Target Data Breach - Comité de Comercio del Senado de EE.UU. (PDF)](https://www.commerce.senate.gov/services/files/24d3c229-4f2f-405d-b8db-a3a67f183883)
+- [Rockefeller: Staff Report Details Target's Missed Opportunities to Stop Massive Data Breach - Senado de EE.UU.](https://www.commerce.senate.gov/2014/3/rockefeller-staff-report-details-target-s-missed-opportunities-to-stop-massive-data-breach)
+- [Target Hackers Broke in Via HVAC Company - KrebsOnSecurity](https://krebsonsecurity.com/2014/02/target-hackers-broke-in-via-hvac-company/)
+- [Email Attack on Vendor Set Up Breach at Target - KrebsOnSecurity](https://krebsonsecurity.com/2014/02/email-attack-on-vendor-set-up-breach-at-target/)
+- [A First Look at the Target Intrusion, Malware - KrebsOnSecurity](https://krebsonsecurity.com/2014/01/a-first-look-at-the-target-intrusion-malware/)
+- [Trusted Relationship (T1199) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1199/)
+- [Data from Local System (T1005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1005/)
+- [Exfiltration Over Unencrypted Non-C2 Protocol (T1048.003) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1048/003/)
+- [Intelligence-Driven Computer Network Defense - Lockheed Martin, paper original de la kill chain (PDF)](https://www.lockheedmartin.com/content/dam/lockheed-martin/rms/documents/cyber/LM-White-Paper-Intel-Driven-Defense.pdf)
+
+---
+
+## Próximas lecturas
+
+El caso 02 muestra el mismo mecanismo de fondo — una alerta con alta tasa de falsos
+positivos que casi se cierra mal — pero a escala de un solo analista y un solo
+ticket. Leerlos juntos ayuda a ver que la diferencia entre ambos no está en la
+herramienta sino en el proceso.
