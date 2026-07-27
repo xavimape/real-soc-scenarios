@@ -1,0 +1,515 @@
+---
+title: "Impossible Travel - When the false positive wasn't one"
+description: "Educational case: an alert with three plausible benign explanations that turns out to be session theft"
+pubDate: 2026-03-12
+caseId: "soc-002"
+caseNumber: 2
+difficulty: "intermediate"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["impossible-travel", "identity", "aitm", "session-hijacking", "mfa-bypass", "bec", "triage"]
+author: "Synthetic scenario - techniques documented by MITRE ATT&CK and Microsoft Security"
+duration_minutes: 78
+locations:
+  - { lat: -32.9587, lng: -60.6930, label: "Rosario, the legitimate session" }
+  - { lat: 40.4168, lng: -3.7038, label: "Madrid, the attacker's session" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+An *impossible travel* alert lands in the SOC queue. The analyst finds three
+reasonable benign explanations — corporate VPN, a trip the user had mentioned, a
+known device — and is about to close it as a false positive.
+
+A fourth data point fits none of the three, and turns the case around: the
+suspicious session never authenticated. It showed up holding a stolen session
+cookie.
+
+This case is about triage, not about malware. The skill it exercises is the
+hardest one to teach and the one that lets the most incidents through: **not
+closing a ticket on the first plausible explanation.**
+
+**Key metrics:**
+
+- Time to alert: 0 minutes — detection fires automatically at login
+- Time to confirm the true positive: 54 minutes
+- Time to containment: 78 minutes
+- Data compromised: mailbox accessible for 71 minutes, no fraud executed
+- Primary technique: T1550.004 (Web Session Cookie)
+
+<Warn />**Synthetic scenario.** The organisation, the user and the logs were built
+for the exercise. IP addresses come from the ranges RFC 5737 reserves for
+documentation, the domains use the `.example` TLD from RFC 2606, and the autonomous
+system numbers come from the documentation range in RFC 5398. Nothing here can
+exist or resolve. The techniques and the detection logic, on the other hand, are
+documented by MITRE and by Microsoft — see the references at the end.
+
+---
+
+## Context: what this alert detects, and why it fails so often
+
+*Impossible travel* correlates two successful authentications from the same
+account and works out the speed you would need to cover the distance between them
+in the elapsed time. If that speed is physically impossible, it fires.
+
+It is a cheap and valuable detection, but it comes with a high false positive
+rate, and for good reasons: corporate VPNs make a user appear in the city of the
+internet egress, proxies rotate between regions, and a phone can jump from mobile
+data to corporate Wi-Fi in seconds. Microsoft documents that its implementation
+needs between 14 days and 10 sign-ins of history before it produces detections,
+and that the model tries on its own to rule out VPNs used by other users in the
+directory.
+
+Translated into day-to-day work: **most of these alerts are noise, and that is
+exactly what makes them dangerous.** An analyst who closes them on autopilot is
+right many times in a row, until they aren't.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-002"
+  events={[
+    {
+      time: "08:12",
+      title: "Legitimate sign-in",
+      description: "Full authentication from Rosario with MFA satisfied and a managed device.",
+      severity: "INFO",
+      actor: "User"
+    },
+    {
+      time: "09:47",
+      title: "Session from Madrid",
+      description: "Mailbox access from a commercial VPS address. No primary authentication or MFA event.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "09:47",
+      title: "Impossible travel alert",
+      description: "The risk engine correlates both sessions and raises the ticket at medium severity.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "09:51",
+      title: "MFA device registration",
+      description: "A new device named 'L.F.'s iPhone' is enrolled as a second factor on the account.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "09:53",
+      title: "Inbox rule created",
+      description: "Rule 'RSS-Sync': moves every message containing 'invoice', 'transfer' or 'bank' to an out-of-sight folder.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "10:02",
+      title: "The analyst picks up the ticket",
+      description: "Triage begins with the usual checklist for ruling out false positives.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "10:26",
+      title: "Benign hypotheses ruled out",
+      description: "The ASN does not match the corporate VPN and HR has no travel on record for that date.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "10:34",
+      title: "The session has no authentication",
+      description: "No credential or MFA event is tied to the Madrid session. It is a cookie replay.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "10:41",
+      title: "Confirmation and escalation",
+      description: "The enrolled device and the inbox rule are found. True positive, high severity.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "10:58",
+      title: "Sessions and device revoked",
+      description: "Every token on the account is invalidated and the enrolled device is removed.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "11:05",
+      title: "Containment complete",
+      description: "Credentials reset, rule deleted and mailbox audited. No mail sent from the account.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The alert
+
+The ticket arrives at medium severity with a terse description: two successful
+sign-ins for `l.ferreyra@northwind-logistics.example`, 95 minutes and one ocean
+apart.
+
+The first thing the analyst does is not to investigate the attacker. It is to ask
+whether there is one.
+
+---
+
+## 2. The session data
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-002"
+  type="sessions"
+  title="Authentication sessions"
+  data={{
+    sessions: [
+      {
+        "time": "08:12",
+        "location": "Rosario, AR",
+        "IP": "192.0.2[.]88",
+        "ASN": "AS64496 (residential ISP)",
+        "authentication": "Password + MFA",
+        "device": "Managed",
+        "verdict": "clean"
+      },
+      {
+        "time": "09:47",
+        "location": "Madrid, ES",
+        "IP": "203.0.113[.]47",
+        "ASN": "AS64500 (VPS provider)",
+        "authentication": "None - existing cookie",
+        "device": "Unmanaged",
+        "verdict": "malicious"
+      }
+    ],
+    "coordinates used in the calculation": {
+      "Rosario": "-32.9587, -60.6930",
+      "Madrid": "40.4168, -3.7038"
+    },
+    "reference: corporate egress": {
+      "location": "Madrid, ES",
+      "range": "198.51.100[.]0/24",
+      "ASN": "AS64497 (corporate provider)"
+    }
+  }}
+/>
+
+---
+
+## 3. Check the distance before forming an opinion
+
+Before accepting the engine's verdict, it is worth recalculating it. Using the
+haversine formula on the published coordinates:
+
+```
+Rosario  (-32.9587, -60.6930)
+Madrid   ( 40.4168,  -3.7038)
+
+Great-circle distance:   10,037 km
+Elapsed time:            95 minutes (1.583 h)
+Implied speed:           6,339 km/h  (~Mach 5.2)
+```
+
+A long-haul commercial flight cruises at around 900 km/h: it would need 11.2 hours
+of pure flight time, before transfers or boarding. Concorde, at 2,180 km/h, took
+4.6 hours.
+
+The alert is right about what it claims: **that journey did not happen.** What the
+alert does not say — and what has to be worked out — is *why* the two sessions show
+up in different places.
+
+---
+
+## 4. The elimination checklist
+
+This is where 90% of these alerts get resolved. Three benign hypotheses, in order
+of likelihood.
+
+### Hypothesis 1: the corporate VPN
+
+Northwind's European internet egress is in Madrid. If the user connected to the
+VPN, appearing in Madrid is exactly what you would expect.
+
+<Fail />**Doesn't hold.** The Madrid session comes from `AS64500`, a VPS provider.
+The corporate range is `198.51.100[.]0/24` on `AS64497`. The city matches; the
+infrastructure does not.
+
+This is the most common trap: the geolocation matches and you take the explanation
+as settled without checking which network it actually came from.
+
+### Hypothesis 2: a trip
+
+<Fail />**Doesn't hold.** HR has no approved travel on record for that date. And
+there is one detail that almost rescues it: two weeks earlier, the user had
+mentioned in a team channel that she would be working from Spain for a few days in
+April.
+
+It is a plausible, verifiable explanation — for **the wrong month**. A rushed
+analyst reads it, finds it coherent, and closes the ticket.
+
+### Hypothesis 3: known device and browser
+
+<Warn />**Matches, but explains nothing.** Both sessions report the same user
+agent, `Chrome 133 / Windows 11`.
+That could mean it is the same person — or that whoever controls the session
+inherited the browser fingerprint along with the cookie. A user agent is a string
+the client chooses to send; it authenticates nobody.
+
+---
+
+## 5. The fact that breaks the story
+
+Looking at the authentication events tied to the Madrid session, there are none.
+
+No password validation. No MFA challenge. No error, no retry. The session simply
+appears already established, holding a valid token, operating on the mailbox.
+
+And here is what matters: **none of the three benign hypotheses explains that.**
+
+A VPN changes where you connect from; it does not excuse you from authenticating.
+Neither does a trip. A known device would still produce its sign-in event. The
+absence of authentication is not a minor detail of the alert: it is a different
+condition, one that only occurs if somebody presented authentication material that
+had already been issued.
+
+That is exactly what technique T1550.004 describes: using a stolen session cookie
+to authenticate to a web service, skipping MFA because the session is already
+authenticated.
+
+---
+
+## 6. Confirmation
+
+With that lead, the analyst looks at what was done from that session. Two actions
+show up in the six minutes after the access.
+
+**09:51 — An MFA device registration.** A new second factor is enrolled on the
+account. The stolen cookie has an expiry date; an enrolled device outlives the
+session and even survives a badly executed password change. That is persistence
+(T1098.005).
+
+**09:53 — An inbox rule.** The `RSS-Sync` rule moves out of sight every incoming
+message containing "invoice", "transfer" or "bank".
+
+That rule is what closes the case, and it is worth understanding what it reveals.
+It is not there to steal information: it is there so the user **does not see** the
+replies to the messages the attacker plans to send from her account. It is the
+groundwork for email fraud, and it is a documented pattern in campaigns that pair
+session theft with business email compromise (T1564.008).
+
+The case stops being a geolocation alert and becomes an identity compromise in
+progress.
+
+---
+
+## 7. Containment
+
+The order matters. Resetting the password first is the classic mistake: it does not
+invalidate active sessions, does not touch the enrolled device, and tells the
+attacker they have been spotted.
+
+1. **Revoke every session token** on the account. Without this, the stolen cookie
+   stays valid even after a password change.
+2. **Remove the device enrolled** as a second factor.
+3. **Reset credentials** and force re-enrolment of legitimate MFA.
+4. **Delete the inbox rule** and check whether there are others.
+5. **Audit the mailbox**: what was read, what was sent, what was downloaded.
+
+In this case the audit found no mail sent from the account. The attacker was
+building the scaffolding for the fraud, not running it yet.
+
+---
+
+## 8. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-002"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1078.004"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1550.004"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1098.005"]
+    },
+    {
+      id: "TA0005",
+      name: "Stealth",
+      techniques: ["T1564.008"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1078.004** | Valid Accounts: Cloud Accounts | Operating as the legitimate user in the cloud environment |
+| **T1550.004** | Use Alternate Authentication Material: Web Session Cookie | The Madrid session with no authentication event |
+| **T1098.005** | Account Manipulation: Device Registration | The device enrolled at 09:51 |
+| **T1564.008** | Hide Artifacts: Email Hiding Rules | The `RSS-Sync` rule at 09:53 |
+
+A note on naming: in ATT&CK v19 tactic `TA0005` was renamed **Stealth**; older
+versions list it as *Defense Evasion*. If you consult older material you will see
+the previous name against the same identifier.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. Each one opens in its own window.
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-002"
+  indicators={{
+    ips: ["203.0.113[.]47"],
+    domains: ["portal-northwind-sso[.]example"],
+    artifacts: [
+      "Inbox rule 'RSS-Sync'",
+      "MFA device 'L.F.'s iPhone'",
+      "Session with no authentication event"
+    ],
+    tools: ["Adversary-in-the-middle proxy (kit not identified)"],
+    ttps: [
+      "Session cookie replay",
+      "MFA device registration",
+      "Rule that hides financial notifications"
+    ]
+  }}
+  note="The VPS address and the fake portal domain discard themselves: they rotate every campaign and by next week they are worthless. What does catch this again is everything above them — a session that appears without having authenticated, a device enrolled outside an employee onboarding, a rule that hides messages containing money words. Those three describe the behaviour, and changing them costs the attacker a redesign of the operation."
+/>
+
+<KillChain
+  client:load
+  lang="en"
+  caseId="soc-002"
+  phases={[
+    { state: "reached", detail: "A finance account was picked, with access to payment workflows." },
+    { state: "reached", detail: "A cloned sign-in portal behind a proxy that relays the real authentication." },
+    { state: "reached", detail: "The link to the fake portal was delivered to the user." },
+    { state: "reached", detail: "Credentials captured and, more importantly, the already-authenticated session cookie." },
+    { state: "reached", detail: "MFA device enrolled and inbox rule created: persistence and concealment." },
+    { state: "reached", detail: "Interactive session on the mailbox for 71 minutes." },
+    { state: "blocked", detail: "Tokens and device revoked before any fraudulent mail was sent." }
+  ]}
+  note="Unlike a case where the defence cuts in early, here the attacker walked through six of the seven phases. The only thing that stopped the fraud was breaking the last one. It is worth reading it this way: MFA did not fail for being weak, it failed because the attacker never had to face it — they skipped authentication entirely by presenting a session that had already been issued. Against that, the control that helps is not one more factor, but binding the session to the device."
+/>
+
+I am not including the Diamond Model in this case: there is no identified adversary
+and no attribution, so two of the four vertices would sit empty and the diagram
+would teach less than its absence does.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-002"
+  summary={{
+    incidentId: "INC-2026-0312-004",
+    title: "Session compromise with email fraud groundwork",
+    status: "Resolved",
+    severity: "HIGH",
+    initialTriage: "Suspected impossible travel false positive",
+    rootCause: "Session cookie theft via an adversary-in-the-middle sign-in portal",
+    timeToContainment: "78 minutes from the alert",
+    dataCompromised: "Mailbox contents for 71 minutes. No mail sent.",
+    resolutionCode: "Resolved (true positive)"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**A plausible explanation is not a verification.** All three benign hypotheses were
+reasonable and two of them nearly fitted. The difference between closing well and
+closing badly was asking for the piece of data that confirmed each hypothesis,
+instead of accepting that it sounded coherent.
+
+**Look for what none of the hypotheses explains.** What solved the case was not
+finding more evidence, but noticing that one fact — the session with no
+authentication — did not fit into any of the benign explanations. That is the
+thread to pull.
+
+**MFA was not defeated, it was bypassed.** No second factor was broken. The
+attacker walked in with an already-authenticated session, where MFA had already
+happened. It is a distinction that completely changes which control needs
+strengthening.
+
+**The actions after the access are what confirm it.** The access itself was
+ambiguous. The enrolled device and the inbox rule are not: nobody does that by
+accident.
+
+**The order of containment matters.** Changing the password without revoking
+sessions leaves the stolen cookie working and tips off the attacker.
+
+---
+
+## Recommendations
+
+- <Pass />Bind the session to the device, so a token issued on a managed machine is
+  useless from another one
+- <Pass />MFA that resists relaying, based on origin-bound passkeys rather than
+  one-time codes
+- <Pass />Alert on second-factor device registrations outside employee onboarding
+- <Pass />Alert on inbox rules that filter on financial or security-related words
+- <Pass />Add to the impossible travel procedure an explicit check of the ASN and of
+  the presence of authentication events, not just of the geolocation
+
+---
+
+## References
+
+- [Valid Accounts: Cloud Accounts (T1078.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1078/004/)
+- [Use Alternate Authentication Material: Web Session Cookie (T1550.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1550/004/)
+- [Account Manipulation: Device Registration (T1098.005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1098/005/)
+- [Hide Artifacts: Email Hiding Rules (T1564.008) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1564/008/)
+- [From cookie theft to BEC - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2022/07/12/from-cookie-theft-to-bec-attackers-use-aitm-phishing-sites-as-entry-point-to-further-financial-fraud/)
+- [Detecting and mitigating a multi-stage AiTM phishing and BEC campaign - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2023/06/08/detecting-and-mitigating-a-multi-stage-aitm-phishing-and-bec-campaign/)
+- [Simulate risk detections in Microsoft Entra ID Protection - Microsoft Learn](https://learn.microsoft.com/en-us/entra/id-protection/howto-identity-protection-simulate-risk)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+- [RFC 5398 - Autonomous System Numbers Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5398.html)
+
+---
+
+## Up next
+
+Case 01 shows phishing that steals credentials the traditional way, with no session
+theft. Comparing it against this one helps show why MFA solved one half of the
+problem and not the other.
