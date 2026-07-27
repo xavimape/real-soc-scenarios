@@ -1,0 +1,510 @@
+---
+title: "Impossible Travel - Cuando el falso positivo no lo era"
+titleEn: "Impossible Travel - When the False Positive Wasn't"
+description: "Caso educativo: una alerta con tres explicaciones benignas plausibles que termina siendo un robo de sesión"
+descriptionEn: "Educational case: an alert with three plausible benign explanations that turns out to be session theft"
+pubDate: 2026-03-12
+caseId: "soc-002"
+caseNumber: 2
+difficulty: "intermediate"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["impossible-travel", "identity", "aitm", "session-hijacking", "mfa-bypass", "bec", "triage"]
+tagsEn: ["impossible-travel", "identity", "aitm", "session-hijacking", "mfa-bypass", "bec", "triage"]
+author: "Escenario sintético - técnicas documentadas por MITRE ATT&CK y Microsoft Security"
+duration_minutes: 78
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Resumen ejecutivo
+
+Una alerta de *impossible travel* llega a la cola del SOC. El analista encuentra
+tres explicaciones benignas razonables — VPN corporativa, un viaje que la usuaria
+había mencionado, un dispositivo conocido — y está a punto de cerrarla como falso
+positivo.
+
+Un cuarto dato no encaja con ninguna de las tres, y da vuelta el caso: la sesión
+sospechosa nunca se autenticó. Se presentó con una cookie de sesión robada.
+
+Este caso es sobre el triage, no sobre el malware. La habilidad que ejercita es la
+más difícil de enseñar y la que más incidentes deja pasar: **no cerrar un ticket
+con la primera explicación plausible.**
+
+**Métricas clave:**
+
+- Tiempo hasta la alerta: 0 minutos, la detección es automática al momento del login
+- Tiempo hasta confirmar el verdadero positivo: 54 minutos
+- Tiempo hasta la contención: 78 minutos
+- Datos comprometidos: buzón accesible durante 71 minutos, sin fraude ejecutado
+- Técnica principal: T1550.004 (Web Session Cookie)
+
+<Warn />**Escenario sintético.** La organización, la usuaria y los registros son
+construidos para el ejercicio. Las direcciones IP salen de los rangos reservados
+para documentación por la RFC 5737, los dominios usan el TLD `.example` de la
+RFC 2606, y los números de sistema autónomo vienen del rango de documentación de la
+RFC 5398. Nada de lo que aparece acá puede existir ni resolverse. Las técnicas y la
+lógica de detección, en cambio, están documentadas por MITRE y por Microsoft — ver
+las referencias al final.
+
+---
+
+## Contexto: qué detecta esta alerta y por qué falla tanto
+
+*Impossible travel* correlaciona dos autenticaciones exitosas de la misma cuenta y
+calcula la velocidad que haría falta para cubrir la distancia entre ambas en el
+tiempo transcurrido. Si esa velocidad es físicamente imposible, dispara.
+
+Es una detección barata y valiosa, pero convive con una tasa de falsos positivos
+alta, y por buenas razones: las VPN corporativas hacen que un usuario aparezca en la
+ciudad de la salida a internet, los proxies rotan de región, y un teléfono puede
+saltar de red móvil a Wi-Fi corporativo en segundos. Microsoft documenta que su
+implementación necesita entre 14 días y 10 inicios de sesión de historial antes de
+generar detecciones, y que el modelo intenta descartar por sí solo las VPN usadas
+por otros usuarios del directorio.
+
+Traducido al trabajo diario: **la mayoría de estas alertas son ruido, y por eso son
+peligrosas.** Un analista que las cierra en piloto automático acierta muchas veces
+seguidas, hasta que no.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  caseId="soc-002"
+  events={[
+    {
+      time: "08:12",
+      title: "Inicio de sesión legítimo",
+      description: "Autenticación completa desde Rosario con MFA satisfecho y dispositivo administrado.",
+      severity: "INFO",
+      actor: "User"
+    },
+    {
+      time: "09:47",
+      title: "Sesión desde Madrid",
+      description: "Acceso al buzón desde una IP de VPS comercial. Sin evento de autenticación primaria ni de MFA.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "09:47",
+      title: "Alerta de impossible travel",
+      description: "El motor de riesgo correlaciona ambas sesiones y genera el ticket con severidad media.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "09:51",
+      title: "Registro de dispositivo para MFA",
+      description: "Se enrola un dispositivo nuevo llamado 'iPhone de L.F.' en el segundo factor de la cuenta.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "09:53",
+      title: "Creación de regla de bandeja",
+      description: "Regla 'RSS-Sync': mueve a una carpeta poco visible todo correo con 'factura', 'transferencia' o 'banco'.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "10:02",
+      title: "El analista toma el ticket",
+      description: "Comienza el triage por el checklist habitual de descarte de falsos positivos.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "10:26",
+      title: "Hipótesis benignas descartadas",
+      description: "El ASN no corresponde a la VPN corporativa y RR.HH. no registra viaje para esa fecha.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "10:34",
+      title: "La sesión no tiene autenticación",
+      description: "No hay evento de credencial ni de MFA asociado a la sesión de Madrid. Es replay de cookie.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "10:41",
+      title: "Confirmación y escalado",
+      description: "Se encuentran el dispositivo enrolado y la regla de bandeja. Verdadero positivo, severidad alta.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "10:58",
+      title: "Revocación de sesiones y dispositivo",
+      description: "Se invalidan todos los tokens de la cuenta y se elimina el dispositivo enrolado.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "11:05",
+      title: "Contención completa",
+      description: "Credenciales restablecidas, regla eliminada y buzón auditado. Sin correo enviado desde la cuenta.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. La alerta
+
+El ticket llega con severidad media y un texto escueto: dos inicios de sesión
+exitosos de `l.ferreyra@northwind-logistics.example`, separados por 95 minutos y
+por un océano.
+
+Lo primero que hace el analista no es investigar al atacante. Es preguntarse si hay
+atacante.
+
+---
+
+## 2. Los datos de sesión
+
+<IOCViewer
+  client:load
+  caseId="soc-002"
+  type="sesiones"
+  title="Sesiones de autenticación"
+  data={{
+    sesiones: [
+      {
+        "hora": "08:12",
+        "ubicación": "Rosario, AR",
+        "IP": "192.0.2[.]88",
+        "ASN": "AS64496 (ISP residencial)",
+        "autenticación": "Contraseña + MFA",
+        "dispositivo": "Administrado",
+        "verdict": "clean"
+      },
+      {
+        "hora": "09:47",
+        "ubicación": "Madrid, ES",
+        "IP": "203.0.113[.]47",
+        "ASN": "AS64500 (proveedor de VPS)",
+        "autenticación": "Ninguna - cookie existente",
+        "dispositivo": "No administrado",
+        "verdict": "malicious"
+      }
+    ],
+    "coordenadas usadas en el cálculo": {
+      "Rosario": "-32.9587, -60.6930",
+      "Madrid": "40.4168, -3.7038"
+    },
+    "referencia: salida corporativa": {
+      "ubicación": "Madrid, ES",
+      "rango": "198.51.100[.]0/24",
+      "ASN": "AS64497 (proveedor corporativo)"
+    }
+  }}
+/>
+
+---
+
+## 3. Verificar la distancia antes de opinar
+
+Antes de aceptar el veredicto del motor, conviene recalcularlo. Con la fórmula de
+haversine sobre las coordenadas publicadas:
+
+```
+Rosario  (-32.9587, -60.6930)
+Madrid   ( 40.4168,  -3.7038)
+
+Distancia por círculo máximo:  10.037 km
+Tiempo transcurrido:           95 minutos (1,583 h)
+Velocidad implícita:           6.339 km/h  (~Mach 5,2)
+```
+
+Un vuelo comercial de largo alcance viaja a unos 900 km/h: necesitaría 11,2 horas
+de vuelo puro, sin contar traslados ni embarque. El Concorde, a 2.180 km/h, tardaba
+4,6 horas.
+
+La alerta tiene razón en lo que afirma: **ese desplazamiento no ocurrió.** Lo que la
+alerta no dice — y es lo que hay que averiguar — es *por qué* las dos sesiones
+aparecen en lugares distintos.
+
+---
+
+## 4. El checklist de descarte
+
+Acá es donde se resuelve el 90% de estas alertas. Tres hipótesis benignas, en orden
+de probabilidad.
+
+### Hipótesis 1: la VPN corporativa
+
+Northwind tiene su salida a internet europea en Madrid. Si la usuaria se conectó a
+la VPN, aparecer en Madrid es exactamente lo esperado.
+
+<Fail />**No cierra.** La sesión de Madrid viene de `AS64500`, un proveedor de VPS.
+El rango corporativo es `198.51.100[.]0/24` sobre `AS64497`. Coincide la ciudad,
+no coincide la infraestructura.
+
+Esta es la trampa más común: la geolocalización coincide y uno da por válida la
+explicación sin mirar de qué red viene.
+
+### Hipótesis 2: un viaje
+
+<Fail />**No cierra.** RR.HH. no registra viaje aprobado para esa fecha. Y hay un
+detalle que casi lo salva: dos semanas antes, la usuaria había comentado en un canal
+de equipo que en abril iba a trabajar unos días desde España.
+
+Es una explicación plausible, verificable y **del mes equivocado**. Un analista
+apurado la lee, le suena coherente y cierra el ticket.
+
+### Hipótesis 3: dispositivo y navegador conocidos
+
+<Warn />**Coincide, pero no explica nada.** Ambas sesiones declaran el mismo
+user-agent, `Chrome 133 / Windows 11`.
+Eso podría indicar que es la misma persona — o que quien controla la sesión heredó
+la huella del navegador junto con la cookie. Un user-agent es un texto que el
+cliente elige enviar; no autentica a nadie.
+
+---
+
+## 5. El dato que rompe la historia
+
+Al revisar los eventos de autenticación asociados a la sesión de Madrid, no hay
+ninguno.
+
+No hay validación de contraseña. No hay desafío de MFA. No hay error ni reintento.
+La sesión aparece ya establecida, con un token válido, operando sobre el buzón.
+
+Y esto es lo importante: **ninguna de las tres hipótesis benignas explica eso.**
+
+Una VPN cambia desde dónde te conectás, no te exime de autenticarte. Un viaje
+tampoco. Un dispositivo conocido tendría igual su evento de login. La ausencia de
+autenticación no es un detalle menor de la alerta: es una condición distinta, que
+solo ocurre si alguien presentó material de autenticación ya emitido.
+
+Eso es exactamente lo que describe la técnica T1550.004: usar una cookie de sesión
+robada para autenticarse a un servicio web, salteando el MFA porque la sesión ya
+está autenticada.
+
+---
+
+## 6. Confirmación
+
+Con esa pista, el analista busca qué se hizo desde esa sesión. Aparecen dos acciones
+en los seis minutos siguientes al acceso.
+
+**09:51 — Registro de un dispositivo para MFA.** Se enrola un segundo factor nuevo
+en la cuenta. La cookie robada tiene fecha de vencimiento; un dispositivo enrolado
+sobrevive a la expiración de la sesión e incluso a un cambio de contraseña mal
+hecho. Es persistencia (T1098.005).
+
+**09:53 — Una regla de bandeja.** La regla `RSS-Sync` mueve fuera de la vista todo
+correo entrante que contenga "factura", "transferencia" o "banco".
+
+Esa regla es la que cierra el caso, y conviene entender qué revela. No sirve para
+robar información: sirve para que la usuaria **no vea** las respuestas a los correos
+que el atacante planea enviar desde su cuenta. Es la preparación de un fraude por
+correo, y es un patrón documentado en las campañas que combinan robo de sesión con
+compromiso de correo corporativo (T1564.008).
+
+El caso deja de ser una alerta de geolocalización y pasa a ser un compromiso de
+identidad en curso.
+
+---
+
+## 7. Contención
+
+El orden importa. Restablecer la contraseña primero es el error clásico: no invalida
+las sesiones activas ni toca el dispositivo enrolado, y le avisa al atacante que fue
+detectado.
+
+1. **Revocar todos los tokens de sesión** de la cuenta. Sin esto, la cookie robada
+   sigue siendo válida aunque cambie la contraseña.
+2. **Eliminar el dispositivo enrolado** en el segundo factor.
+3. **Restablecer credenciales** y forzar el reenrolamiento del MFA legítimo.
+4. **Eliminar la regla de bandeja** y revisar si hay otras.
+5. **Auditar el buzón**: qué se leyó, qué se envió, qué se descargó.
+
+En este caso la auditoría no encontró correo enviado desde la cuenta. El atacante
+estaba montando la infraestructura del fraude, no ejecutándolo todavía.
+
+---
+
+## 8. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  caseId="soc-002"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1078.004"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1550.004"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1098.005"]
+    },
+    {
+      id: "TA0005",
+      name: "Stealth",
+      techniques: ["T1564.008"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1078.004** | Valid Accounts: Cloud Accounts | Operar como la usuaria legítima en el entorno cloud |
+| **T1550.004** | Use Alternate Authentication Material: Web Session Cookie | La sesión de Madrid sin evento de autenticación |
+| **T1098.005** | Account Manipulation: Device Registration | El dispositivo enrolado a las 09:51 |
+| **T1564.008** | Hide Artifacts: Email Hiding Rules | La regla `RSS-Sync` de las 09:53 |
+
+Nota de nomenclatura: en ATT&CK v19 la táctica `TA0005` pasó a llamarse **Stealth**;
+en versiones anteriores figuraba como *Defense Evasion*. Si consultás material más
+viejo vas a ver el nombre anterior sobre el mismo identificador.
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
+
+<PyramidOfPain
+  client:load
+  caseId="soc-002"
+  indicators={{
+    ips: ["203.0.113[.]47"],
+    domains: ["portal-northwind-sso[.]example"],
+    artifacts: [
+      "Regla de bandeja 'RSS-Sync'",
+      "Dispositivo MFA 'iPhone de L.F.'",
+      "Sesión sin evento de autenticación"
+    ],
+    tools: ["Proxy de intermediación (kit no identificado)"],
+    ttps: [
+      "Replay de cookie de sesión",
+      "Registro de dispositivo para MFA",
+      "Regla que oculta avisos financieros"
+    ]
+  }}
+  note="La IP del VPS y el dominio del portal falso se descartan solos: rotan en cada campaña y para la semana que viene ya no sirven. Lo que sí vuelve a detectar es lo de arriba — una sesión que aparece sin haberse autenticado, un dispositivo enrolado fuera del alta de un empleado, una regla que esconde correos con palabras de dinero. Esas tres cosas describen el comportamiento, y cambiarlas le cuesta al atacante rediseñar la operación."
+/>
+
+<KillChain
+  client:load
+  caseId="soc-002"
+  phases={[
+    { state: "reached", detail: "Selección de una cuenta del área de finanzas, con acceso a circuitos de pago." },
+    { state: "reached", detail: "Portal de inicio de sesión clonado detrás de un proxy que retransmite la autenticación real." },
+    { state: "reached", detail: "Enlace al portal falso entregado a la usuaria." },
+    { state: "reached", detail: "Captura de credenciales y, sobre todo, de la cookie de sesión ya autenticada." },
+    { state: "reached", detail: "Dispositivo enrolado en MFA y regla de bandeja creada: persistencia y ocultamiento." },
+    { state: "reached", detail: "Sesión interactiva sobre el buzón durante 71 minutos." },
+    { state: "blocked", detail: "Revocación de tokens y del dispositivo antes de que se enviara ningún correo fraudulento." }
+  ]}
+  note="A diferencia de un caso donde la defensa corta temprano, acá el atacante recorrió seis de las siete fases. Lo único que impidió el fraude fue cortar la última. Vale leerlo así: el MFA no falló por ser débil, falló porque el atacante nunca tuvo que enfrentarlo — se saltó la autenticación entera presentando una sesión ya emitida. Contra eso, el control que sirve no es un factor más, sino vincular la sesión al dispositivo."
+/>
+
+No incluyo el Diamond Model en este caso: no hay adversario identificado ni
+atribución, así que dos de los cuatro vértices quedarían vacíos y el gráfico
+enseñaría menos que su ausencia.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  caseId="soc-002"
+  summary={{
+    incidentId: "INC-2026-0312-004",
+    title: "Compromiso de sesión con preparación de fraude por correo",
+    status: "Resolved",
+    severity: "HIGH",
+    triageInicial: "Sospecha de falso positivo por impossible travel",
+    causaRaiz: "Robo de cookie de sesión mediante portal de autenticación intermediado",
+    tiempoDeContencion: "78 minutos desde la alerta",
+    datosComprometidos: "Contenido del buzón durante 71 minutos. Sin correo enviado.",
+    resolutionCode: "Resuelto (verdadero positivo)"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**Una explicación plausible no es una verificación.** Las tres hipótesis benignas
+eran razonables y dos de ellas casi encajaban. La diferencia entre cerrar bien y
+cerrar mal fue pedir el dato que confirmaba cada hipótesis, en vez de aceptar que
+sonara coherente.
+
+**Buscá lo que ninguna hipótesis explica.** El método que resolvió el caso no fue
+encontrar más evidencia, sino notar que había un hecho — la sesión sin autenticación
+— que no entraba en ninguna de las explicaciones benignas. Ese es el hilo del que
+hay que tirar.
+
+**El MFA no fue vencido, fue esquivado.** Ningún segundo factor se rompió. El
+atacante entró con una sesión ya autenticada, donde el MFA ya había ocurrido. Es una
+distinción que cambia por completo qué control hay que reforzar.
+
+**Las acciones posteriores al acceso son las que confirman.** El acceso en sí era
+ambiguo. El dispositivo enrolado y la regla de bandeja no lo son: nadie hace eso por
+accidente.
+
+**El orden de la contención importa.** Cambiar la contraseña sin revocar sesiones
+deja la cookie robada funcionando y alerta al atacante.
+
+---
+
+## Recomendaciones
+
+- <Pass />Vincular la sesión al dispositivo, para que un token emitido en un equipo
+  administrado no sirva desde otro
+- <Pass />MFA resistente a intermediación, basado en claves de acceso ligadas al
+  origen, en lugar de códigos de un solo uso
+- <Pass />Alertar sobre el registro de dispositivos de segundo factor fuera del alta
+  de personal
+- <Pass />Alertar sobre reglas de bandeja que filtren por palabras de contenido
+  financiero o de seguridad
+- <Pass />Incluir en el procedimiento de impossible travel la verificación explícita
+  del ASN y de la presencia de eventos de autenticación, no solo de la geolocalización
+
+---
+
+## Referencias
+
+- [Valid Accounts: Cloud Accounts (T1078.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1078/004/)
+- [Use Alternate Authentication Material: Web Session Cookie (T1550.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1550/004/)
+- [Account Manipulation: Device Registration (T1098.005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1098/005/)
+- [Hide Artifacts: Email Hiding Rules (T1564.008) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1564/008/)
+- [From cookie theft to BEC - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2022/07/12/from-cookie-theft-to-bec-attackers-use-aitm-phishing-sites-as-entry-point-to-further-financial-fraud/)
+- [Detecting and mitigating a multi-stage AiTM phishing and BEC campaign - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2023/06/08/detecting-and-mitigating-a-multi-stage-aitm-phishing-and-bec-campaign/)
+- [Simulate risk detections in Microsoft Entra ID Protection - Microsoft Learn](https://learn.microsoft.com/en-us/entra/id-protection/howto-identity-protection-simulate-risk)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+- [RFC 5398 - Autonomous System Numbers Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5398.html)
+
+---
+
+## Próximas lecturas
+
+El caso 01 muestra el phishing que roba credenciales por el camino tradicional, sin
+robo de sesión. Compararlo con este ayuda a ver por qué el MFA resolvió una parte
+del problema y no la otra.
