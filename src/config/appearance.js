@@ -1,5 +1,9 @@
 /**
- * Fuente única de verdad de la apariencia del sitio.
+ * Catálogo de temas, tipografías e idiomas.
+ *
+ * Los textos de la interfaz NO viven acá: están en `src/i18n/strings.js`, que es
+ * la única fuente. Tener un segundo diccionario en este archivo garantizaba que
+ * los dos se desincronizaran.
  *
  * Consumido por:
  *  - src/components/ConfigDock.jsx  (los controles)
@@ -59,26 +63,4 @@ export const DEFAULTS = {
   theme: 'light',
   font: 'inter',
   lang: 'es',
-};
-
-/** Textos de la interfaz (el cuerpo de cada caso vive en su .mdx). */
-export const UI = {
-  es: {
-    config: 'Config',
-    theme: 'Tema',
-    font: 'Fuente',
-    language: 'Idioma',
-    close: 'Cerrar',
-    links: 'Enlaces',
-    soon: 'Próximamente',
-  },
-  en: {
-    config: 'Config',
-    theme: 'Theme',
-    font: 'Font',
-    language: 'Language',
-    close: 'Close',
-    links: 'Links',
-    soon: 'Coming soon',
-  },
 };

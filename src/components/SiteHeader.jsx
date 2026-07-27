@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { THEMES, FONTS, LANGUAGES, STORAGE_KEYS, DEFAULTS, UI } from '@/config/appearance.js';
+import { THEMES, FONTS, LANGUAGES, STORAGE_KEYS, DEFAULTS } from '@/config/appearance.js';
+import { t } from '@/i18n/strings.js';
 import '@/styles/dock.css';
 
 /**
@@ -31,6 +32,7 @@ const Icon = ({ path, size = 20 }) => (
 );
 
 const ICONS = {
+  arrowLeft: <path d="M10.5 5.5 4.5 12l6 6.5M4.5 12H20" />,
   gear: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -99,19 +101,32 @@ function DockLink({ item, soonLabel }) {
   );
 }
 
-export default function ConfigDock() {
+/**
+ * @param {object} props
+ * @param {string} props.lang     Idioma de la página, resuelto en build.
+ * @param {Record<string, string|null>} props.alternativas
+ *   Esta misma página en cada idioma. `null` cuando la traducción no existe.
+ */
+export default function SiteHeader({
+  lang = DEFAULTS.lang,
+  alternativas = {},
+  title = 'Real SOC Scenarios',
+  subtitle = null,
+  homeHref = null,
+  backHref = null,
+  backLabel = '',
+}) {
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState(DEFAULTS.theme);
   const [font, setFont] = useState(DEFAULTS.font);
-  const [lang, setLang] = useState(DEFAULTS.lang);
   const centerRef = useRef(null);
 
-  // Al montar, tomamos lo que el script inline ya puso en <html>.
+  // El idioma ya no es estado: viene de la ruta. Tema y fuente sí, porque el
+  // script inline los aplica antes de que este componente exista.
   useEffect(() => {
     const root = document.documentElement;
     setTheme(root.dataset.theme || DEFAULTS.theme);
     setFont(root.dataset.font || DEFAULTS.font);
-    setLang(root.dataset.lang || DEFAULTS.lang);
   }, []);
 
   // Cerrar con click afuera o con Escape.
@@ -136,7 +151,6 @@ export default function ConfigDock() {
   const apply = (key, value) => {
     const root = document.documentElement;
     root.dataset[key] = value;
-    if (key === 'lang') root.lang = value;
     try {
       localStorage.setItem(STORAGE_KEYS[key], value);
     } catch {
@@ -144,12 +158,41 @@ export default function ConfigDock() {
     }
   };
 
-  const t = UI[lang] ?? UI[DEFAULTS.lang];
+  /**
+   * Cambiar de idioma es navegar, no togglear.
+   *
+   * Antes esto escribía `data-lang` en <html> y el CSS ocultaba la mitad del
+   * documento. Funcionaba para la interfaz y no para el contenido: el caso
+   * seguía en español porque solo existía en español. Ahora cada idioma es una
+   * página distinta, así que el selector va a la otra página.
+   *
+   * Es un enlace de verdad y no un botón con `location.href` por dos razones:
+   * funciona sin JavaScript, y el router de Astro solo intercepta enlaces — con
+   * `location.href` la navegación esquiva la transición y vuelve el parpadeo.
+   *
+   * Antes de irse se guardan dos cosas: el idioma elegido, para que la raíz lo
+   * respete en la próxima visita, y la posición de scroll, porque es la misma
+   * página en otro idioma y volver arriba sería perder el punto de lectura.
+   */
+  const antesDeIr = (idioma) => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.lang, idioma);
+      sessionStorage.setItem('soc-scroll', String(window.scrollY));
+    } catch {
+      /* storage bloqueado: la navegación igual funciona */
+    }
+  };
+
 
   return (
-    <nav className={`dock${open ? ' open' : ''}`} aria-label={t.config}>
-      <DockLink item={LINKS[0]} soonLabel={t.soon} />
-      <DockLink item={LINKS[1]} soonLabel={t.soon} />
+    /* Tres celdas independientes, no una píldora con todo adentro.
+       Cada una tiene su propio fondo, su propio borde y su propio
+       comportamiento: pasar el puntero por el título no despliega los enlaces
+       de Config, y el latido del botón de volver no se contagia al resto. */
+    <header className={`encabezado${backHref ? ' justificado' : ''}`}>
+      <nav className={`dock${open ? ' open' : ''}`} aria-label={t('dock.config', lang)}>
+        <DockLink item={LINKS[0]} soonLabel={t('dock.soon', lang)} />
+        <DockLink item={LINKS[1]} soonLabel={t('dock.soon', lang)} />
 
       <div className={`dock-center${open ? ' open' : ''}`} ref={centerRef}>
         <button
@@ -159,13 +202,64 @@ export default function ConfigDock() {
           aria-expanded={open}
           aria-haspopup="dialog"
         >
-          <span className="label">{t.config}</span>
+          <span className="label">{t('dock.config', lang)}</span>
           <Icon path={ICONS.gear} size={19} />
         </button>
 
-        <div className="config-card" role="dialog" aria-label={t.config}>
+        <div className="config-card" role="dialog" aria-label={t('dock.config', lang)}>
+          {/* El idioma va primero: es lo único acá que cambia de página en vez
+              de cambiar cómo se ve la que ya estás mirando. */}
           <section className="config-section">
-            <span className="config-label">{t.theme}</span>
+            <span className="config-label">{t('dock.language', lang)}</span>
+            <div className="option-row">
+              {LANGUAGES.map((item) => {
+                const destino = alternativas[item.value];
+                const actual = lang === item.value;
+
+                // El idioma actual no es un enlace a ninguna parte: es un
+                // estado. Se marca con aria-current y no se puede clickear.
+                if (actual) {
+                  return (
+                    <span key={item.value} className="option-btn" aria-current="true">
+                      {item.label}
+                    </span>
+                  );
+                }
+
+                // Sin traducción no hay a dónde ir. Se muestra deshabilitado y
+                // con el motivo, en vez de esconderlo: que falte se ve, y eso
+                // es información para quien lee.
+                if (!destino) {
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      className="option-btn"
+                      disabled
+                      title={t('dock.noTranslation', lang)}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                }
+
+                return (
+                  <a
+                    key={item.value}
+                    className="option-btn"
+                    href={destino}
+                    hrefLang={item.value}
+                    onClick={() => antesDeIr(item.value)}
+                  >
+                    {item.label}
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="config-section">
+            <span className="config-label">{t('dock.theme', lang)}</span>
             <div className="theme-grid">
               {THEMES.map((item) => (
                 <button
@@ -193,7 +287,7 @@ export default function ConfigDock() {
           </section>
 
           <section className="config-section">
-            <span className="config-label">{t.font}</span>
+            <span className="config-label">{t('dock.font', lang)}</span>
             <div className="option-row">
               {FONTS.map((item) => (
                 <button
@@ -214,30 +308,50 @@ export default function ConfigDock() {
             </div>
           </section>
 
-          <section className="config-section">
-            <span className="config-label">{t.language}</span>
-            <div className="option-row">
-              {LANGUAGES.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  className="option-btn"
-                  aria-pressed={lang === item.value}
-                  onClick={() => {
-                    setLang(item.value);
-                    apply('lang', item.value);
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </section>
+          </div>
         </div>
+
+        <DockLink item={LINKS[2]} soonLabel={t('dock.soon', lang)} />
+        <DockLink item={LINKS[3]} soonLabel={t('dock.soon', lang)} />
+      </nav>
+
+      {/* Celda 2 — la marca. El título es el mismo en todas las páginas. En la
+          portada no enlaza a ninguna parte —ya estás ahí— y por eso deja de ser
+          un enlace en vez de ser un enlace que no lleva a nada. */}
+      <div className="marca">
+        {homeHref ? (
+          <a className="marca-texto" href={homeHref}>
+            {title}
+          </a>
+        ) : (
+          <span className="marca-texto" aria-current="page">
+            {title}
+          </span>
+        )}
+
+        {/* Solo en la portada. Sube acá para liberarle a las tarjetas el alto
+            que ocupaba abajo, y va al mismo tamaño que el título porque no es
+            un pie de página: es la otra mitad del encabezado. */}
+        {subtitle && <span className="marca-sub">{subtitle}</span>}
       </div>
 
-      <DockLink item={LINKS[2]} soonLabel={t.soon} />
-      <DockLink item={LINKS[3]} soonLabel={t.soon} />
-    </nav>
+      {/* Celda 3 — volver. Lo único del encabezado que no aparece en todas las
+          páginas: su ausencia en la portada marca que no estás dentro de nada.
+          El hueco se reserva igual para que las otras dos celdas no se corran
+          al pasar de una página de caso a la portada.
+
+          El `aria-label` se mantiene aunque el texto sea visible: en pantallas
+          angostas el texto se oculta y queda solo la flecha, y ahí es lo único
+          que dice a dónde lleva. */}
+      {backHref ? (
+        <a className="volver" href={backHref} aria-label={backLabel}>
+          <span className="pulso" aria-hidden="true" />
+          <Icon path={ICONS.arrowLeft} size={16} />
+          <span className="volver-texto">{backLabel}</span>
+        </a>
+      ) : (
+        <span className="volver-hueco" aria-hidden="true" />
+      )}
+    </header>
   );
 }

@@ -1,16 +1,106 @@
 /* ============================================================
-   ConfigDock — barra flotante con efecto glass y popover.
+   Encabezado del sitio — tres celdas independientes con efecto glass.
    Los colores salen de los tokens del tema activo (themes.css),
    así el mismo dock funciona sobre las 14 paletas.
    ============================================================ */
 
-/* Arriba a la izquierda: abajo al centro lo tapa la barra de herramientas
-   del servidor de desarrollo de Astro. */
-.dock {
+/* El encabezado es una grilla de tres celdas independientes: Config, la marca y
+   el botón de volver. Cada una con su propio fondo y su propio comportamiento.
+   La grilla en sí no tiene fondo — es solo la que las ubica.
+
+   Que sean independientes no es cosmético: cuando estaban dentro de la misma
+   píldora, pasar el puntero por el título disparaba el desplegado de los enlaces
+   de Config, porque el efecto cuelga de `.dock:hover`.
+
+   Arriba a la izquierda: abajo al centro lo tapa la barra de herramientas del
+   servidor de desarrollo de Astro. */
+.encabezado {
   position: fixed;
-  left: 1rem;
-  top: 1rem;
+  left: 0;
+  right: 0;
+  top: 0;
   z-index: 900;
+  padding: 1rem;
+
+  /* La banda que cruza toda la línea. Es lo que evita que los tres bloques
+     floten sueltos sobre el texto: con una superficie continua detrás, el
+     encabezado se lee como una capa y no como piezas apoyadas encima.
+
+     Va al 65%, y las celdas mantienen su propio vidrio: al superponerse, los
+     botones quedan más sólidos que la banda sin necesidad de darles otro valor.
+     Esa diferencia es la que separa "el encabezado" de "los controles". */
+  background: color-mix(in srgb, var(--bg) 65%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--glass-border);
+
+  display: grid;
+  justify-content: start;
+  /* La primera columna tiene reservado el ancho de Config **desplegado**, no el
+     colapsado. Sin eso, al desplegarse empujaba a la marca y al botón de volver:
+     eran independientes en comportamiento pero no en posición, que es lo que se
+     veía como que "reaccionaban" a Config.
+
+     El valor sale de sumar lo que ocupa desplegado: 4 iconos de 44px con sus
+     márgenes, el botón central con su etiqueta, y el relleno de la píldora. La
+     etiqueta está acotada abajo para que la cuenta no dependa de la tipografía
+     elegida entre las cinco disponibles. */
+  grid-template-columns: var(--config-desplegado) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+:root {
+  --config-desplegado: 22rem;
+}
+
+/* En las páginas de caso las tres celdas se reparten la línea: Config a la
+   izquierda, la marca centrada, volver a la derecha.
+
+   Las dos columnas laterales miden lo mismo —`minmax` con la reserva de Config
+   como piso— justamente para que la marca quede en el centro real de la línea y
+   no en el centro del espacio sobrante, que se correría según cuánto mida el
+   botón de volver en cada idioma.
+
+   En la portada no aplica: ahí la marca lleva el subtítulo al lado y el conjunto
+   se lee mejor agrupado a la izquierda. */
+.encabezado.justificado {
+  grid-template-columns:
+    minmax(var(--config-desplegado), 1fr)
+    auto
+    minmax(var(--config-desplegado), 1fr);
+  justify-content: stretch;
+}
+
+.encabezado.justificado .dock {
+  justify-self: start;
+}
+
+.encabezado.justificado .volver {
+  justify-self: end;
+}
+
+/* Superficie compartida por las tres celdas. */
+.encabezado > * {
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Celda 1 — Config y los enlaces laterales.
+   `position: relative` porque el popover se posiciona contra esta celda: sin
+   esto se resolvería contra la grilla y quedaría desalineado del botón. */
+.dock {
+  position: relative;
+  /* Pegado al borde derecho de su columna, no al izquierdo. El espacio
+     reservado queda entonces entre el borde de la pantalla y la píldora, donde
+     no hay fondo y por lo tanto no se ve: colapsado, el engranaje queda junto a
+     la marca y al desplegarse crece hacia la izquierda, sobre el hueco vacío.
+     Alineado a la izquierda, el mismo hueco quedaría entre el engranaje y la
+     marca y se leería como un error de maquetado. */
+  justify-self: end;
 
   display: flex;
   align-items: center;
@@ -19,12 +109,145 @@
 
   padding: 0.5rem;
   border-radius: 60px;
+}
 
-  background: var(--glass-bg);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+/* Celda 2 — la marca.
+   El título de la aplicación no puede quedar por debajo del título del caso:
+   uno nombra el sitio y el otro nombra una página adentro. Van al mismo tamaño
+   —1.6rem, definido en `--titulo`— y se distinguen por forma, no por escala. */
+.marca {
+  display: flex;
+  align-items: center;
+  height: 60px;
+  padding: 0 1.15rem;
+  border-radius: 60px;
+}
+
+/* La diferenciación es tipográfica: monoespaciada, versalitas y espaciado
+   abierto, contra la serif o sans del título del caso. Se lee como un rótulo de
+   producto y no como un encabezado más del documento. */
+.marca-texto {
+  font-family: var(--font-mono);
+  font-size: var(--titulo);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  font-variant-caps: small-caps;
+  white-space: nowrap;
+  color: var(--text);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+a.marca-texto:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Mismo tamaño y misma familia que el título; se separa por color y por peso.
+   Con un cuerpo menor se leería como una nota al pie, y no lo es. */
+.marca-sub {
+  margin-left: 0.9rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid var(--border);
+  font-family: var(--font-mono);
+  /* Al mismo cuerpo que el título competía con él. Al 60% queda claramente
+     subordinado sin volverse una nota al pie. */
+  font-size: calc(var(--titulo) * 0.6);
+  font-weight: 400;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+/* Celda 3 — volver.
+   Es una píldora con texto, no un círculo con una flecha. Una flecha sola
+   depende de que el lector adivine a dónde lleva, y ese es justamente el
+   momento en que no quiere adivinar nada. Además, al lado de una píldora ancha
+   como la marca, un círculo chico se lee como un error de alineación. */
+.volver {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 60px;
+  padding: 0 1rem 0 0.85rem;
+  border-radius: 60px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.25s ease, border-color 0.25s ease;
+}
+
+.volver:hover,
+.volver:focus-visible {
+  color: var(--text);
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+/* La flecha acompaña el gesto al pasar el puntero. */
+.volver .icon {
+  transition: transform 0.3s ease;
+}
+
+.volver:hover .icon,
+.volver:focus-visible .icon {
+  transform: translateX(-3px);
+}
+
+/* En la portada no hay a dónde volver, pero el hueco se reserva igual: si no,
+   las otras dos celdas se corren al pasar de un caso a la portada y el
+   encabezado deja de sentirse como el mismo elemento entre páginas. */
+.volver-hueco {
+  display: block;
+  height: 60px;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+/* El anillo que late. En reposo va deliberadamente muy tenue y lento: un
+   elemento que se anima sin parar dentro de una barra fija compite con el texto
+   que uno está tratando de leer, y el encabezado no es lo importante de la
+   página. Al acercar el puntero sube el brillo y se acelera, que es cuando la
+   atención sí está acá. */
+.volver .pulso {
+  position: absolute;
+  inset: -1px;
+  border-radius: 60px;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+  /* El anillo se expande desde el borde, así que el origen es el centro y la
+     escala tiene que ser mayor en el eje corto para que el halo salga parejo
+     alrededor de una píldora y no de un círculo. */
+  animation: pulso-anillo 2.6s ease-out infinite;
+  pointer-events: none;
+}
+
+.volver:hover .pulso,
+.volver:focus-visible .pulso {
+  animation-duration: 1.2s;
+}
+
+/* Una sola definición del latido, compartida con los botones de los marcos de
+   análisis en framework.css. La expansión sale de dos variables porque el anillo
+   se aplica a piezas de proporciones distintas: en una píldora ancha y baja hay
+   que crecer más en vertical que en horizontal para que el halo salga parejo, y
+   ese valor no puede ser el mismo para un botón que mide la mitad de alto.
+
+   Dos copias del mismo latido se desincronizan en cuanto alguien toca una. */
+@keyframes pulso-anillo {
+  0% {
+    transform: scale(1, 1);
+    opacity: 0.5;
+  }
+  75%,
+  100% {
+    transform: scale(var(--pulso-x, 1.06), var(--pulso-y, 1.5));
+    opacity: 0;
+  }
 }
 
 /* --- Botones laterales (redes / contacto) ---
@@ -130,10 +353,13 @@
   transition: max-width 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
 }
 
+/* El tope está acotado a propósito: el ancho reservado para la columna de
+   Config se calcula a partir de acá, así que dejarlo suelto haría que la
+   reserva dependiera de la tipografía activa entre las cinco disponibles. */
 .dock:hover .config-btn .label,
 .dock:focus-within .config-btn .label,
 .dock.open .config-btn .label {
-  max-width: 8rem;
+  max-width: 5.5rem;
   opacity: 1;
   margin-right: 0.5rem;
 }
@@ -161,11 +387,14 @@
   padding: 0.9rem 1rem 1rem;
   border-radius: 26px;
 
-  /* Casi opaco a propósito: con el vidrio de la barra (62%) el texto de la
-     página se leía a través del panel y era imposible usarlo. */
-  background: var(--glass-panel);
-  backdrop-filter: blur(35px);
-  -webkit-backdrop-filter: blur(35px);
+  /* Al 50%, con el desenfoque subido para compensar.
+     Nota de un problema que ya tuvimos: con el panel translúcido, el texto de
+     la página se lee a través y el menú se vuelve difícil de usar. Acá el
+     desenfoque hace el trabajo que antes hacía la opacidad — si en algún tema
+     de mucho contraste el texto vuelve a colarse, este es el valor a subir. */
+  background: color-mix(in srgb, var(--bg-elevated) 50%, transparent);
+  backdrop-filter: blur(60px) saturate(140%);
+  -webkit-backdrop-filter: blur(60px) saturate(140%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
 
@@ -258,26 +487,53 @@
   flex-wrap: wrap;
 }
 
+/* Tres elementos comparten esta clase: <button> para tema y fuente, <a> para el
+   idioma al que se puede ir, y <span> para el idioma actual. Por eso hay reglas
+   que neutralizan lo que cada uno trae de fábrica. */
 .option-btn {
   flex: 1 1 auto;
+  display: block;
   padding: 0.35rem 0.6rem;
   border-radius: 14px;
   border: 1px solid var(--glass-border);
   background: transparent;
   color: var(--text);
+  font-family: inherit;
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
   transition: background 0.3s, transform 0.3s;
 }
 
 .option-btn:hover {
   background: var(--glass-bg-hover);
+  text-decoration: none;
 }
 
-.option-btn[aria-pressed='true'] {
+/* `aria-pressed` para tema y fuente, que son interruptores.
+   `aria-current` para el idioma, que es dónde estás parado. */
+.option-btn[aria-pressed='true'],
+.option-btn[aria-current='true'] {
   background: var(--glass-bg-hover);
   border-color: var(--accent);
+}
+
+/* El idioma actual no lleva a ninguna parte. */
+.option-btn[aria-current='true'] {
+  cursor: default;
+}
+
+/* Sin traducción todavía. El motivo va en el `title`. */
+.option-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.option-btn:disabled:hover {
+  background: transparent;
 }
 
 .option-btn .hint {
@@ -310,12 +566,52 @@
   }
 }
 
-@media (max-width: 560px) {
+/* Por debajo de este ancho la reserva ya no entra junto con la marca y el botón
+   de volver. Se suelta: en pantallas chicas los enlaces van siempre visibles
+   (ver la regla de `hover: none`), así que Config deja de crecer y el empuje
+   que la reserva evitaba tampoco ocurre. */
+@media (max-width: 1000px) {
+  .encabezado {
+    grid-template-columns: auto auto auto;
+  }
+
   .dock {
-    left: 0.75rem;
-    right: 0.75rem;
-    top: 0.75rem;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .encabezado {
+    padding: 0.75rem;
+    /* La marca se lleva el espacio sobrante y empuja a volver contra el borde
+       derecho; Config queda en su ancho natural a la izquierda. */
+    grid-template-columns: auto 1fr auto;
+    gap: 0.4rem;
+  }
+
+  .dock {
     justify-content: space-around;
+  }
+
+  .marca {
+    min-width: 0;
+    padding: 0 0.75rem;
+  }
+
+  /* Antes que desbordar, se corta con puntos suspensivos. */
+  .marca-texto {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Sin lugar para el texto, vuelve a ser solo la flecha. Se mantiene el
+     `aria-label` para que quien no ve la pantalla siga sabiendo a dónde lleva. */
+  .volver {
+    padding: 0 0.85rem;
+  }
+
+  .volver-texto {
+    display: none;
   }
 
   .config-btn .label {
@@ -328,7 +624,15 @@
   .dock-btn,
   .config-btn,
   .theme-chip,
-  .option-btn {
+  .option-btn,
+  .volver {
     transition: none;
+  }
+
+  /* El latido se apaga del todo. Es decorativo, y quien pidió no tener
+     movimiento no debería tener que soportar el único elemento del sitio que se
+     mueve solo. El botón sigue estando y sigue funcionando. */
+  .volver .pulso {
+    animation: none;
   }
 }
