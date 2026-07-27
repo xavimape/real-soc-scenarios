@@ -13,8 +13,13 @@ const VERDICT = {
   unknown: 'var(--text-muted)',
 };
 
+// El límite de palabra `\b` de JavaScript no reconoce las vocales acentuadas,
+// así que `\b\w` capitalizaba la letra siguiente a la tilde: "autenticación"
+// salía como "AutenticacióN". Se capitaliza solo después de un espacio.
 const label = (k) =>
-  String(k).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  String(k)
+    .replace(/_/g, ' ')
+    .replace(/(^|\s)(\S)/g, (_, sep, chr) => sep + chr.toUpperCase());
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -73,7 +78,7 @@ function Table({ rows }) {
   );
 }
 
-export default function IOCViewer({ caseId, type = 'iocs', data = {} }) {
+export default function IOCViewer({ caseId, type = 'iocs', title, data = {} }) {
   const entries = Object.entries(data);
 
   return (
@@ -81,7 +86,7 @@ export default function IOCViewer({ caseId, type = 'iocs', data = {} }) {
       <header style={S.header}>
         <h3 style={S.title}>
           <Icon name="search" size="1em" style={{ marginRight: '0.4em', verticalAlign: '-0.12em' }} />
-          {label(type)}
+          {title ?? label(type)}
         </h3>
         {caseId && <span style={S.caseId}>{caseId}</span>}
       </header>
@@ -136,8 +141,8 @@ const S = {
   dlRow: { display: 'flex', gap: '0.6rem', padding: '0.2rem 0', flexWrap: 'wrap' },
   dt: { minWidth: '150px', fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 },
   dd: { margin: 0, fontSize: '0.82rem', color: 'var(--text)' },
-  mono: { fontFamily: 'var(--font-mono)', fontSize: '0.82rem', wordBreak: 'break-all' },
-  tableWrap: { overflowX: 'auto' },
+  mono: { fontFamily: 'var(--font-mono)', fontSize: '0.82rem', overflowWrap: 'anywhere' },
+  tableWrap: { overflowX: 'auto', scrollbarWidth: 'thin' },
   table: { borderCollapse: 'collapse', width: '100%', fontSize: '0.8rem' },
   th: {
     textAlign: 'left',
@@ -151,6 +156,7 @@ const S = {
     padding: '0.4rem 0.6rem',
     borderBottom: '1px solid var(--border)',
     verticalAlign: 'top',
+    whiteSpace: 'nowrap',
   },
   verdict: {
     color: 'var(--bg)',
