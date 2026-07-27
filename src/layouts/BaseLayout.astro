@@ -1,0 +1,125 @@
+---
+import { Font } from 'astro:assets';
+import ConfigDock from '@/components/ConfigDock.jsx';
+import BackToTop from '@/components/BackToTop.jsx';
+import '@/styles/themes.css';
+
+interface Props {
+  title: string;
+  titleEn?: string;
+  description?: string;
+  descriptionEn?: string;
+  showBack?: boolean;
+}
+
+const { title, titleEn, description, descriptionEn, showBack = false } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es" data-theme="light" data-font="inter" data-lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    {titleEn && <meta property="og:title" content={titleEn} />}
+    {descriptionEn && <meta property="og:description" content={descriptionEn} />}
+
+    {/* Las 5 familias; solo se precarga la que se usa por defecto. */}
+    <Font cssVariable="--font-inter" preload />
+    <Font cssVariable="--font-roboto" />
+    <Font cssVariable="--font-fira-code" />
+    <Font cssVariable="--font-jetbrains-mono" />
+    <Font cssVariable="--font-merriweather" />
+
+    {/* Anti-FOUC: aplica tema, fuente e idioma guardados antes del primer pintado. */}
+    <script is:inline>
+      (function () {
+        try {
+          var root = document.documentElement;
+          var theme = localStorage.getItem('soc-theme');
+          var font = localStorage.getItem('soc-font');
+          var lang = localStorage.getItem('soc-lang');
+          if (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          }
+          root.dataset.theme = theme || 'light';
+          root.dataset.font = font || 'inter';
+          root.dataset.lang = lang || 'es';
+          root.lang = root.dataset.lang;
+        } catch (e) {
+          /* sin localStorage: quedan los valores por defecto del HTML */
+        }
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div class="page">
+      {
+        showBack && (
+          <p class="back-row">
+            <a class="back" href="/">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10.5 5.5 4.5 12l6 6.5M4.5 12H20"></path>
+              </svg>
+              <span data-lang="es">Volver al índice</span>
+              <span data-lang="en">Back to index</span>
+            </a>
+          </p>
+        )
+      }
+
+      <main>
+        <slot />
+      </main>
+    </div>
+
+    <ConfigDock client:load />
+    <BackToTop client:load />
+  </body>
+</html>
+
+<style>
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    /* El padding superior deja aire para el dock flotante. */
+    padding: 5.5rem 2rem 4rem;
+  }
+
+  .back-row {
+    margin: 0 0 1.25rem;
+  }
+
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+
+  .back:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 520px) {
+    .page {
+      padding: 5rem 1rem 3rem;
+    }
+  }
+</style>
