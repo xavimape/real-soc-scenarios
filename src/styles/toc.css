@@ -1,0 +1,140 @@
+/* Índice lateral del caso. */
+
+/* El desfase del ancla se resuelve acá y no en JavaScript. Así vale para el clic
+   en el índice, para un enlace compartido que abre directo en una sección y para
+   la búsqueda del navegador — tres caminos, una sola regla.
+   El valor tiene que coincidir con LINEA_DE_LECTURA en TableOfContents.jsx. */
+article :is(h1, h2, h3, h4) {
+  scroll-margin-top: 96px;
+}
+
+/* El pegado y el alto máximo viven en `.col-lateral`, en el layout: acá el
+   contenedor mediría lo mismo que este elemento y no habría recorrido. Ver el
+   comentario de `.col-lateral` en BaseLayout.astro.
+
+   Lo que sí es de este elemento: su propia barra de desplazamiento cuando el
+   índice no entra en la ventana. */
+.toc {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Espacio para que la lava no quede cortada contra el borde al hacer scroll. */
+  padding: 0.25rem 0.25rem 0.25rem 0;
+}
+
+.toc-title {
+  margin: 0 0 0.6rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* El contenedor de referencia para la lava. La lista queda estática dentro, así
+   que el `offsetTop` de cada ítem se mide contra este elemento. */
+.toc-cuerpo {
+  position: relative;
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* La línea vertical que hilvana las entradas. */
+  border-left: 1px solid var(--border);
+}
+
+/* ---------- La lava ----------
+   Un único bloque detrás de la lista, no un fondo por ítem. Se mueve y se estira
+   hasta el ítem activo. El resorte del easing —que pasa de largo y vuelve— es lo
+   que le da la inercia de algo con masa en vez de un rectángulo que se teletransporta. */
+.toc-lava {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
+  display: block;
+  border-radius: 0 10px 10px 0;
+  /* Degradado en vez de un relleno plano: se apoya en la línea de la izquierda y
+     se desvanece hacia la derecha, así el bloque tiene una dirección y no parece
+     un rectángulo pegado encima. */
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--accent) 30%, transparent),
+    color-mix(in srgb, var(--accent) 6%, transparent)
+  );
+  box-shadow: inset 2px 0 0 0 var(--accent);
+  transition:
+    transform 0.38s cubic-bezier(0.34, 1.4, 0.64, 1),
+    height 0.38s cubic-bezier(0.34, 1.4, 0.64, 1),
+    scale 0.38s cubic-bezier(0.34, 1.4, 0.64, 1),
+    background 0.38s ease;
+  will-change: transform, height;
+}
+
+/* Durante el viaje se aplasta un poco: la deformación es lo que lee el ojo como
+   materia y no como caja. Se aplica sobre el eje Y para no pelear con el
+   translate, que ya vive en `transform`. */
+.toc-lava.viajando {
+  scale: 1 0.82;
+}
+
+.toc-item {
+  position: relative;
+  z-index: 1;
+}
+
+.toc-link {
+  display: block;
+  padding: 0.3rem 0.6rem 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.toc-link:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.toc-link[aria-current='true'] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Los subtítulos se sangran y bajan de tamaño: la jerarquía se ve antes de
+   leerse. */
+.nivel-3 .toc-link {
+  padding-left: 1.5rem;
+  font-size: 0.74rem;
+}
+
+/* Barra fina y discreta: el índice no es el protagonista de la página. */
+.toc::-webkit-scrollbar {
+  width: 6px;
+}
+
+.toc::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* El efecto es decorativo. Quien pidió no tener movimiento no lo recibe: el
+   bloque aparece donde corresponde, sin viaje ni deformación. */
+@media (prefers-reduced-motion: reduce) {
+  .toc-lava {
+    transition: none;
+  }
+
+  .toc-lava.viajando {
+    scale: none;
+  }
+
+  .toc-link {
+    transition: none;
+  }
+}
