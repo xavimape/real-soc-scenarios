@@ -547,13 +547,63 @@
   --glass-shadow: 0 20px 50px rgb(0 0 0 / 0.28);
 }
 
-/* ---------- Idioma ----------
-   Las páginas emiten ambas versiones y se muestra la activa.
-   Sin salto de red ni rutas duplicadas al cambiar de idioma. */
-:root[data-lang='es'] [data-lang='en'],
-:root[data-lang='en'] [data-lang='es'] {
-  display: none;
+/* ---------- Globo ----------
+   El verde de terminal es la identidad de la pieza, pero un verde fijo se
+   desvanece sobre los temas claros y grita sobre los oscuros.
+
+   En vez de mantener una lista de temas con excepciones —que hay que acordarse
+   de actualizar cada vez que se agrega uno—, el verde se mezcla contra `--text`.
+   Como `--text` es oscuro sobre fondo claro y claro sobre fondo oscuro, el
+   ajuste sale solo: el globo siempre contrasta con su fondo, en los catorce
+   temas y en los que vengan. */
+:root {
+  /* `light-dark()` lee el `color-scheme` que cada tema ya declara, así que no
+     hace falta ninguna lista de temas: sobre fondo claro sale el verde oscuro,
+     sobre fondo oscuro el verde de terminal. Un tema nuevo queda cubierto solo
+     con declarar su `color-scheme`, que es algo que igual hay que hacer. */
+  /* El verde claro se eligió mirando, no calculando, y por una razón que la
+     medición no puede ver: `#0b6b2c` pasaba el contraste con holgura (4,8:1) y
+     a tamaño de punto se leía **negro**. Contrastaba bien y había perdido la
+     identidad, que es justo lo que se quería conservar.
+
+     `#12903f` es el verde más vivo que todavía queda por encima de 3:1 en los
+     cinco temas de fondo claro — entre 3,06 y 3,28. Un paso más de brillo cae a
+     2,7 y ya no cumple. */
+  --globe-dot: light-dark(#12903f, #00e03a);
+  /* Al 26% la grilla desaparecía sobre los fondos claros. El valor sale de la
+     misma medición que el resto: `tools/contraste-globo.mjs`. */
+  --globe-grid: color-mix(in srgb, var(--globe-dot) 45%, transparent);
+  /* Los marcadores van más oscuros que los puntos sobre fondo claro, y más
+     claros sobre fondo oscuro: en los dos casos se despegan de la nube. */
+  --globe-marker: light-dark(#0b5d26, #8affb0);
 }
+
+/* Dos temas donde el verde sería una contradicción, no una decisión estética.
+
+   Monochrome existe para que ningún dato dependa del matiz (D-008): meterle el
+   único elemento coloreado del sitio lo vaciaría de sentido.
+
+   Alto contraste está calibrado sobre un solo par de colores; agregar un tercero
+   rompe justamente lo que garantiza. */
+:root[data-theme='monochrome'] {
+  --globe-dot: var(--text);
+  --globe-grid: color-mix(in srgb, var(--text) 22%, transparent);
+  --globe-marker: var(--text);
+}
+
+:root[data-theme='high-contrast'] {
+  --globe-dot: var(--accent);
+  --globe-grid: color-mix(in srgb, var(--accent) 40%, transparent);
+  --globe-marker: var(--text);
+}
+
+/* ---------- Idioma ----------
+   Acá vivía la regla que ocultaba una de las dos versiones de cada texto.
+   Ya no hace falta: cada página existe en un solo idioma y sale resuelta del
+   build. Se quitó junto con la doble emisión — ver D-014.
+
+   El `data-lang` de <html> se mantiene: lo usa el verificador para saber en qué
+   idioma debería estar la página, y los lectores de pantalla lo agradecen. */
 
 /* ---------- Estilos globales ---------- */
 * {
@@ -587,7 +637,15 @@ h1, h2, h3, h4 {
   line-height: 1.25;
 }
 
+/* Un solo valor para el título de la aplicación y el título de la página: el
+   nombre del sitio no debe leerse como subordinado al nombre de un caso. Se
+   distinguen por forma tipográfica, no por tamaño. */
+:root {
+  --titulo: 1.6rem;
+}
+
 h1 {
+  font-size: var(--titulo);
   color: var(--accent);
 }
 

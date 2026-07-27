@@ -12,12 +12,13 @@
   align-items: center;
   justify-content: center;
 
-  color: var(--text-muted);
+  color: var(--text);
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--border);
   border-radius: 50%;
+  box-shadow: var(--shadow);
   cursor: pointer;
 
   opacity: 0;
@@ -28,7 +29,7 @@
 }
 
 .to-top.visible {
-  opacity: 0.55;
+  opacity: 0.78;
   visibility: visible;
   transform: translateY(0);
 }

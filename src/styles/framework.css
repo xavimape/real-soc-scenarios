@@ -5,6 +5,7 @@
    ============================================================ */
 
 .fw-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -26,6 +27,34 @@
 .fw-trigger:hover {
   transform: translateY(-1px);
   background: var(--bg-subtle);
+}
+
+/* El anillo que late, igual que en el botón de volver del encabezado.
+   La animación `pulso-anillo` se define en dock.css y se reutiliza acá: dos
+   definiciones del mismo latido se desincronizan en cuanto alguien toca una. */
+.fw-trigger .pulso {
+  position: absolute;
+  inset: -1px;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+  /* Más bajo que la píldora del encabezado, así que necesita crecer más en
+     vertical para que el halo se note igual. */
+  --pulso-x: 1.05;
+  --pulso-y: 1.85;
+  animation: pulso-anillo 2.6s ease-out infinite;
+  pointer-events: none;
+}
+
+.fw-trigger:hover .pulso,
+.fw-trigger:focus-visible .pulso {
+  animation-duration: 1.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-trigger .pulso {
+    animation: none;
+  }
 }
 
 .fw-dialog {
