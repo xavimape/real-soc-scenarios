@@ -1,0 +1,88 @@
+/* Globo del inicio. Los colores viven en themes.css para que un tema los pueda
+   redefinir sin tocar el componente. */
+
+.globo {
+  position: relative;
+  display: block;
+  max-width: 100%;
+}
+
+/* Sondas de color. Existen para que el navegador resuelva las variables: se le
+   aplica cada una a `color` y se lee `color` ya calculado como `rgb(...)`, que
+   es lo único que el lienzo entiende. Leer la variable directamente devuelve el
+   texto sin resolver — ver el comentario en Globe.jsx.
+
+   Van con `visibility: hidden` y no con `display: none` por precaución: los
+   estilos calculados de un elemento sin caja son correctos en los navegadores
+   actuales, pero depender de eso para algo que decide si la pieza se ve o no es
+   un riesgo que no hace falta correr. */
+.globo-sondas {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.sonda-punto { color: var(--globe-dot); }
+.sonda-grilla { color: var(--globe-grid); }
+.sonda-marca { color: var(--globe-marker); }
+
+.globo-lienzo {
+  display: block;
+  cursor: grab;
+  touch-action: pan-y;
+  max-width: 100%;
+}
+
+/* Etiqueta del marcador bajo el puntero. Va anclada abajo y no sigue al cursor:
+   un cartel que persigue el mouse sobre algo que además gira marea. */
+.globo-etiqueta {
+  position: absolute;
+  left: 50%;
+  bottom: -0.25rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.2rem 0.6rem;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--glass-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+/* El equivalente accesible del lienzo: los mismos enlaces, fuera de la vista
+   pero dentro del árbol de accesibilidad y alcanzables con el tabulador.
+   No se usa `display: none` justamente porque eso los sacaría de los dos. */
+.globo-alterno {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  list-style: none;
+}
+
+/* Al llegar con el tabulador, el enlace vuelve a la vista: un foco invisible es
+   una trampa para quien navega con teclado. */
+.globo-alterno a:focus-visible {
+  position: fixed;
+  top: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  height: auto;
+  padding: 0.35rem 0.75rem;
+  clip-path: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  z-index: 900;
+}

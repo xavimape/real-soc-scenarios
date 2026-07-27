@@ -1,0 +1,189 @@
+/* Mazo de casos destacados del inicio. */
+
+.mazo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* La perspectiva vive acá y no en cada carta: si cada una tuviera la suya, cada
+   una sería su propio punto de fuga y el mazo dejaría de leerse como un mazo. */
+/* El alto reserva el apilado completo: la carta del frente baja 66px y las de
+   atrás suben hasta cero, así que el bloque mide la carta más el escalonado.
+   Antes las de atrás salían por arriba del contenedor y se montaban sobre el
+   título — el bloque no reservaba el alto que ocupaba. */
+.mazo-escena {
+  position: relative;
+  height: 320px;
+  perspective: 900px;
+  transform-style: preserve-3d;
+  /* La rueda del mazo pasa de ficha; el navegador no debe además scrollear. */
+  overscroll-behavior: contain;
+}
+
+.mazo-carta {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: min(100%, 400px);
+  height: 248px;
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+
+  transform-origin: center center;
+  backface-visibility: hidden;
+  will-change: transform;
+  /* La opacidad tarda lo mismo que el movimiento y no menos: si se desvanece
+     antes de llegar, la carta desaparece a mitad de camino y el recorrido se
+     pierde. Lo que se quiere ver es la carta yéndose, no apagándose. */
+  transition:
+    transform 1.24s cubic-bezier(0.22, 1.05, 0.36, 1),
+    opacity 1.24s ease,
+    border-color 0.3s ease;
+}
+
+.mazo-carta:first-child,
+.mazo-carta:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.mazo-numero {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.mazo-titulo {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.mazo-titulo a {
+  text-decoration: none;
+}
+
+/* El área de clic cubre la carta entera: apuntar a un renglón de texto en algo
+   que además se mueve es incómodo. */
+.mazo-titulo a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+.mazo-titulo a:hover {
+  text-decoration: underline;
+}
+
+.mazo-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  /* Tres renglones y corta: las descripciones no miden todas lo mismo y una
+     carta que cambia de alto rompe la ilusión del mazo. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mazo-meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.mazo-sev,
+.mazo-tag {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+}
+
+.mazo-sev {
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--bg);
+}
+
+.mazo-sev[data-sev='critical'] { background: var(--sev-critical); }
+.mazo-sev[data-sev='high'] { background: var(--sev-high); }
+.mazo-sev[data-sev='medium'] { background: var(--sev-medium); }
+.mazo-sev[data-sev='low'] { background: var(--sev-low); }
+.mazo-sev[data-sev='info'] { background: var(--sev-info); }
+
+.mazo-tag {
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+}
+
+/* ---------- Controles ---------- */
+
+.mazo-controles {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mazo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.25s ease, border-color 0.25s ease;
+}
+
+.mazo-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Una sola flecha en el registro de iconos, girada para el otro sentido. */
+.mazo-btn.girado {
+  transform: rotate(180deg);
+}
+
+.mazo-puntos {
+  display: flex;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mazo-puntos li {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.mazo-puntos li.activo {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mazo-carta,
+  .mazo-puntos li {
+    transition: none;
+  }
+}
