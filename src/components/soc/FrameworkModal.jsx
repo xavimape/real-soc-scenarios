@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import Icon from '@/components/Icon.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 import '@/styles/framework.css';
 
 /**
@@ -14,7 +15,7 @@ import '@/styles/framework.css';
  * Requiere `client:load` en el .mdx: sin hidratar, el botón no abre nada.
  */
 
-export default function FrameworkModal({ icon, label, title, subtitle, children }) {
+export default function FrameworkModal({ lang = DEFAULT_LANG, icon, label, title, subtitle, children }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
 
@@ -44,6 +45,10 @@ export default function FrameworkModal({ icon, label, title, subtitle, children 
   return (
     <>
       <button type="button" className="fw-trigger" onClick={() => setOpen(true)}>
+        {/* Mismo anillo que el botón de volver del encabezado. Los dos son
+            controles que abren algo fuera del flujo de lectura, así que
+            comparten señal: si laten igual, se aprenden una sola vez. */}
+        <span className="pulso" aria-hidden="true" />
         {icon && <Icon name={icon} size="1.05em" />}
         {label}
       </button>
@@ -58,7 +63,7 @@ export default function FrameworkModal({ icon, label, title, subtitle, children 
             type="button"
             className="fw-close"
             onClick={() => setOpen(false)}
-            aria-label="Cerrar"
+            aria-label={t('common.close', lang)}
           >
             <Icon name="cross" size="14" />
           </button>

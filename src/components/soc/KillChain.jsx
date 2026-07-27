@@ -1,4 +1,5 @@
 import FrameworkModal from './FrameworkModal.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * KillChain — las siete fases de Lockheed Martin (2011).
@@ -21,27 +22,28 @@ import FrameworkModal from './FrameworkModal.jsx';
  * Requiere `client:load`.
  */
 
-const PHASES = [
-  'Reconocimiento',
-  'Preparación del arma',
-  'Entrega',
-  'Explotación',
-  'Instalación',
-  'Comando y control',
-  'Acciones sobre el objetivo',
+const PHASE_KEYS = [
+  'killchain.p1',
+  'killchain.p2',
+  'killchain.p3',
+  'killchain.p4',
+  'killchain.p5',
+  'killchain.p6',
+  'killchain.p7',
 ];
 
-const STATE_LABEL = {
-  blocked: 'Cortada',
-  reached: 'Alcanzada',
-  'not-reached': 'No alcanzada',
+const STATE_KEYS = {
+  blocked: 'killchain.blocked',
+  reached: 'killchain.reached',
+  'not-reached': 'killchain.notReached',
 };
 
-export default function KillChain({ caseId, phases = [], note }) {
-  const rows = PHASES.map((name, i) => {
+export default function KillChain({ lang = DEFAULT_LANG, caseId, phases = [], note }) {
+
+  const rows = PHASE_KEYS.map((clave, i) => {
     const given = phases[i] || {};
     return {
-      phase: given.phase || name,
+      phase: given.phase || t(clave, lang),
       detail: given.detail,
       state: given.state || 'not-reached',
     };
@@ -51,13 +53,16 @@ export default function KillChain({ caseId, phases = [], note }) {
 
   return (
     <FrameworkModal
+      lang={lang}
       icon="chain"
-      label="Cyber Kill Chain"
-      title="Cyber Kill Chain"
+      label={t('killchain.label', lang)}
+      title={t('killchain.label', lang)}
       subtitle={
         broken >= 0
-          ? `Cadena cortada en la fase ${broken + 1} de 7${caseId ? ` · ${caseId}` : ''}`
-          : `Siete fases${caseId ? ` · ${caseId}` : ''}`
+          ? `${t('killchain.brokenAt', lang)} ${broken + 1} ${t('killchain.of', lang)} 7${
+              caseId ? ` · ${caseId}` : ''
+            }`
+          : `${t('killchain.phases', lang)}${caseId ? ` · ${caseId}` : ''}`
       }
     >
       <ol className="kc-list">
@@ -66,7 +71,7 @@ export default function KillChain({ caseId, phases = [], note }) {
             <span className="kc-num">{i + 1}</span>
             <div className="kc-body">
               <span className="phase">{r.phase}</span>
-              <span className="kc-state">{STATE_LABEL[r.state]}</span>
+              <span className="kc-state">{t(STATE_KEYS[r.state], lang)}</span>
               {r.detail && <p className="detail">{r.detail}</p>}
             </div>
           </li>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import Icon from '@/components/Icon.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * AlertTimeline
@@ -29,16 +30,17 @@ const SEVERITY = {
 };
 
 const ACTOR = {
-  Attacker: { icon: 'target', color: 'var(--actor-attacker)' },
-  Defender: { icon: 'shield', color: 'var(--actor-defender)' },
-  System: { icon: 'gear', color: 'var(--actor-system)' },
-  User: { icon: 'user', color: 'var(--actor-user)' },
+  Attacker: { icon: 'target', color: 'var(--actor-attacker)', key: 'timeline.actorAttacker' },
+  Defender: { icon: 'shield', color: 'var(--actor-defender)', key: 'timeline.actorDefender' },
+  System: { icon: 'gear', color: 'var(--actor-system)', key: 'timeline.actorSystem' },
+  User: { icon: 'user', color: 'var(--actor-user)', key: 'timeline.actorUser' },
 };
 
 const sev = (s) => SEVERITY[String(s || 'INFO').toUpperCase()] || SEVERITY.INFO;
-const act = (a) => ACTOR[a] || { icon: 'gear', color: 'var(--text-muted)' };
+const act = (a) => ACTOR[a] || { icon: 'gear', color: 'var(--text-muted)', key: null };
 
-export default function AlertTimeline({ caseId, events = [], title = 'Timeline del Incidente' }) {
+export default function AlertTimeline({ lang = DEFAULT_LANG, caseId, events = [], title }) {
+  const encabezado = title ?? t('timeline.title', lang);
   const [severityFilter, setSeverityFilter] = useState('ALL');
   const [actorFilter, setActorFilter] = useState('ALL');
 
@@ -61,7 +63,8 @@ export default function AlertTimeline({ caseId, events = [], title = 'Timeline d
   if (!events.length) {
     return (
       <div style={S.empty}>
-        Sin eventos para mostrar{caseId ? ` (${caseId})` : ''}.
+        {t('timeline.emptyOf', lang)}
+        {caseId ? ` (${caseId})` : ''}.
       </div>
     );
   }
@@ -70,28 +73,31 @@ export default function AlertTimeline({ caseId, events = [], title = 'Timeline d
     <section style={S.wrapper} aria-label={`Timeline ${caseId || ''}`}>
       <header style={S.header}>
         <div>
-          <h3 style={S.title}>{title}</h3>
+          <h3 style={S.title}>{encabezado}</h3>
           {caseId && <span style={S.caseId}>{caseId}</span>}
         </div>
         <span style={S.counter}>
-          {visible.length} / {events.length} eventos
+          {visible.length} / {events.length} {t('timeline.events', lang)}
         </span>
       </header>
 
       <div style={S.filters}>
         <Filters
-          label="Severidad"
+          label={t('timeline.filterSeverity', lang)}
           value={severityFilter}
           options={severities}
           onChange={setSeverityFilter}
           colorOf={(v) => sev(v).color}
+          allLabel={t('timeline.all', lang)}
         />
         <Filters
-          label="Actor"
+          label={t('timeline.filterActor', lang)}
           value={actorFilter}
           options={actors}
           onChange={setActorFilter}
           colorOf={(v) => act(v).color}
+          labelOf={(v) => (act(v).key ? t(act(v).key, lang) : v)}
+          allLabel={t('timeline.all', lang)}
         />
       </div>
 
@@ -116,7 +122,7 @@ export default function AlertTimeline({ caseId, events = [], title = 'Timeline d
                   <span style={{ ...S.badge, background: s.color }}>{s.label}</span>
                   {e.actor && (
                     <span style={{ ...S.actor, color: a.color, borderColor: a.color }}>
-                      {e.actor}
+                      {a.key ? t(a.key, lang) : e.actor}
                     </span>
                   )}
                 </div>
@@ -131,7 +137,7 @@ export default function AlertTimeline({ caseId, events = [], title = 'Timeline d
   );
 }
 
-function Filters({ label, value, options, onChange, colorOf }) {
+function Filters({ label, value, options, onChange, colorOf, labelOf, allLabel }) {
   if (options.length <= 1) return null;
 
   return (
@@ -152,7 +158,7 @@ function Filters({ label, value, options, onChange, colorOf }) {
               borderColor: color,
             }}
           >
-            {opt === 'ALL' ? 'Todos' : opt}
+            {opt === 'ALL' ? allLabel : labelOf ? labelOf(opt) : opt}
           </button>
         );
       })}

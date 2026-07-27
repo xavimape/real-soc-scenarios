@@ -1,4 +1,5 @@
 import Icon from '@/components/Icon.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * IOCViewer — render genérico de indicadores de compromiso.
@@ -78,7 +79,7 @@ function Table({ rows }) {
   );
 }
 
-export default function IOCViewer({ caseId, type = 'iocs', title, data = {} }) {
+export default function IOCViewer({ lang = DEFAULT_LANG, caseId, type = 'iocs', title, data = {} }) {
   const entries = Object.entries(data);
 
   return (
@@ -91,7 +92,7 @@ export default function IOCViewer({ caseId, type = 'iocs', title, data = {} }) {
         {caseId && <span style={S.caseId}>{caseId}</span>}
       </header>
 
-      {entries.length === 0 && <p style={S.empty}>Sin indicadores cargados.</p>}
+      {entries.length === 0 && <p style={S.empty}>{t('ioc.empty', lang)}</p>}
 
       {entries.map(([key, value]) => {
         const isObjArray =

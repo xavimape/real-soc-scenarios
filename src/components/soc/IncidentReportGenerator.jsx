@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import Icon from '@/components/Icon.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * IncidentReportGenerator — ficha de cierre del incidente + export a Markdown.
@@ -33,7 +34,7 @@ function toMarkdown(caseId, summary) {
   return lines.join('\n');
 }
 
-export default function IncidentReportGenerator({ caseId, summary = {} }) {
+export default function IncidentReportGenerator({ lang = DEFAULT_LANG, caseId, summary = {} }) {
   const [copied, setCopied] = useState(false);
   const entries = Object.entries(summary);
 
@@ -56,7 +57,7 @@ export default function IncidentReportGenerator({ caseId, summary = {} }) {
         <div>
           <h3 style={S.title}>
             <Icon name="document" size="1em" style={{ marginRight: '0.4em', verticalAlign: '-0.12em' }} />
-            {summary.title || 'Incident Report'}
+            {summary.title || t('report.fallbackTitle', lang)}
           </h3>
           <span style={S.caseId}>
             {summary.incidentId || caseId || ''}
@@ -85,7 +86,8 @@ export default function IncidentReportGenerator({ caseId, summary = {} }) {
 
       <button type="button" onClick={copy} style={S.button}>
         <Icon name={copied ? 'check' : 'clipboard'} size="1em" style={{ verticalAlign: '-0.12em' }} />
-        {copied ? ' Copiado' : ' Copiar reporte (Markdown)'}
+        {' '}
+        {copied ? t('report.copied', lang) : t('report.copy', lang)}
       </button>
     </section>
   );

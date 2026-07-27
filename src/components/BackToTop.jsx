@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 import '@/styles/back-to-top.css';
 
 /**
@@ -13,8 +14,9 @@ import '@/styles/back-to-top.css';
 
 const THRESHOLD = 700;
 
-export default function BackToTop({ label = 'Volver arriba' }) {
+export default function BackToTop({ lang = DEFAULT_LANG }) {
   const [visible, setVisible] = useState(false);
+  const label = t('common.toTop', lang);
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > THRESHOLD);

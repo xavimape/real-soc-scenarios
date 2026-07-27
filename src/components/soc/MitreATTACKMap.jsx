@@ -1,4 +1,5 @@
 import Icon from '@/components/Icon.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * MitreATTACKMap — grilla de tácticas y técnicas MITRE ATT&CK usadas en el caso.
@@ -10,7 +11,7 @@ const ATTACK_URL = 'https://attack.mitre.org';
 const techniqueUrl = (t) => `${ATTACK_URL}/techniques/${String(t).replace('.', '/')}/`;
 const tacticUrl = (id) => `${ATTACK_URL}/tactics/${id}/`;
 
-export default function MitreATTACKMap({ caseId, tactics = [] }) {
+export default function MitreATTACKMap({ lang = DEFAULT_LANG, caseId, tactics = [] }) {
   const total = tactics.reduce((n, t) => n + (t.techniques?.length || 0), 0);
 
   return (
@@ -21,12 +22,14 @@ export default function MitreATTACKMap({ caseId, tactics = [] }) {
           MITRE ATT&CK
         </h3>
         <span style={S.meta}>
-          {tactics.length} tácticas · {total} técnicas{caseId ? ` · ${caseId}` : ''}
+          {tactics.length} {t('attack.tactics', lang)} · {total}{' '}
+          {t('attack.techniques', lang)}
+          {caseId ? ` · ${caseId}` : ''}
         </span>
       </header>
 
       {tactics.length === 0 ? (
-        <p style={S.empty}>Sin tácticas mapeadas.</p>
+        <p style={S.empty}>{t('attack.empty', lang)}</p>
       ) : (
         <div style={S.grid}>
           {tactics.map((t) => (

@@ -1,4 +1,5 @@
 import FrameworkModal from './FrameworkModal.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * PyramidOfPain — ubica los indicadores del caso en los seis escalones de la
@@ -24,65 +25,67 @@ import FrameworkModal from './FrameworkModal.jsx';
 const LEVELS = [
   {
     key: 'ttps',
-    name: 'TTPs',
-    pain: 'Duro',
+    nameKey: 'pyramid.lvlTtps',
+    painKey: 'pyramid.painTough',
     color: 'var(--sev-critical)',
     width: '128px',
-    hint: 'Cambiar cómo opera le cuesta rediseñar la campaña.',
+    hintKey: 'pyramid.hintTtps',
   },
   {
     key: 'tools',
-    name: 'Herramientas',
-    pain: 'Molesto',
+    nameKey: 'pyramid.lvlTools',
+    painKey: 'pyramid.painChallenging',
     color: 'var(--sev-high)',
     width: '148px',
-    hint: 'Tiene que conseguir o escribir otra herramienta.',
+    hintKey: 'pyramid.hintTools',
   },
   {
     key: 'artifacts',
-    name: 'Artefactos de red y host',
-    pain: 'Irritante',
+    nameKey: 'pyramid.lvlArtifacts',
+    painKey: 'pyramid.painAnnoying',
     color: 'var(--sev-medium)',
     width: '168px',
-    hint: 'Debe modificar su implante o su patrón de tráfico.',
+    hintKey: 'pyramid.hintArtifacts',
   },
   {
     key: 'domains',
-    name: 'Dominios',
-    pain: 'Simple',
+    nameKey: 'pyramid.lvlDomains',
+    painKey: 'pyramid.painSimple',
     color: 'var(--sev-low)',
     width: '190px',
-    hint: 'Registra otro. Le lleva minutos y unos dólares.',
+    hintKey: 'pyramid.hintDomains',
   },
   {
     key: 'ips',
-    name: 'Direcciones IP',
-    pain: 'Fácil',
+    nameKey: 'pyramid.lvlIps',
+    painKey: 'pyramid.painEasy',
     color: 'var(--sev-info)',
     width: '212px',
-    hint: 'Rota de proveedor o de nodo de salida.',
+    hintKey: 'pyramid.hintIps',
   },
   {
     key: 'hashes',
-    name: 'Hashes',
-    pain: 'Trivial',
+    nameKey: 'pyramid.lvlHashes',
+    painKey: 'pyramid.painTrivial',
     color: 'var(--text-muted)',
     width: '234px',
-    hint: 'Un byte distinto y el hash ya no coincide.',
+    hintKey: 'pyramid.hintHashes',
   },
 ];
 
-export default function PyramidOfPain({ caseId, indicators = {}, note }) {
+export default function PyramidOfPain({ lang = DEFAULT_LANG, caseId, indicators = {}, note }) {
   const used = LEVELS.filter((l) => (indicators[l.key] || []).length > 0).length;
 
   return (
     <FrameworkModal
+      lang={lang}
       icon="pyramid"
-      label="Pirámide del dolor"
-      title="Pirámide del dolor"
-      subtitle={`Indicadores del caso por nivel de esfuerzo de evasión${
-        caseId ? ` · ${caseId}` : ''
-      } · ${used}/6 escalones con datos`}
+      label={t('pyramid.label', lang)}
+      title={t('pyramid.label', lang)}
+      subtitle={`${t('pyramid.subtitle', lang)}${caseId ? ` · ${caseId}` : ''} · ${used}/6 ${t(
+        'pyramid.stepsWithData',
+        lang
+      )}`}
     >
       {LEVELS.map((level) => {
         const values = indicators[level.key] || [];
@@ -93,8 +96,8 @@ export default function PyramidOfPain({ caseId, indicators = {}, note }) {
               className="pop-step"
               style={{ background: level.color, width: level.width }}
             >
-              <span className="name">{level.name}</span>
-              <span className="pain">{level.pain}</span>
+              <span className="name">{t(level.nameKey, lang)}</span>
+              <span className="pain">{t(level.painKey, lang)}</span>
             </div>
 
             <div className="pop-values">
@@ -105,7 +108,7 @@ export default function PyramidOfPain({ caseId, indicators = {}, note }) {
                   </span>
                 ))
               ) : (
-                <span className="none">{level.hint}</span>
+                <span className="none">{t(level.hintKey, lang)}</span>
               )}
             </div>
           </div>

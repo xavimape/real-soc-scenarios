@@ -1,4 +1,5 @@
 import FrameworkModal from './FrameworkModal.jsx';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 
 /**
  * DiamondModel — los cuatro vértices de Caltagirone, Pendergast y Betz (2013).
@@ -41,6 +42,7 @@ function Node({ kind, title, data }) {
 }
 
 export default function DiamondModel({
+  lang = DEFAULT_LANG,
   caseId,
   campaign,
   confidence,
@@ -50,25 +52,33 @@ export default function DiamondModel({
   victim,
   note,
 }) {
+
   return (
     <FrameworkModal
+      lang={lang}
       icon="diamond"
-      label="Diamond Model"
-      title="Diamond Model"
-      subtitle={`Relación entre adversario, capacidad, infraestructura y víctima${
-        caseId ? ` · ${caseId}` : ''
-      }`}
+      label={t('diamond.label', lang)}
+      title={t('diamond.label', lang)}
+      subtitle={`${t('diamond.subtitle', lang)}${caseId ? ` · ${caseId}` : ''}`}
     >
       {(campaign || confidence) && (
         <div className="dm-meta">
-          {campaign && <span className="chip">Campaña: {campaign}</span>}
-          {confidence && <span className="chip">Confianza: {confidence}</span>}
+          {campaign && (
+            <span className="chip">
+              {t('diamond.campaign', lang)}: {campaign}
+            </span>
+          )}
+          {confidence && (
+            <span className="chip">
+              {t('diamond.confidence', lang)}: {confidence}
+            </span>
+          )}
         </div>
       )}
 
       <div className="dm-grid">
-        <Node kind="adversary" title="Adversario" data={adversary} />
-        <Node kind="capability" title="Capacidad" data={capability} />
+        <Node kind="adversary" title={t('diamond.adversary', lang)} data={adversary} />
+        <Node kind="capability" title={t('diamond.capability', lang)} data={capability} />
 
         <div className="dm-center" aria-hidden="true">
           <svg viewBox="0 0 80 80" width="70" height="70" fill="none" stroke="currentColor">
@@ -82,8 +92,8 @@ export default function DiamondModel({
           </svg>
         </div>
 
-        <Node kind="infrastructure" title="Infraestructura" data={infrastructure} />
-        <Node kind="victim" title="Víctima" data={victim} />
+        <Node kind="infrastructure" title={t('diamond.infrastructure', lang)} data={infrastructure} />
+        <Node kind="victim" title={t('diamond.victim', lang)} data={victim} />
       </div>
 
       {note && <p className="fw-note">{note}</p>}
