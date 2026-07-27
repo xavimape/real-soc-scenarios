@@ -22,33 +22,38 @@ import KillChain from '@/components/soc/KillChain.jsx';
 import DiamondModel from '@/components/soc/DiamondModel.jsx';
 import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
 
-## Resumen Ejecutivo
-
-Este es **el caso más reciente del proyecto** (descubierto hace ~1 semana).
+## Resumen ejecutivo
 
 Una campaña de **actores alineados con Corea del Norte (DPRK)** llamada **Contagious Interview (REF9403)** utiliza **steganografía en archivos SVG** para ocultar malware de 4 etapas dirigido específicamente a **desarrolladores de software**.
 
-**Punto crítico**: En el momento de la divulgación, **NINGÚN motor antivirus** detectó los repositorios trojanzados. Es un gap estructural en cómo los AV analizan el contenido semántico de SVG.
+**El punto crítico:** al momento de la divulgación, **ningún motor antivirus**
+detectaba los repositorios troyanizados. No es una firma que faltaba: es un hueco
+estructural en cómo los antivirus analizan el contenido semántico de un SVG.
 
 **Métricas clave:**
+
 - Severidad: CRITICAL
-- Target: Developers (premium targets)
-- Método: SVG steganography
-- AV Detection: ZERO at disclosure
-- Payload: 4-stage OTTERCOOKIE-aligned
-- Descubrimiento: Julio 18, 2026 (1 semana atrás)
+- Objetivo: personas que desarrollan software
+- Método: esteganografía en archivos SVG
+- Detección antivirus al momento de la divulgación: ninguna
+- Carga útil: cuatro etapas, alineada con OTTERCOOKIE
+- Divulgación: 18 de julio de 2026
 
 ---
 
 ## Contexto: por qué este caso importa
 
-Como desarrollador que trabaja en **ciberseguridad y crea SVGs propios** para este proyecto:
+<Pass />**Rompe una intuición muy extendida.** Un SVG se percibe como una imagen, y
+una imagen se percibe como datos inertes. Es un archivo de texto que admite
+comentarios arbitrarios, y ahí cabe cualquier cosa.
 
-<Pass />**Temático**: Acabas de decidir usar SVGs custom. Este caso muestra exactamente cómo los SVGs pueden ser weaponizados.
+<Pass />**El objetivo es quien construye, no quien consume.** Una máquina de
+desarrollo concentra credenciales de infraestructura, acceso a repositorios y
+claves de firma. Comprometerla rinde más que comprometer a un usuario final.
 
-<Pass />**Audience overlap**: Tu plataforma educativa targetea developers. ESTOS son los que Contagious Interview está atacando AHORA.
-
-<Pass />**Supply chain threat**: Muestra por qué VERIFICAR código descargado es critical.
+<Pass />**Muestra el límite de los controles centralizados.** Nada de lo que
+despliega una organización en su perímetro alcanza a un repositorio que alguien
+clona y ejecuta en su propia máquina.
 
 ---
 
@@ -103,9 +108,10 @@ Como desarrollador que trabaja en **ciberseguridad y crea SVGs propios** para es
 
 El ataque comienza de manera simple pero efectiva:
 
-### Social Engineering Vector
+### El vector: ingeniería social
 
-Actores DPRK se hacen pasar por recruiters y publican en redes profesionales:
+Los actores se hacen pasar por reclutadores técnicos y publican avisos en redes
+profesionales:
 
 ```
 [SEÑUELO] OFERTA DE TRABAJO FALSA:
@@ -122,12 +128,16 @@ https://github.com/techcorp-innovations/developer-challenge"
 ═══════════════════════════════════════════
 ```
 
-### ¿Por Qué Funciona?
+### Por qué funciona
 
-1. **Developers son curiosos** → Validan sus skills con coding challenges
-2. **GitHub es de confianza** → Menos escrutinio de seguridad
-3. **Código real en el repo** → Parece legítimo
-4. **SVG files = "no malware"** → AV tools no checksean content semántico
+1. **La curiosidad profesional juega en contra.** Un desafío de programación es una
+   forma normal de medir el propio nivel, así que ejecutarlo no se siente como un riesgo.
+2. **GitHub carga con una confianza que no le corresponde.** Alojar código ahí no
+   dice nada sobre quién lo escribió, pero baja la guardia de quien lo clona.
+3. **El repositorio tiene código real y funciona.** Nada en la experiencia de uso
+   sugiere que haya algo más adentro.
+4. **Una imagen no parece un ejecutable.** Y los antivirus tampoco la tratan como
+   tal: no analizan el contenido semántico de un SVG.
 
 ---
 
@@ -152,27 +162,27 @@ Los actores ocultan **malware JavaScript fragmentado** en **archivos SVG de band
 </svg>
 ```
 
-### Por Qué Esto Evade AV
+### Por qué esto evade al antivirus
 
-**Antivirus tools están diseñados para:**
-- <Pass />Detectar malware en ejecutables
-- <Pass />Detectar scripts en archivos .js/.ps1
-- <Pass />Detectar pixel-level image manipulation
+**Los antivirus están diseñados para:**
+- <Pass />Detectar código malicioso en ejecutables
+- <Pass />Detectar guiones en archivos `.js` o `.ps1`
+- <Pass />Detectar manipulación de una imagen a nivel de píxel
 
-**AV tools NO están diseñados para:**
-- <Fail />Parsear comentarios HTML dentro de SVG tags
-- <Fail />Entender que `<!-- código -->` es código
-- <Fail />Analizar contenido semántico de XML/SVG
+**Los antivirus NO están diseñados para:**
+- <Fail />Leer los comentarios que hay dentro de un SVG
+- <Fail />Entender que lo que está comentado sigue siendo código
+- <Fail />Analizar el contenido semántico de un XML
 
-**Resultado**: Steganografía perfecta. Zero detections.
+**Resultado:** ocultamiento perfecto. Cero detecciones.
 
 ---
 
 ## 3. El payload: OTTERCOOKIE en 4 etapas
 
-Cuando el developer corre el proyecto (`npm install` → `npm run build`):
+Cuando quien desarrolla ejecuta el proyecto (`npm install` → `npm run build`):
 
-### Stage 1: Browser Credential Stealer
+### Etapa 1: robo de credenciales del navegador
 
 ```javascript
 // Extracted from malware analysis
@@ -187,19 +197,19 @@ function steal_browser_credentials() {
 }
 ```
 
-**Target**: 
-- GitHub tokens
-- AWS credentials
-- Crypto wallet extensions (MetaMask, etc)
+**Lo que busca:**
+- Tokens de GitHub
+- Credenciales de AWS
+- Extensiones de billeteras de criptomonedas
 
-### Stage 2: Crypto Wallet Stealer
+### Etapa 2: robo de billeteras de criptomonedas
 
-Specific focus on developer machines which often have:
-- Hard-earned crypto holdings
-- Private keys stored locally
-- Seed phrases in memory
+Apunta específicamente a equipos de desarrollo, que suelen tener:
+- Fondos acumulados a lo largo del tiempo
+- Claves privadas guardadas en el disco
+- Frases de recuperación abiertas en memoria
 
-### Stage 3: Socket.IO RAT (Remote Access Trojan)
+### Etapa 3: troyano de acceso remoto sobre Socket.IO
 
 ```javascript
 const io = require('socket.io-client');
@@ -213,13 +223,13 @@ socket.on('execute_command', (cmd) => {
 });
 ```
 
-**Permite a atacantes:**
-- Ejecutar comandos arbitrary
-- Instalar backdoors adicionales
-- Lateral movement a la red
-- Cambiar criptomonedas en exchanges
+**Le permite al atacante:**
+- Ejecutar comandos arbitrarios en el equipo
+- Instalar puertas traseras adicionales
+- Moverse lateralmente hacia el resto de la red
+- Operar con las criptomonedas de la víctima en una casa de cambio
 
-### Stage 4: Clipboard Stealer
+### Etapa 4: vigilancia del portapapeles
 
 ```javascript
 // Monitorea el clipboard constantemente
@@ -235,7 +245,8 @@ setInterval(() => {
 }, 5000); // Every 5 seconds
 ```
 
-**Purpose**: Capturar credenciales, direcciones de crypto, tokens cuando el user los copia/pega.
+**Para qué:** capturar credenciales, direcciones de billeteras y tokens en el
+momento en que la persona los copia y pega — que es justo cuando están en claro.
 
 ---
 
@@ -280,7 +291,7 @@ setInterval(() => {
   }}
 />
 
-### Obfuscation Techniques
+### Técnicas de ofuscación
 
 ```javascript
 // Code is obfuscated using obfuscator.io
@@ -302,7 +313,8 @@ function decode_payload() {
 }
 ```
 
-**Defense evasion through code obfuscation is highly effective against basic static analysis.**
+**La ofuscación del código es muy efectiva contra el análisis estático básico**, que
+es el que corre por defecto en la mayoría de los controles automáticos.
 
 ---
 
@@ -521,20 +533,22 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 ## Conclusión
 
-Este caso demuestra que:
+Cuatro cosas que este caso deja claras:
 
-1. **Steganografía está evolucionando** como vector de ataque mainstream
-2. **Developers son targets premium** para DPRK y otros threat actors
-3. **AV tools tienen gaps estructurales** en analizar contenido semántico
-4. **Supply chain security es responsabilidad compartida** entre desarrolladores y organizaciones
-5. **SVG files (como los que vos estás creando) pueden ser weaponizados** - pero también pueden ser defendidos
-
-**Tu proyecto = educación en defensa contra estos ataques ACTIVOS.**
+1. **La esteganografía dejó de ser una curiosidad académica** y pasó a ser un vector
+   de entrega en campañas activas.
+2. **Quien desarrolla es un objetivo de alto valor**, no un daño colateral: tiene
+   credenciales de infraestructura, acceso a repositorios y, con frecuencia, fondos propios.
+3. **Los antivirus tienen un hueco estructural**, no un fallo puntual: no analizan el
+   contenido semántico de los formatos que consideran inofensivos.
+4. **La seguridad de la cadena de suministro es responsabilidad compartida.** Ninguna
+   herramienta de la organización cubre lo que alguien ejecuta en su propia máquina.
+5. **Un formato se vuelve peligroso cuando nadie lo mira.** El SVG no tiene nada
+   de inseguro en sí: lo que falta es que alguien lo trate como código.
 
 ---
 
 ## Próximas lecturas
 
-- **Caso 1**: Phishing Investigation (basic)
-- **Caso 5**: SolarWinds (supply chain clásico)
-- **Caso 14**: FTX (credential theft consequences)
+- **Caso 1**: investigación de phishing, el mismo objetivo por la vía tradicional
+- **Caso 4**: Target 2013, compromiso a través de la cadena de suministro a otra escala
