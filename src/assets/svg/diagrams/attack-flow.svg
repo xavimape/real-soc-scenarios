@@ -1,0 +1,40 @@
+<svg viewBox="0 0 700 150" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Etapas de la cadena de ataque. Los anchos siguen el largo de cada
+    etiqueta y las cajas van escalonadas en vertical: leerlo en zigzag
+    evita que se confunda con una línea de tiempo a escala.
+    Los colores salen de los tokens de severidad del tema activo.
+  -->
+
+  <!-- Initial access -->
+  <rect x="6" y="52" width="148" height="44" rx="4"
+    fill="none" stroke="var(--sev-critical, currentColor)" stroke-width="2" />
+  <text x="80" y="79" text-anchor="middle" font-size="13" fill="currentColor">Initial access</text>
+
+  <!-- Execution -->
+  <rect x="188" y="38" width="116" height="44" rx="4"
+    fill="none" stroke="var(--sev-high, currentColor)" stroke-width="2" />
+  <text x="246" y="65" text-anchor="middle" font-size="13" fill="currentColor">Execution</text>
+
+  <!-- Persistence -->
+  <rect x="338" y="60" width="132" height="44" rx="4"
+    fill="none" stroke="var(--sev-medium, currentColor)" stroke-width="2" />
+  <text x="404" y="87" text-anchor="middle" font-size="13" fill="currentColor">Persistence</text>
+
+  <!-- Exfiltration -->
+  <rect x="504" y="34" width="136" height="44" rx="4"
+    fill="none" stroke="var(--sev-low, currentColor)" stroke-width="2" />
+  <text x="572" y="61" text-anchor="middle" font-size="13" fill="currentColor">Exfiltration</text>
+
+  <!-- Transiciones -->
+  <path d="M 154 70 L 186 58" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.55" />
+  <path d="M 304 62 L 336 80" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.55" />
+  <path d="M 470 80 L 502 56" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.55" />
+
+  <!-- Punta de flecha sobre la última transición -->
+  <path d="M 502 56 L 492 57 L 496 64 Z" fill="currentColor" opacity="0.55" />
+
+  <!-- Continuación abierta: la cadena no termina en exfiltración -->
+  <path d="M 640 56 L 668 56" fill="none" stroke="currentColor" stroke-width="1.5"
+    stroke-dasharray="4 5" opacity="0.4" />
+</svg>

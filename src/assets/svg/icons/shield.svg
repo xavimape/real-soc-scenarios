@@ -1,0 +1,16 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield outline -->
+  <path d="M 50 15 L 80 30 L 80 55 C 80 75 50 90 50 90 C 50 90 20 75 20 55 L 20 30 Z"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    stroke-linejoin="round" />
+  
+  <!-- Checkmark inside -->
+  <path d="M 40 55 L 48 63 L 62 45"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round" />
+</svg>
