@@ -9,7 +9,10 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "check": "node scripts/check-defang.mjs && node scripts/check-i18n.mjs && node tools/contraste-globo.mjs",
+    "audit:i18n": "node tools/i18n-audit.mjs",
+    "check:globo": "node tools/contraste-globo.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.3",
