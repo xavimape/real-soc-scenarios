@@ -1,0 +1,294 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { withBase } from '@/utils/url.js';
+import { t } from '@/i18n/strings.js';
+import { LANGS, partirId, rutaCaso, rutaIndice } from '@/i18n/rutas.js';
+import CaseDeck from '@/components/CaseDeck.jsx';
+import Globe from '@/components/Globe.jsx';
+
+// Un índice por idioma. Solo lista los casos que existen en ese idioma: un caso
+// sin traducir no aparece acá ni tiene ruta. Es la decisión de D-014 — preferimos
+// una ausencia visible a una página a medio traducir.
+export async function getStaticPaths() {
+  const todos = await getCollection('scenarios');
+
+  return LANGS.map((lang) => ({
+    params: { lang },
+    props: {
+      casos: todos
+        .filter((entry) => partirId(entry.id).lang === lang)
+        .sort((a, b) => a.data.caseNumber - b.data.caseNumber),
+    },
+  }));
+}
+
+const { lang } = Astro.params;
+const { casos } = Astro.props;
+
+const sevVar = (severity: string) =>
+  `var(--sev-${severity.toLowerCase()}, var(--text-muted))`;
+
+// El índice existe siempre en los dos idiomas, aunque esté vacío: es la puerta
+// de entrada, y dejar sin destino al selector de idioma sería peor que mostrar
+// una lista sin casos.
+const alternativas = Object.fromEntries(LANGS.map((l) => [l, rutaIndice(l)]));
+
+// El mazo destaca los primeros casos; la lista completa queda debajo para quien
+// quiera escanear. Un mazo que rota solo no sirve como único acceso a quince
+// casos: muestra lo que quiere, cuando quiere.
+const destacados = casos.slice(0, 4).map((entry) => ({
+  number: entry.data.caseNumber,
+  title: entry.data.title,
+  description: entry.data.description,
+  severity: entry.data.severity,
+  difficulty: entry.data.difficulty,
+  caseId: entry.data.caseId,
+  href: withBase(rutaCaso(lang, partirId(entry.id).slug)),
+}));
+
+// Marcadores del globo. Solo los casos que declararon una geografía real: un
+// caso sintético no tiene un lugar verdadero que señalar, y preferimos que no
+// aparezca antes que inventarle uno.
+const marcadores = casos.flatMap((entry) =>
+  (entry.data.locations ?? []).map((sitio) => ({
+    ...sitio,
+    href: withBase(rutaCaso(lang, partirId(entry.id).slug)),
+  }))
+);
+---
+
+<BaseLayout
+  lang={lang}
+  title="Real SOC Scenarios"
+  description={t('index.metaDescription', lang)}
+  alternativas={alternativas}
+  headerSubtitle={`${casos.length} ${t(
+    casos.length === 1 ? 'index.subtitleOne' : 'index.subtitle',
+    lang
+  )}`}
+>
+  <section class="portada">
+    <div class="portada-texto">
+      {/* El nombre del sitio ya está en el encabezado, en el mismo tamaño y a la
+          vista. Repetirlo acá gastaba la mitad del alto útil de la portada en
+          decir dos veces lo mismo.
+
+          El <h1> se conserva oculto a la vista pero no a la asistencia: una
+          página sin encabezado de primer nivel deja sin ancla a quien navega por
+          estructura, y el título del encabezado es un elemento de navegación
+          repetido en todas las páginas, no el título de esta. */}
+      <h1 class="solo-lectores">Real SOC Scenarios</h1>
+      {destacados.length > 0 && <CaseDeck client:load lang={lang} cases={destacados} />}
+    </div>
+
+    <div class="portada-globo">
+      <Globe client:visible lang={lang} markers={marcadores} size={320} />
+    </div>
+  </section>
+
+  {casos.length === 0 && <p class="vacio">{t('index.empty', lang)}</p>}
+
+  {/* La lista completa arranca cerrada para dejarle la pantalla al mazo. Se usa
+      <details> y no un componente: el navegador ya sabe abrirlo, anunciarlo a un
+      lector de pantalla y encontrarlo con la búsqueda de la página. Cero
+      JavaScript para algo que el HTML resuelve. */}
+  <details class="lista-completa" id="lista-casos">
+    <summary>
+      <span class="conteo">{casos.length}</span>
+      <span class="abrir">{t('index.openList', lang)}</span>
+      <span class="cerrar">{t('index.closeList', lang)}</span>
+    </summary>
+
+  <ul class="list">
+    {
+      casos.map((entry) => (
+        <li class="card">
+          <a class="card-link" href={withBase(rutaCaso(lang, partirId(entry.id).slug))}>
+            #{entry.data.caseNumber} — {entry.data.title}
+          </a>
+          <p class="desc">{entry.data.description}</p>
+          <div class="meta">
+            <span class="badge" style={`background:${sevVar(entry.data.severity)}`}>
+              {entry.data.severity}
+            </span>
+            <span class="tag">{entry.data.difficulty}</span>
+            <span class="tag">{entry.data.caseId}</span>
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+  </details>
+</BaseLayout>
+
+<style>
+  /* Bloque de entrada: texto y mazo a la izquierda, globo a la derecha. */
+  .portada {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 2.5rem;
+    align-items: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .portada-globo {
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Debajo de 900px el globo pasa arriba y se achica. Por debajo de 640px se va:
+     es una pieza decorativa con datos, y su equivalente accesible —la lista de
+     enlaces— sigue estando para quien la necesite. */
+  @media (max-width: 900px) {
+    .portada {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .portada-globo {
+      order: -1;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .portada-globo {
+      display: none;
+    }
+  }
+
+  /* Fuera de la vista, dentro del árbol de accesibilidad. No se usa
+     `display: none` justamente porque eso lo sacaría de los dos. */
+  .solo-lectores {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .sub {
+    color: var(--text-muted);
+    margin-top: 0;
+    font-size: 0.9rem;
+  }
+
+  .vacio {
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  /* ---------- Lista completa, colapsable ---------- */
+
+  .lista-completa summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    list-style: none;
+    transition: color 0.25s ease, border-color 0.25s ease;
+  }
+
+  /* El triángulo por defecto de Safari. */
+  .lista-completa summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .lista-completa summary:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  .conteo {
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+  }
+
+  /* El mismo control dice dos cosas según su estado. Se emiten las dos y el CSS
+     muestra la que corresponde: sin esto habría que sincronizar el texto por
+     JavaScript, y el control ya funciona sin nada. */
+  .lista-completa[open] .abrir,
+  .lista-completa:not([open]) .cerrar {
+    display: none;
+  }
+
+  .list {
+    list-style: none;
+    padding: 0;
+    margin-top: 1.5rem;
+  }
+
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.75rem;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+
+  .card:hover {
+    transform: translateX(4px);
+    border-color: var(--accent);
+  }
+
+  .card-link {
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .card-link:hover {
+    text-decoration: underline;
+  }
+
+  .desc {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin: 0.35rem 0 0;
+  }
+
+  .meta {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: 0.55rem;
+  }
+
+  .badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--bg);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+  }
+
+  .tag {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card {
+      transition: none;
+    }
+  }
+</style>

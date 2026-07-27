@@ -1,32 +1,81 @@
 ---
 import { Font } from 'astro:assets';
-import ConfigDock from '@/components/ConfigDock.jsx';
+import { ClientRouter } from 'astro:transitions';
+import SiteHeader from '@/components/SiteHeader.jsx';
 import BackToTop from '@/components/BackToTop.jsx';
+import { withBase } from '@/utils/url.js';
+import { t, DEFAULT_LANG } from '@/i18n/strings.js';
+import { rutaIndice } from '@/i18n/rutas.js';
 import '@/styles/themes.css';
 
 interface Props {
+  /** Idioma de la página. Sale de la ruta, no de una preferencia del navegador. */
+  lang?: string;
   title: string;
-  titleEn?: string;
   description?: string;
-  descriptionEn?: string;
   showBack?: boolean;
+  /** Texto a la derecha del título, en el encabezado. Solo lo usa la portada. */
+  headerSubtitle?: string;
+  /**
+   * La misma página en cada idioma, o `null` si no existe todavía.
+   * La calcula cada página: solo ella sabe si su caso está traducido.
+   */
+  alternativas?: Record<string, string | null>;
 }
 
-const { title, titleEn, description, descriptionEn, showBack = false } = Astro.props;
+const {
+  lang = DEFAULT_LANG,
+  title,
+  description,
+  showBack = false,
+  headerSubtitle,
+  alternativas = {},
+} = Astro.props;
+
+// Las alternativas van con `base` aplicado acá, en un solo lugar: si cada página
+// lo hiciera por su cuenta, tarde o temprano una se olvida y rompe en GitHub
+// Pages, que sirve desde un subdirectorio.
+// La columna lateral existe solo si la página la llena. El índice es cosa de las
+// páginas de caso; el índice de casos no tiene secciones que listar.
+const tieneLateral = Astro.slots.has('lateral');
+
+const alternativasConBase = Object.fromEntries(
+  Object.entries(alternativas).map(([idioma, ruta]) => [
+    idioma,
+    ruta ? withBase(ruta) : null,
+  ])
+);
 ---
 
 <!doctype html>
-<html lang="es" data-theme="light" data-font="inter" data-lang="es">
+<html lang={lang} data-theme="light" data-font="inter" data-lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
+    <link rel="icon" href={withBase("/favicon.ico")} />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
-    {titleEn && <meta property="og:title" content={titleEn} />}
-    {descriptionEn && <meta property="og:description" content={descriptionEn} />}
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:locale" content={lang} />
+
+    {/* Le dice a los buscadores que estas páginas son la misma en otro idioma.
+        Solo se declaran las que existen: anunciar una traducción que no está
+        es peor que no anunciar nada. */}
+    {
+      Object.entries(alternativasConBase)
+        .filter(([, ruta]) => ruta)
+        .map(([idioma, ruta]) => (
+          <link rel="alternate" hreflang={idioma} href={ruta} />
+        ))
+    }
+
+    {/* Transiciones de vista. Cambiar de idioma sigue siendo una navegación —dos
+        URL, indexables y compartibles— pero deja de verse como una: fundido en
+        lugar de parpadeo, y sin volver al principio de la página. */}
+    <ClientRouter />
 
     {/* Las 5 familias; solo se precarga la que se usa por defecto. */}
     <Font cssVariable="--font-inter" preload />
@@ -35,61 +84,110 @@ const { title, titleEn, description, descriptionEn, showBack = false } = Astro.p
     <Font cssVariable="--font-jetbrains-mono" />
     <Font cssVariable="--font-merriweather" />
 
-    {/* Anti-FOUC: aplica tema, fuente e idioma guardados antes del primer pintado. */}
-    <script is:inline>
+    {/* Anti-FOUC: aplica tema y fuente guardados antes del primer pintado.
+        El idioma ya no se toca acá: lo fija la ruta y viene resuelto en el HTML.
+        Lo único que queda es recordar la elección para la próxima visita. */}
+    <script is:inline define:vars={{ langDeLaRuta: lang }}>
       (function () {
         try {
           var root = document.documentElement;
           var theme = localStorage.getItem('soc-theme');
           var font = localStorage.getItem('soc-font');
-          var lang = localStorage.getItem('soc-lang');
+
           if (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
             theme = 'dark';
           }
+
           root.dataset.theme = theme || 'light';
           root.dataset.font = font || 'inter';
-          root.dataset.lang = lang || 'es';
-          root.lang = root.dataset.lang;
+
+          // Estar en /en/ es una elección explícita: se guarda para que la raíz
+          // respete el idioma en la próxima visita.
+          localStorage.setItem('soc-lang', langDeLaRuta);
         } catch (e) {
           /* sin localStorage: quedan los valores por defecto del HTML */
         }
       })();
     </script>
+
+    {/* Al navegar con transiciones, Astro reemplaza el documento entero, y con él
+        el <html> — que vuelve a traer `data-theme="light"` del HTML estático. Sin
+        esto, cambiar de idioma te devuelve al tema claro.
+
+        El guard evita registrar el listener de nuevo en cada intercambio: el
+        script se vuelve a ejecutar con cada página, el listener tiene que
+        registrarse una sola vez. */}
+    <script is:inline>
+      (function () {
+        if (window.__socTransiciones) return;
+        window.__socTransiciones = true;
+
+        function restaurarApariencia() {
+          try {
+            var root = document.documentElement;
+            var theme = localStorage.getItem('soc-theme');
+            var font = localStorage.getItem('soc-font');
+
+            if (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              theme = 'dark';
+            }
+
+            root.dataset.theme = theme || 'light';
+            root.dataset.font = font || 'inter';
+          } catch (e) {
+            /* sin localStorage: quedan los valores por defecto del HTML */
+          }
+        }
+
+        function restaurarScroll() {
+          var guardado = null;
+          try {
+            guardado = sessionStorage.getItem('soc-scroll');
+            sessionStorage.removeItem('soc-scroll');
+          } catch (e) {
+            return;
+          }
+          // Solo el cambio de idioma guarda la posición: es la misma página en
+          // otro idioma, y volver arriba sería perder de vista dónde estabas.
+          // Cualquier otra navegación arranca donde corresponde, arriba.
+          if (guardado !== null) window.scrollTo(0, Number(guardado));
+        }
+
+        document.addEventListener('astro:after-swap', function () {
+          restaurarApariencia();
+          restaurarScroll();
+        });
+      })();
+    </script>
   </head>
 
   <body>
-    <div class="page">
-      {
-        showBack && (
-          <p class="back-row">
-            <a class="back" href="/">
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M10.5 5.5 4.5 12l6 6.5M4.5 12H20"></path>
-              </svg>
-              <span data-lang="es">Volver al índice</span>
-              <span data-lang="en">Back to index</span>
-            </a>
-          </p>
-        )
-      }
+    <div class:list={['page', { 'con-lateral': tieneLateral }]}>
+      <div class="col-principal">
+        <main>
+          <slot />
+        </main>
+      </div>
 
-      <main>
-        <slot />
-      </main>
+      {tieneLateral && (
+        <aside class="col-lateral">
+          <slot name="lateral" />
+        </aside>
+      )}
     </div>
 
-    <ConfigDock client:load />
-    <BackToTop client:load />
+    {/* El encabezado es una sola pieza, igual en todas las páginas. Lo único que
+        varía es el botón de volver, que solo existe cuando hay de dónde volver. */}
+    <SiteHeader
+      client:load
+      lang={lang}
+      alternativas={alternativasConBase}
+      subtitle={headerSubtitle}
+      homeHref={showBack ? withBase(rutaIndice(lang)) : null}
+      backHref={showBack ? withBase(rutaIndice(lang)) : null}
+      backLabel={t('common.back', lang)}
+    />
+    <BackToTop client:load lang={lang} />
   </body>
 </html>
 
@@ -97,29 +195,63 @@ const { title, titleEn, description, descriptionEn, showBack = false } = Astro.p
   .page {
     max-width: 900px;
     margin: 0 auto;
-    /* El padding superior deja aire para el dock flotante. */
-    padding: 5.5rem 2rem 4rem;
+    /* El padding superior deja aire para el encabezado flotante. Con la barra
+       de metadatos del caso pegada arriba, las etiquetas quedaban lamiendo el
+       borde del encabezado y se perdían: hace falta que el ojo registre que son
+       dos capas distintas, no una continuación. */
+    padding: 7.5rem 2rem 4rem;
   }
 
-  .back-row {
-    margin: 0 0 1.25rem;
+  /* Con índice lateral la página se ensancha lo justo para alojarlo: la columna
+     de texto conserva su ancho de lectura en vez de encogerse para hacerle
+     lugar. Un caso se lee, y el renglón largo cansa. */
+  .page.con-lateral {
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 15rem;
+    gap: 2.5rem;
+    align-items: start;
   }
 
-  .back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.85rem;
-    text-decoration: none;
+  .col-principal {
+    min-width: 0;
   }
 
-  .back:hover {
-    text-decoration: underline;
+  /* El pegado va acá, en el elemento de la grilla, y no en el índice de adentro.
+     Un elemento `sticky` solo puede desplazarse dentro de su bloque contenedor:
+     si se pega el índice, su contenedor es este `<aside>`, que mide lo mismo que
+     él y no le deja recorrido. En el elemento de la grilla, en cambio, el bloque
+     contenedor es el área de la grilla, que es tan alta como el artículo.
+
+     Y el alto máximo va junto con el pegado: si la ventana es más baja que el
+     índice, este necesita su propia barra en vez de desbordar. */
+  .col-lateral {
+    position: sticky;
+    top: 7.5rem;
+    max-height: calc(100vh - 7.5rem);
+    display: flex;
+    flex-direction: column;
+    /* Sin esto un hijo con scroll no se deja achicar por debajo de su contenido
+       y el alto máximo no tiene efecto. */
+    min-height: 0;
+  }
+
+  /* Debajo de este ancho no entra una columna lateral sin comerse el texto, así
+     que el índice se va del todo. El contenido queda igual de navegable. */
+  @media (max-width: 1100px) {
+    .page.con-lateral {
+      display: block;
+      max-width: 900px;
+    }
+
+    .col-lateral {
+      display: none;
+    }
   }
 
   @media (max-width: 520px) {
     .page {
-      padding: 5rem 1rem 3rem;
+      padding: 7rem 1rem 3rem;
     }
   }
 </style>

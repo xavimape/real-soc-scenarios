@@ -1,8 +1,6 @@
 ---
 title: "Contagious Interview - Steganografía en SVG (REF9403)"
-titleEn: "Contagious Interview - SVG Steganography (REF9403)"
 description: "Ataque DPRK: Malware de 4 etapas oculto en archivos SVG de banderas - Objetivo: Desarrolladores"
-descriptionEn: "DPRK Attack: 4-stage malware hidden in SVG flag files - Target: Developers"
 pubDate: 2026-07-18
 caseId: "soc-015"
 caseNumber: 15
@@ -10,9 +8,10 @@ difficulty: "expert"
 caseType: "real_case_critical_recent"
 severity: "CRITICAL"
 tags: ["steganography", "svg", "dprk", "supply-chain", "developer-targeting", "zero-av-detection"]
-tagsEn: ["steganography", "svg", "dprk", "supply-chain", "developer-targeting", "zero-av-detection"]
 author: "Elastic Security Labs"
 discoveryDate: "2026-07-18"
+locations:
+  - { lat: 39.0392, lng: 125.7625, label: "Actores atribuidos a RPDC" }
 ---
 
 import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
@@ -57,40 +56,41 @@ Como desarrollador que trabaja en **ciberseguridad y crea SVGs propios** para es
 
 <AlertTimeline 
   client:load
+  lang="es"
   caseId="soc-015"
   events={[
     {
       time: "Unknown",
-      title: "Campaign Starts",
-      description: "DPRK actors begin crafting fake job postings and coding challenges",
+      title: "Arranca la campaña",
+      description: "Los actores de RPDC empiezan a fabricar ofertas de trabajo y pruebas técnicas falsas",
       severity: "HIGH",
       actor: "Attacker"
     },
     {
       time: "Unknown",
-      title: "Repository Compromise",
-      description: "Next.js e-commerce repositories trojanzed with malicious SVG files",
+      title: "Repositorios comprometidos",
+      description: "Repositorios de comercio electrónico en Next.js troyanizados con archivos SVG maliciosos",
       severity: "HIGH",
       actor: "Attacker"
     },
     {
       time: "07-15",
-      title: "Elastic Slack Targeted",
-      description: "DPRK actors target Elastic's community Slack with fake job posting",
+      title: "Ataque al Slack de Elastic",
+      description: "Los actores de RPDC apuntan al Slack de la comunidad de Elastic con una oferta de trabajo falsa",
       severity: "CRITICAL",
       actor: "Attacker"
     },
     {
       time: "07-18",
-      title: "Discovery",
-      description: "Elastic Security Labs discovers the campaign and SVG steganography technique",
+      title: "Descubrimiento",
+      description: "Elastic Security Labs descubre la campaña y la técnica de esteganografía en SVG",
       severity: "INFO",
       actor: "Defender"
     },
     {
       time: "07-18",
-      title: "Public Disclosure",
-      description: "Elastic publishes detailed technical report - ZERO AV detections at this point",
+      title: "Publicacion del hallazgo",
+      description: "Elastic publica el informe técnico detallado: CERO detecciones de antivirus en ese momento",
       severity: "INFO",
       actor: "Defender"
     }
@@ -245,6 +245,7 @@ setInterval(() => {
 
 <IOCViewer 
   client:load
+  lang="es"
   caseId="soc-015"
   type="full_iocs"
   data={{
@@ -309,6 +310,7 @@ function decode_payload() {
 
 <MitreATTACKMap 
   client:load
+  lang="es"
   caseId="soc-015"
   tactics={[
     {
@@ -356,40 +358,40 @@ function decode_payload() {
 
 ## Lecciones aprendidas
 
-### Para Desarrolladores (TU AUDIENCIA)
+### Para quien desarrolla
 
-1. **No ejecutes código de fuentes desconocidas**
-   - Aunque GitHub sea de confianza, verifica repos antes de clonar
-   - Leer el código antes de `npm install`
+1. **No ejecutar código de origen desconocido**
+   - Que el repositorio esté en GitHub no lo vuelve confiable: hay que revisarlo antes de clonarlo
+   - Leer el código antes de correr `npm install`
 
-2. **Steganografía en imagenes es un vector subdetectado**
-   - No asumir que archivos "inofensivos" (.svg, .png) son seguros
-   - Monitorear procesos que accedan archivos multimedia
+2. **La esteganografía en imágenes es un vector poco vigilado**
+   - Un archivo `.svg` o `.png` no es inofensivo por su extensión
+   - Vigilar los procesos que abren archivos multimedia y hacen algo más que mostrarlos
 
-3. **Crypto wallets en dev machines es un riesgo**
-   - Hardware wallets para holdings importantes
-   - Separate machines para dev y cripto
+3. **Tener billeteras de criptomonedas en el equipo de trabajo es un riesgo**
+   - Billetera por hardware para los fondos que importan
+   - Equipos separados para desarrollo y para cripto
 
-4. **Code review es crítico en supply chain**
-   - Especialmente para dependencias descargadas
-   - CI/CD security scanning es essential
+4. **La revisión de código es crítica en la cadena de suministro**
+   - Sobre todo para las dependencias que se descargan
+   - El análisis de seguridad en el pipeline de integración continua no es opcional
 
-### Para SOC Analysts
+### Para quien analiza en un SOC
 
-1. **Expand detection beyond traditional file types**
-   - Build YARA rules para SVG comment content
-   - Monitor for Base64 decoding patterns
-   - Hunt for Socket.IO imports (RAT indicator)
+1. **Ampliar la detección más allá de los tipos de archivo habituales**
+   - Escribir reglas YARA para el contenido de los comentarios en SVG
+   - Vigilar patrones de decodificación Base64
+   - Buscar importaciones de Socket.IO, que en este contexto delatan un troyano de acceso remoto
 
-2. **Developer targeting requires specific defense**
-   - Monitor browser credential access events
-   - Alert on crypto wallet extension activities
-   - Track `npm install` from unusual sources
+2. **Atacar a desarrolladores exige defensas propias**
+   - Vigilar los accesos a las credenciales guardadas en el navegador
+   - Alertar sobre la actividad de extensiones de billeteras de criptomonedas
+   - Seguir los `npm install` que vengan de orígenes inusuales
 
-3. **Zero antivirus detection ≠ zero threat**
-   - File integrity monitoring critical
-   - Behavioral analysis important
-   - Endpoint Detection and Response (EDR) >> traditional AV
+3. **Cero detecciones del antivirus no es cero amenaza**
+   - El monitoreo de integridad de archivos pasa a ser crítico
+   - El análisis de comportamiento importa más que la firma
+   - Un EDR aporta acá lo que el antivirus tradicional no puede ver
 
 ---
 
@@ -399,6 +401,7 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 <PyramidOfPain
   client:load
+  lang="es"
   caseId="soc-015"
   indicators={{
     domains: ["rightwidth[.]dev"],
@@ -419,6 +422,7 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 <DiamondModel
   client:load
+  lang="es"
   caseId="soc-015"
   campaign="Contagious Interview (REF9403)"
   confidence="Alta - atribución de Elastic Security Labs"
@@ -443,6 +447,7 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 <KillChain
   client:load
+  lang="es"
   caseId="soc-015"
   phases={[
     {
@@ -471,6 +476,7 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 <IncidentReportGenerator 
   client:load
+  lang="es"
   caseId="soc-015"
   summary={{
     incidentId: "REF9403",
@@ -484,21 +490,21 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 ### Recomendaciones
 
 <Pass />**Implementar:**
-1. Software supply chain verification (code signing, package integrity)
-2. Developer security training (social engineering awareness)
-3. Repository scanning para embedded payloads en SVG/media files
-4. Behavioral analysis para process execution during boot
-5. Threat hunting para SVG comment blocks conteniendo código
-6. Hardware wallet requirement para crypto holdings
-7. Browser extension audits and allowlisting
-8. Incident response plan para compromised development machines
+1. Verificación de la cadena de suministro de software: firma de código e integridad de paquetes
+2. Formación en seguridad para el equipo de desarrollo, con foco en ingeniería social
+3. Análisis de repositorios en busca de cargas útiles incrustadas en archivos SVG y multimedia
+4. Análisis de comportamiento sobre los procesos que se ejecutan al iniciar el equipo
+5. Búsqueda proactiva de bloques de comentarios SVG que contengan código
+6. Billetera por hardware obligatoria para los fondos en criptomonedas
+7. Auditoría de extensiones del navegador y lista de permitidas
+8. Plan de respuesta a incidentes para equipos de desarrollo comprometidos
 
 <Pass />**Monitorear:**
-1. SVG/image file access by JavaScript processes
-2. Socket.IO library imports from unusual sources
-3. Obfuscated code patterns in project dependencies
-4. Clipboard access events
-5. C2 infrastructure related to DPRK campaigns
+1. Acceso a archivos SVG e imágenes por parte de procesos de JavaScript
+2. Importaciones de la biblioteca Socket.IO desde orígenes inusuales
+3. Patrones de código ofuscado en las dependencias del proyecto
+4. Accesos al portapapeles
+5. Infraestructura de mando y control asociada a campañas de RPDC
 
 ---
 

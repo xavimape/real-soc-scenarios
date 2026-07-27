@@ -1,8 +1,6 @@
 ---
 title: "Impossible Travel - Cuando el falso positivo no lo era"
-titleEn: "Impossible Travel - When the False Positive Wasn't"
 description: "Caso educativo: una alerta con tres explicaciones benignas plausibles que termina siendo un robo de sesión"
-descriptionEn: "Educational case: an alert with three plausible benign explanations that turns out to be session theft"
 pubDate: 2026-03-12
 caseId: "soc-002"
 caseNumber: 2
@@ -10,9 +8,11 @@ difficulty: "intermediate"
 caseType: "educational_synthetic"
 severity: "HIGH"
 tags: ["impossible-travel", "identity", "aitm", "session-hijacking", "mfa-bypass", "bec", "triage"]
-tagsEn: ["impossible-travel", "identity", "aitm", "session-hijacking", "mfa-bypass", "bec", "triage"]
 author: "Escenario sintético - técnicas documentadas por MITRE ATT&CK y Microsoft Security"
 duration_minutes: 78
+locations:
+  - { lat: -32.9587, lng: -60.6930, label: "Rosario, sesión legítima" }
+  - { lat: 40.4168, lng: -3.7038, label: "Madrid, sesión del atacante" }
 ---
 
 import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
@@ -78,6 +78,7 @@ seguidas, hasta que no.
 
 <AlertTimeline
   client:load
+  lang="es"
   caseId="soc-002"
   events={[
     {
@@ -177,6 +178,7 @@ atacante.
 
 <IOCViewer
   client:load
+  lang="es"
   caseId="soc-002"
   type="sesiones"
   title="Sesiones de autenticación"
@@ -342,6 +344,7 @@ estaba montando la infraestructura del fraude, no ejecutándolo todavía.
 
 <MitreATTACKMap
   client:load
+  lang="es"
   caseId="soc-002"
   tactics={[
     {
@@ -388,6 +391,7 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 <PyramidOfPain
   client:load
+  lang="es"
   caseId="soc-002"
   indicators={{
     ips: ["203.0.113[.]47"],
@@ -409,6 +413,7 @@ Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
 
 <KillChain
   client:load
+  lang="es"
   caseId="soc-002"
   phases={[
     { state: "reached", detail: "Selección de una cuenta del área de finanzas, con acceso a circuitos de pago." },
@@ -432,6 +437,7 @@ enseñaría menos que su ausencia.
 
 <IncidentReportGenerator
   client:load
+  lang="es"
   caseId="soc-002"
   summary={{
     incidentId: "INC-2026-0312-004",

@@ -1,0 +1,412 @@
+---
+title: "Phishing Investigation - BlueTeamers"
+description: "Educational case: detecting and containing a targeted phishing attack in real time"
+pubDate: 2024-05-22
+caseId: "soc-001"
+caseNumber: 1
+difficulty: "beginner"
+caseType: "educational_basic"
+severity: "HIGH"
+tags: ["phishing", "email-security", "credential-access", "microsoft-defender"]
+author: "SOC Analyst - Prasanna"
+duration_minutes: 70
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+
+## Executive summary
+
+A SOC analyst detects and contains a targeted phishing attack in under 70 minutes. The case shows how modern email detection tools identify threats quickly when they are configured properly, and why a fast response to a security alert matters as much as the detection itself.
+
+**Key metrics:**
+- Time to detection: 7 minutes
+- Time to containment: 28 minutes
+- Data compromised: none — contained successfully
+- Primary MITRE technique: T1566.002 (Phishing - Spearphishing Link)
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-001"
+  events={[
+    {
+      time: "09:05",
+      title: "Email delivered",
+      description: "The phishing email gets past part of the controls and lands in the inbox",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "09:12",
+      title: "Alert generated",
+      description: "Microsoft Defender flags phishing characteristics in the message",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "09:15",
+      title: "Investigation opened",
+      description: "The SOC analyst picks up the alert and starts digging",
+      severity: "INFO",
+      actor: "Analyst"
+    },
+    {
+      time: "09:25",
+      title: "Domain blocked",
+      description: "secure-update[.]com is added to the organisation-wide block list",
+      severity: "HIGH",
+      actor: "Analyst"
+    },
+    {
+      time: "09:28",
+      title: "Email purged",
+      description: "The malicious email is removed from every mailbox",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "10:15",
+      title: "Incident closed",
+      description: "Investigation complete, containment verified, ticket closed",
+      severity: "INFO",
+      actor: "Analyst"
+    }
+  ]}
+/>
+
+---
+
+## 1. The initial alert
+
+The ticket was created automatically when Microsoft Defender for Office 365 spotted an anomaly in an inbound email.
+
+### Alert details
+
+```
+Alert Name:        Phishing email detected
+Severity:          High
+Detection Source:  Microsoft Defender for Office 365
+Alert ID:          a1b2c3d4-e5f6-7890-abcd-ef1234567890
+Status:            New
+Assignment Group:  SOC L1
+Assigned to:       Prasanna
+SLA Response Time: 1 hour
+```
+
+### Why was it rated High?
+
+Microsoft Defender picked up **several suspicious indicators at once**:
+
+1. **Malicious URL**: the email links to `secure-update[.]com/verify`
+2. **Newly registered domain**: `secure-update[.]com` was registered two days earlier
+3. **SPF/DKIM/DMARC**: every email authentication check fails
+4. **Obfuscated JavaScript**: the attachment carries obfuscated code
+
+No single one of these would be conclusive. Together they are hard to explain away.
+
+---
+
+## 2. First pass at the evidence
+
+The analyst opens the ticket and starts with the headers.
+
+### Email headers
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-001"
+  type="email_headers"
+  data={{
+    from: "billing@secure-update[.]com",
+    sender_domain: "secure-update[.]com",
+    to: "john.doe@company.example",
+    subject: "Urgent: Update Your Account Information",
+    received_from: "mail.secure-update[.]com [185.199.109[.]153]",
+    auth_results: {
+      SPF: "Fail (Domain not authorized)",
+      DKIM: "Fail (Signature not valid)",
+      DMARC: "Fail (Domain failed DMARC policy)"
+    }
+  }}
+/>
+
+### What do these failures mean?
+
+| Check | Result | Meaning |
+|---|---|---|
+| **SPF** | <Fail />Fail | `secure-update[.]com` does not authorise the sending server to deliver mail on its behalf |
+| **DKIM** | <Fail />Fail | The message carries no valid digital signature from the sender |
+| **DMARC** | <Fail />Fail | The domain's own authentication policy rejects the message |
+
+**Conclusion**: three failures together make phishing the overwhelmingly likely explanation.
+
+---
+
+## 3. URL analysis
+
+The email contains a link: `hxxps://secure-update[.]com/verify` (indicators are published defanged).
+
+### Reputation lookup
+
+```
+URL:              hxxps://secure-update[.]com/verify
+Domain:           secure-update[.]com
+Registration:     May 21, 2024 (2 days ago)
+IP Address:       185.199.109[.]153 (AS13335 Cloudflare)
+Verdict:          Malicious
+Confidence:       HIGH
+URL Category:     Phishing
+Last Seen:        2024-05-22 10:00 UTC
+```
+
+### The landing page
+
+The analyst opens the URL from an isolated machine on the internal network:
+
+1. The **phishing page imitates** the legitimate account update portal
+2. It **asks for the user's email and password**
+3. It **redirects to a confirmation page** so nothing feels wrong afterwards
+4. The **submitted data goes to attacker-controlled servers**
+
+---
+
+## 4. The attachment
+
+The email carries a file called `Invoice_042024.html`.
+
+<Warn />**Synthetic sample.** This is an educational case: the attachment does not come
+from a real incident, it is a reconstruction written for the exercise. The full file
+is transcribed below, and the hash corresponds to exactly that content — you can
+reproduce it by running `sha256sum` on the file saved as-is.
+
+```html
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Invoice 042024</title></head>
+<body>
+<script>
+var _0x4f2c=['hxxps://secure-update[.]com/verify','billing_info'];
+(function(_0x2d8a45,_0x4a3b20){
+  var _0x1f4a96=function(_0x4f2c23){
+    while(--_0x4f2c23){
+      _0x2d8a45['push'](_0x2d8a45['shift']());
+    }
+  };
+  _0x1f4a96(++_0x4a3b20);
+}(_0x4f2c,0x1a7));
+</script>
+</body>
+</html>
+```
+
+```
+Filename:      Invoice_042024.html
+File Type:     HTML + JavaScript
+Size:          393 bytes
+Hash (SHA256): 9d7012c9b6d9436ea90b4b74554ec6f07a2d69d49caf8bab702290c63dbffcb5
+Verdict:       Malicious (lab sample)
+```
+
+### What the code does
+
+The string array is rotated and reordered at runtime, so reading the file never shows
+you the destination URL — it only appears once the script executes. This is textbook
+obfuscation: enough to survive a hurried visual inspection and to break a detection
+rule that looks for the URL as plain text.
+
+**Purpose**: send the user to the phishing page when they open the HTML file in a browser.
+
+---
+
+## 5. Indicators of compromise
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-001"
+  type="full_iocs"
+  data={{
+    emails: [
+      {
+        sender: "billing@secure-update[.]com",
+        domain: "secure-update[.]com",
+        verdict: "malicious",
+        registered: "2024-05-21"
+      }
+    ],
+    urls: [
+      {
+        url: "hxxps://secure-update[.]com/verify",
+        verdict: "malicious",
+        purpose: "Phishing page"
+      }
+    ],
+    ips: [
+      {
+        ip: "185.199.109[.]153",
+        asn: "AS13335 Cloudflare",
+        country: "US",
+        reputation: "malicious"
+      }
+    ],
+    domains: [
+      {
+        domain: "secure-update[.]com",
+        registered: "2024-05-21",
+        registrar: "GoDaddy",
+        verdict: "malicious"
+      }
+    ]
+  }}
+/>
+
+---
+
+## 6. Containment
+
+Once phishing is confirmed, the analyst acts.
+
+### Action 1: block the domain (09:25)
+
+```
+Tool: Microsoft 365 Defender
+Action: Add secure-update[.]com to organization-wide blocked sender list
+Effect: All mail from this domain is rejected
+Status: Completed
+```
+
+### Action 2: purge the email (09:28)
+
+```
+Tool: Exchange Admin Center
+Action: Purge malicious email from all user mailboxes
+Message: "Urgent: Update Your Account Information"
+From: billing@secure-update[.]com
+Effect: Email removed from every inbox
+Users Protected: Entire organization
+Status: Completed
+```
+
+### Action 3: notify the user (09:30)
+
+The user is told about the phishing attempt and reminded to:
+- Not click links in email from unknown senders
+- Reach the portal directly rather than through an email link
+- Report anything that looks off
+
+---
+
+## 7. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-001"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.002"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1598.003"]
+    }
+  ]}
+/>
+
+### Technique breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1566.002** | Phishing - Spearphishing Link | Email carrying a link to a phishing site |
+| **T1598.003** | Phishing for Information - Spearphishing Link | Attempt to harvest credentials |
+| **T1192** | Phishing | Initial bulk send, if applicable |
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. Opens in its own window.
+
+<KillChain
+  client:load
+  lang="en"
+  caseId="soc-001"
+  phases={[
+    {
+      state: "reached",
+      detail: "The recipient was chosen in advance. No evidence remained of how they were selected."
+    },
+    {
+      state: "reached",
+      detail: "Domain secure-update[.]com registered the day before, plus an HTML attachment with obfuscated JavaScript."
+    },
+    {
+      state: "reached",
+      detail: "The email got past the perimeter controls and reached the inbox at 09:05."
+    },
+    {
+      state: "blocked",
+      detail: "Defender alert at 09:12. The user never opened the attachment or entered credentials."
+    }
+  ]}
+  note="Delivery was not blocked: the email reached the inbox. What contained this case was the alert seven minutes later combined with the user not interacting. Breaking a link earlier, at delivery, would have avoided the exposure entirely — which is where the recommendation to strengthen mail filtering comes from."
+/>
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-001"
+  summary={{
+    incidentId: "INC004587",
+    title: "Phishing email detected - User mailbox",
+    status: "Resolved",
+    severity: "HIGH",
+    resolutionCode: "Resolved (True Positive)"
+  }}
+/>
+
+### Lessons learned
+
+1. **Defence in depth works**: Defender detected and alerted even though the email reached the inbox
+2. **Speed is the deciding factor**: 7 minutes to start investigating, 28 minutes to full containment
+3. **User awareness matters**: this user did not click, but that was partly luck and deserves training
+4. **SPF/DKIM/DMARC earn their keep**: the authentication failures were the clearest early signal
+
+### Recommendations
+
+- <Pass />Add machine-learning-based mail filtering
+- <Pass />Run phishing awareness training on a regular cadence
+- <Pass />Make multi-factor authentication mandatory
+- <Pass />Monitor newly registered domains and suspicious URLs
+
+---
+
+## References
+
+- [MITRE ATT&CK - Phishing (T1566)](https://attack.mitre.org/techniques/T1566/)
+- [Microsoft Defender Documentation](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/alerts)
+- [Phishing Prevention Best Practices](https://www.cisa.gov/tips/st04-014-phishing)
+
+---
+
+## Up next
+
+- **Case 2**: Impossible Travel Detection
+- **Case 3**: Brute Force Attack
+- **Case 4**: Target 2013 (Vendor Compromise)

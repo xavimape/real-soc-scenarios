@@ -1,0 +1,77 @@
+---
+import { withBase } from '@/utils/url.js';
+import { LANGS, DEFAULT_LANG } from '@/i18n/rutas.js';
+import { t } from '@/i18n/strings.js';
+
+// La raíz no tiene contenido: manda a la versión del idioma que corresponda.
+//
+// No se puede resolver en el servidor porque el sitio es estático: se sirve el
+// mismo HTML a todo el mundo. Así que la raíz es una página de reparto que
+// decide en el navegador y se va.
+//
+// El `<meta http-equiv="refresh">` cubre el caso sin JavaScript. Es más lento
+// que el script, pero es la diferencia entre llegar tarde y no llegar.
+const destinoPorDefecto = withBase(`/${DEFAULT_LANG}/`);
+---
+
+<!doctype html>
+<html lang={DEFAULT_LANG} data-theme="light" data-font="inter">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Real SOC Scenarios</title>
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={destinoPorDefecto} />
+    <meta http-equiv="refresh" content={`1; url=${destinoPorDefecto}`} />
+
+    <script is:inline define:vars={{ base: withBase('/'), idiomas: LANGS }}>
+      (function () {
+        var elegido = null;
+
+        // Primero la preferencia guardada: si el usuario ya eligió, manda eso
+        // por encima de lo que diga el navegador.
+        try {
+          var guardado = localStorage.getItem('soc-lang');
+          if (idiomas.indexOf(guardado) !== -1) elegido = guardado;
+        } catch (e) {
+          /* sin localStorage: se sigue al navegador */
+        }
+
+        if (!elegido) {
+          var preferidos = navigator.languages || [navigator.language || 'en'];
+          var hablaEspanol = false;
+
+          for (var i = 0; i < preferidos.length; i += 1) {
+            if (String(preferidos[i]).toLowerCase().indexOf('es') === 0) {
+              hablaEspanol = true;
+              break;
+            }
+          }
+
+          // El inglés es el destino por defecto: tiene más alcance que el
+          // español para alguien que no habla ninguno de los dos.
+          elegido = hablaEspanol ? 'es' : 'en';
+        }
+
+        // `replace` y no `assign`: si no, el botón de volver del navegador
+        // rebota contra esta página para siempre.
+        location.replace(base + elegido + '/');
+      })();
+    </script>
+  </head>
+
+  <body>
+    <p class="reparto">
+      <a href={destinoPorDefecto}>{t('common.continue', DEFAULT_LANG)}</a>
+    </p>
+
+    <style>
+      .reparto {
+        font-family: system-ui, sans-serif;
+        margin: 4rem auto;
+        max-width: 30rem;
+        text-align: center;
+      }
+    </style>
+  </body>
+</html>

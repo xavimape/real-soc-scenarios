@@ -1,8 +1,6 @@
 ---
 title: "Investigación de Phishing - BlueTeamers"
-titleEn: "Phishing Investigation - BlueTeamers"
 description: "Caso educativo: detección y contención de ataque de phishing dirigido en tiempo real"
-descriptionEn: "Educational case: detection and containment of targeted phishing attack in real-time"
 pubDate: 2024-05-22
 caseId: "soc-001"
 caseNumber: 1
@@ -10,7 +8,6 @@ difficulty: "beginner"
 caseType: "educational_basic"
 severity: "HIGH"
 tags: ["phishing", "email-security", "credential-access", "microsoft-defender"]
-tagsEn: ["phishing", "email-security", "credential-access", "microsoft-defender"]
 author: "SOC Analyst - Prasanna"
 duration_minutes: 70
 ---
@@ -37,47 +34,48 @@ En esta investigación, un analista de SOC detecta y contiene exitosamente un at
 
 <AlertTimeline 
   client:load
+  lang="es"
   caseId="soc-001"
   events={[
     {
       time: "09:05",
-      title: "Email Delivered",
-      description: "Phishing email bypasses some controls, delivered to user inbox",
+      title: "Correo entregado",
+      description: "El correo de phishing supera parte de los controles y llega a la bandeja de entrada",
       severity: "HIGH",
       actor: "Attacker"
     },
     {
       time: "09:12",
-      title: "Alert Generated",
-      description: "Microsoft Defender detects phishing email characteristics",
+      title: "Alerta generada",
+      description: "Microsoft Defender detecta características de correo de phishing",
       severity: "HIGH",
       actor: "System"
     },
     {
       time: "09:15",
-      title: "Investigation Started",
-      description: "SOC Analyst Prasanna begins investigation of alert",
+      title: "Inicio de la investigación",
+      description: "El analista de SOC toma la alerta y empieza a investigar",
       severity: "INFO",
       actor: "Analyst"
     },
     {
       time: "09:25",
-      title: "Domain Blocked",
-      description: "secure-update[.]com added to block list organization-wide",
+      title: "Dominio bloqueado",
+      description: "Se agrega secure-update[.]com a la lista de bloqueo de toda la organización",
       severity: "HIGH",
       actor: "Analyst"
     },
     {
       time: "09:28",
-      title: "Email Deleted",
-      description: "Malicious email deleted from all user mailboxes",
+      title: "Correo eliminado",
+      description: "Se elimina el correo malicioso de todas las bandejas de entrada",
       severity: "HIGH",
       actor: "System"
     },
     {
       time: "10:15",
-      title: "Incident Closed",
-      description: "Investigation completed, containment verified, ticket closed",
+      title: "Incidente cerrado",
+      description: "Investigación terminada, contención verificada y ticket cerrado",
       severity: "INFO",
       actor: "Analyst"
     }
@@ -122,12 +120,13 @@ El analista Prasanna abre el ticket y comienza el análisis:
 
 <IOCViewer 
   client:load
+  lang="es"
   caseId="soc-001"
   type="email_headers"
   data={{
     from: "billing@secure-update[.]com",
     sender_domain: "secure-update[.]com",
-    to: "john.doe@company.com",
+    to: "john.doe@company.example",
     subject: "Urgent: Update Your Account Information",
     received_from: "mail.secure-update[.]com [185.199.109[.]153]",
     auth_results: {
@@ -231,6 +230,7 @@ HTML en el navegador.
 
 <IOCViewer 
   client:load
+  lang="es"
   caseId="soc-001"
   type="full_iocs"
   data={{
@@ -308,6 +308,7 @@ El usuario es notificado sobre el intento de phishing y se le advierte:
 
 <MitreATTACKMap 
   client:load
+  lang="es"
   caseId="soc-001"
   tactics={[
     {
@@ -339,6 +340,7 @@ Material de apoyo, fuera del informe. Se abre en ventana aparte.
 
 <KillChain
   client:load
+  lang="es"
   caseId="soc-001"
   phases={[
     {
@@ -367,6 +369,7 @@ Material de apoyo, fuera del informe. Se abre en ventana aparte.
 
 <IncidentReportGenerator 
   client:load
+  lang="es"
   caseId="soc-001"
   summary={{
     incidentId: "INC004587",

@@ -1,8 +1,6 @@
 ---
 title: "Target 2013 - Siete eslabones, ninguno cortado"
-titleEn: "Target 2013 - Seven Links, None Broken"
 description: "Caso real: el proveedor de refrigeración, las alertas ignoradas y 110 millones de registros. El incidente que puso a los terceros en la agenda de seguridad."
-descriptionEn: "Real case: the HVAC vendor, the ignored alerts and 110 million records. The incident that put third parties on the security agenda."
 pubDate: 2013-12-19
 caseId: "soc-004"
 caseNumber: 4
@@ -10,9 +8,11 @@ difficulty: "advanced"
 caseType: "real_case_classic"
 severity: "CRITICAL"
 tags: ["supply-chain", "third-party-risk", "pos-malware", "ram-scraping", "alert-fatigue", "segmentation", "retail"]
-tagsEn: ["supply-chain", "third-party-risk", "pos-malware", "ram-scraping", "alert-fatigue", "segmentation", "retail"]
 author: "Informe del Comité de Comercio del Senado de EE.UU. (marzo 2014) y reportes de KrebsOnSecurity, Dell SecureWorks y Bloomberg Businessweek"
 duration_minutes: 45
+locations:
+  - { lat: 44.9778, lng: -93.2650, label: "Minneapolis, casa central de Target" }
+  - { lat: 40.4959, lng: -79.9256, label: "Sharpsburg, el proveedor comprometido" }
 ---
 
 import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
@@ -69,6 +69,7 @@ siete eslabones donde la cadena se podía cortar, y no se cortó en ninguno.
 
 <AlertTimeline
   client:load
+  lang="es"
   caseId="soc-004"
   title="Cronología del incidente"
   events={[
@@ -261,6 +262,7 @@ Esta es la parte del caso que hay que leer dos veces.
 
 <IOCViewer
   client:load
+  lang="es"
   caseId="soc-004"
   type="alertas"
   title="Alertas generadas y respuesta"
@@ -366,6 +368,7 @@ visibilidad. Fue un problema de qué se hace con lo que se ve.
 
 <MitreATTACKMap
   client:load
+  lang="es"
   caseId="soc-004"
   tactics={[
     {
@@ -413,6 +416,7 @@ visibilidad. Fue un problema de qué se hace con lo que se ve.
 
 <KillChain
   client:load
+  lang="es"
   caseId="soc-004"
   phases={[
     {
@@ -461,6 +465,7 @@ los escalones.
 
 <IncidentReportGenerator
   client:load
+  lang="es"
   caseId="soc-004"
   summary={{
     incidentId: "Target Corporation, 2013",

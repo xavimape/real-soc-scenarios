@@ -1,0 +1,115 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { marcasPara } from '@/components/mdx/marks.jsx';
+import { LANGS, partirId, rutaEquivalente } from '@/i18n/rutas.js';
+import TableOfContents from '@/components/TableOfContents.jsx';
+
+// getStaticPaths corre en un scope aislado: NO ve las variables del frontmatter.
+// Por eso la colección se carga acá adentro (esto causaba "scenarios is not defined").
+export async function getStaticPaths() {
+  const scenarios = await getCollection('scenarios');
+
+  // Todos los ids, para saber qué caso existe en qué idioma sin volver a
+  // cargar la colección desde el scope del frontmatter.
+  const disponibles = scenarios.map((entry) => entry.id);
+
+  // El idioma sale del directorio, no de un campo del frontmatter. Un caso mal
+  // ubicado revienta en `partirId` durante el build, no en producción.
+  return scenarios.map((entry) => {
+    const { lang, slug } = partirId(entry.id);
+    return { params: { lang, slug }, props: { entry, lang, disponibles } };
+  });
+}
+
+interface Props {
+  entry: CollectionEntry<'scenarios'>;
+  lang: string;
+  disponibles: string[];
+}
+
+const { entry, lang, disponibles } = Astro.props;
+const { slug } = partirId(entry.id);
+
+// El mismo caso en los otros idiomas. `null` si todavía no está traducido: el
+// dock lo muestra deshabilitado en vez de mandar a un 404.
+const alternativas = Object.fromEntries(
+  LANGS.map((l) => [l, rutaEquivalente(l, slug, disponibles)])
+);
+// `headings` lo calcula Astro al compilar el MDX, con los mismos identificadores
+// que pone en los <h2>/<h3>. Así el índice sale en el HTML servido: se ve sin
+// JavaScript y no hay un instante de barra vacía mientras hidrata.
+const { Content, headings } = await render(entry);
+
+// Solo títulos y subtítulos. Los H4 son pocos en nuestros casos y sumarían ruido
+// al índice sin agregar navegación útil.
+const indice = headings.filter((h) => h.depth === 2 || h.depth === 3);
+
+const sevVar = `var(--sev-${entry.data.severity.toLowerCase()}, var(--text-muted))`;
+---
+
+<BaseLayout
+  lang={lang}
+  title={entry.data.title}
+  description={entry.data.description}
+  alternativas={alternativas}
+  showBack
+>
+  <TableOfContents slot="lateral" client:load lang={lang} headings={indice} />
+
+  <article>
+    <div class="meta">
+      <span class="badge" style={`background:${sevVar}`}>{entry.data.severity}</span>
+      <span class="tag">{entry.data.difficulty}</span>
+      <span class="tag">{entry.data.caseId}</span>
+      {entry.data.author && <span class="tag">{entry.data.author}</span>}
+    </div>
+
+    <h1>{entry.data.title}</h1>
+    <p class="lead">{entry.data.description}</p>
+    <hr />
+
+    <Content components={marcasPara(lang)} />
+  </article>
+</BaseLayout>
+
+<style>
+  .meta {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+
+  .badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--bg);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+  }
+
+  .tag {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-sm);
+  }
+
+  h1 {
+    margin: 0 0 0.3rem;
+  }
+
+  .lead {
+    color: var(--text-muted);
+    margin-top: 0;
+  }
+
+  article :global(img) {
+    max-width: 100%;
+    height: auto;
+  }
+</style>
