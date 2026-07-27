@@ -1,0 +1,213 @@
+/**
+ * Diccionario de la interfaz.
+ *
+ * REGLA, y no es negociable: **cada clave es un objeto `{ es, en }` explícito.**
+ * Nunca se deriva el español de lo que ya está en el marcado ni se deja que una
+ * clave sin traducir caiga al idioma por defecto. Un fallback silencioso produce
+ * exactamente el bug que no se detecta: el sitio en inglés muestra español y
+ * nadie lo nota hasta que lo ve un lector.
+ *
+ * `scripts/check-i18n.mjs` verifica sobre el HTML construido que ninguna clave
+ * salga igual en los dos idiomas.
+ *
+ * Organizado por módulo. Cada componente usa su propio bloque; `common` es lo
+ * compartido.
+ */
+
+export const LANGS = ['es', 'en'];
+export const DEFAULT_LANG = 'es';
+
+export const strings = {
+  common: {
+    // Dice "inicio" y no "índice": desde que el encabezado es global, el botón
+    // aparece siempre en el mismo lugar y tiene que ser obvio a dónde lleva sin
+    // que el lector sepa cómo llamamos internamente a esa página.
+    back: { es: 'Volver al inicio', en: 'Back to home' },
+    close: { es: 'Cerrar', en: 'Close' },
+    none: { es: 'Ninguno', en: 'None' },
+    toTop: { es: 'Volver arriba', en: 'Back to top' },
+    continue: { es: 'Continuar', en: 'Continue' },
+  },
+
+  index: {
+    subtitle: { es: 'casos de investigación SOC', en: 'SOC investigation cases' },
+    // El índice inglés arrancó con un solo caso y decía "1 cases". Los dos
+    // idiomas hacen el plural igual acá, así que alcanza con elegir la clave.
+    subtitleOne: { es: 'caso de investigación SOC', en: 'SOC investigation case' },
+    metaDescription: {
+      es: 'Casos reales de investigación SOC, paso a paso.',
+      en: 'Real SOC investigation cases, step by step.',
+    },
+    empty: {
+      es: 'Todavía no hay casos publicados en este idioma.',
+      en: 'No cases published in this language yet.',
+    },
+    openList: { es: 'Ver la lista completa', en: 'See the full list' },
+    closeList: { es: 'Ocultar la lista', en: 'Hide the list' },
+  },
+
+  toc: {
+    title: { es: 'En esta página', en: 'On this page' },
+  },
+
+  globe: {
+    label: {
+      es: 'Globo con la geografía de los casos',
+      en: 'Globe showing where the cases took place',
+    },
+  },
+
+  deck: {
+    previous: { es: 'Caso anterior', en: 'Previous case' },
+    next: { es: 'Caso siguiente', en: 'Next case' },
+    pause: { es: 'Pausar el mazo', en: 'Pause the deck' },
+    play: { es: 'Reanudar el mazo', en: 'Resume the deck' },
+    open: { es: 'Abrir el caso', en: 'Open the case' },
+  },
+
+  timeline: {
+    title: { es: 'Timeline del incidente', en: 'Incident timeline' },
+    events: { es: 'eventos', en: 'events' },
+    empty: { es: 'Sin eventos para mostrar.', en: 'No events to show.' },
+    emptyOf: { es: 'Sin eventos para mostrar', en: 'No events to show' },
+    filterSeverity: { es: 'Severidad', en: 'Severity' },
+    filterActor: { es: 'Actor', en: 'Actor' },
+    all: { es: 'Todos', en: 'All' },
+    actorAttacker: { es: 'Atacante', en: 'Attacker' },
+    actorDefender: { es: 'Defensor', en: 'Defender' },
+    actorSystem: { es: 'Sistema', en: 'System' },
+    actorUser: { es: 'Usuario', en: 'User' },
+  },
+
+  ioc: {
+    empty: { es: 'Sin indicadores cargados.', en: 'No indicators loaded.' },
+  },
+
+  attack: {
+    title: { es: 'MITRE ATT&CK', en: 'MITRE ATT&CK' },
+    tactics: { es: 'tácticas', en: 'tactics' },
+    techniques: { es: 'técnicas', en: 'techniques' },
+    empty: { es: 'Sin tácticas mapeadas.', en: 'No tactics mapped.' },
+  },
+
+  report: {
+    fallbackTitle: { es: 'Informe del incidente', en: 'Incident report' },
+    copy: { es: 'Copiar informe (Markdown)', en: 'Copy report (Markdown)' },
+    copied: { es: 'Copiado', en: 'Copied' },
+  },
+
+  pyramid: {
+    label: { es: 'Pirámide del dolor', en: 'Pyramid of Pain' },
+    subtitle: {
+      es: 'Indicadores del caso por nivel de esfuerzo de evasión',
+      en: 'Case indicators by evasion effort',
+    },
+    stepsWithData: { es: 'escalones con datos', en: 'levels with data' },
+    of: { es: 'de', en: 'of' },
+    lvlTtps: { es: 'TTP', en: 'TTPs' },
+    lvlTools: { es: 'Herramientas', en: 'Tools' },
+    lvlArtifacts: { es: 'Artefactos de red y host', en: 'Network and host artifacts' },
+    lvlDomains: { es: 'Dominios', en: 'Domain names' },
+    lvlIps: { es: 'Direcciones IP', en: 'IP addresses' },
+    lvlHashes: { es: 'Hashes', en: 'Hash values' },
+    painTough: { es: 'Duro', en: 'Tough' },
+    painChallenging: { es: 'Molesto', en: 'Challenging' },
+    painAnnoying: { es: 'Irritante', en: 'Annoying' },
+    painSimple: { es: 'Simple', en: 'Simple' },
+    painEasy: { es: 'Fácil', en: 'Easy' },
+    painTrivial: { es: 'Trivial', en: 'Trivial' },
+    hintTtps: {
+      es: 'Cambiar cómo opera le cuesta rediseñar la campaña.',
+      en: 'Changing how they operate means redesigning the campaign.',
+    },
+    hintTools: {
+      es: 'Tiene que conseguir o escribir otra herramienta.',
+      en: 'They have to find or write another tool.',
+    },
+    hintArtifacts: {
+      es: 'Debe modificar su implante o su patrón de tráfico.',
+      en: 'They must modify their implant or traffic pattern.',
+    },
+    hintDomains: {
+      es: 'Registra otro. Le lleva minutos y unos dólares.',
+      en: 'They register another one. Minutes and a few dollars.',
+    },
+    hintIps: {
+      es: 'Rota de proveedor o de nodo de salida.',
+      en: 'They rotate provider or exit node.',
+    },
+    hintHashes: {
+      es: 'Un byte distinto y el hash ya no coincide.',
+      en: 'One byte different and the hash no longer matches.',
+    },
+  },
+
+  diamond: {
+    label: { es: 'Diamond Model', en: 'Diamond Model' },
+    subtitle: {
+      es: 'Relación entre adversario, capacidad, infraestructura y víctima',
+      en: 'How adversary, capability, infrastructure and victim connect',
+    },
+    adversary: { es: 'Adversario', en: 'Adversary' },
+    capability: { es: 'Capacidad', en: 'Capability' },
+    infrastructure: { es: 'Infraestructura', en: 'Infrastructure' },
+    victim: { es: 'Víctima', en: 'Victim' },
+    campaign: { es: 'Campaña', en: 'Campaign' },
+    confidence: { es: 'Confianza', en: 'Confidence' },
+  },
+
+  killchain: {
+    label: { es: 'Cyber Kill Chain', en: 'Cyber Kill Chain' },
+    brokenAt: { es: 'Cadena cortada en la fase', en: 'Chain broken at phase' },
+    of: { es: 'de', en: 'of' },
+    phases: { es: 'Siete fases', en: 'Seven phases' },
+    p1: { es: 'Reconocimiento', en: 'Reconnaissance' },
+    p2: { es: 'Preparación del arma', en: 'Weaponization' },
+    p3: { es: 'Entrega', en: 'Delivery' },
+    p4: { es: 'Explotación', en: 'Exploitation' },
+    p5: { es: 'Instalación', en: 'Installation' },
+    p6: { es: 'Comando y control', en: 'Command and control' },
+    p7: { es: 'Acciones sobre el objetivo', en: 'Actions on objectives' },
+    blocked: { es: 'Cortada', en: 'Broken' },
+    reached: { es: 'Alcanzada', en: 'Reached' },
+    notReached: { es: 'No alcanzada', en: 'Not reached' },
+  },
+
+  marks: {
+    yes: { es: 'Sí', en: 'Yes' },
+    no: { es: 'No', en: 'No' },
+    warning: { es: 'Atención', en: 'Warning' },
+  },
+
+  dock: {
+    config: { es: 'Config', en: 'Config' },
+    theme: { es: 'Tema', en: 'Theme' },
+    font: { es: 'Fuente', en: 'Font' },
+    language: { es: 'Idioma', en: 'Language' },
+    soon: { es: 'Próximamente', en: 'Coming soon' },
+    noTranslation: {
+      es: 'Este caso todavía no está en inglés',
+      en: 'This case is not in Spanish yet',
+    },
+  },
+};
+
+/**
+ * Devuelve el par `{ es, en }` de una clave con notación de punto.
+ * Lanza si la clave no existe: un error en build es mejor que texto faltante
+ * en producción.
+ */
+export function pair(key) {
+  const value = key.split('.').reduce((acc, part) => acc?.[part], strings);
+
+  if (!value || typeof value.es !== 'string' || typeof value.en !== 'string') {
+    throw new Error(`i18n: la clave "${key}" no existe o no tiene ambos idiomas`);
+  }
+
+  return value;
+}
+
+/** Texto en un idioma concreto. Para atributos, donde no se pueden emitir ambos. */
+export function t(key, lang = DEFAULT_LANG) {
+  return pair(key)[lang] ?? pair(key)[DEFAULT_LANG];
+}
