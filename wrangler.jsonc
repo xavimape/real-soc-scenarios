@@ -1,0 +1,28 @@
+{
+  // Configuración de despliegue en Cloudflare.
+  //
+  // Cloudflare unificó Pages dentro de Workers, y en el flujo nuevo el panel ya
+  // no pregunta cuál es el directorio de salida: lo lee de acá. Sin este archivo,
+  // `npx wrangler deploy` no sabe qué publicar.
+  //
+  // No hay `main`: este sitio no tiene código de servidor. Solo se sirven los
+  // archivos que produce el build, que es lo que corresponde a un sitio estático
+  // y lo que mantiene la superficie de ataque en lo mínimo.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "real-soc-scenarios",
+  "compatibility_date": "2026-07-27",
+
+  "assets": {
+    "directory": "./dist",
+
+    // `astro.config.mjs` usa `trailingSlash: 'always'`, así que el build genera
+    // `/es/scenarios/01-.../index.html`. Este valor hace que el servidor redirija
+    // a la forma con barra final en vez de servir la misma página en dos URL
+    // distintas, que es lo que penalizan los buscadores.
+    "html_handling": "force-trailing-slash",
+
+    // Sin página de error propia todavía. Cuando exista `src/pages/404.astro`,
+    // esto pasa a "404-page" y Cloudflare la sirve en lugar de su error genérico.
+    "not_found_handling": "none"
+  }
+}
