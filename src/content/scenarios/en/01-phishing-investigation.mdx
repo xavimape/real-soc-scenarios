@@ -143,9 +143,9 @@ The analyst opens the ticket and starts with the headers.
 
 | Check | Result | Meaning |
 |---|---|---|
-| **SPF** | <Fail />Fail | `secure-update[.]com` does not authorise the sending server to deliver mail on its behalf |
-| **DKIM** | <Fail />Fail | The message carries no valid digital signature from the sender |
-| **DMARC** | <Fail />Fail | The domain's own authentication policy rejects the message |
+| **SPF** | Fail | `secure-update[.]com` does not authorise the sending server to deliver mail on its behalf |
+| **DKIM** | Fail | The message carries no valid digital signature from the sender |
+| **DMARC** | Fail | The domain's own authentication policy rejects the message |
 
 **Conclusion**: three failures together make phishing the overwhelmingly likely explanation.
 
@@ -390,10 +390,10 @@ Supporting material, outside the report. Opens in its own window.
 
 ### Recommendations
 
-- <Pass />Add machine-learning-based mail filtering
-- <Pass />Run phishing awareness training on a regular cadence
-- <Pass />Make multi-factor authentication mandatory
-- <Pass />Monitor newly registered domains and suspicious URLs
+- Add machine-learning-based mail filtering
+- Run phishing awareness training on a regular cadence
+- Make multi-factor authentication mandatory
+- Monitor newly registered domains and suspicious URLs
 
 ---
 

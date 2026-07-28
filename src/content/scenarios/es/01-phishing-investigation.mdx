@@ -141,9 +141,9 @@ El analista Prasanna abre el ticket y comienza el análisis:
 
 | Verificación | Resultado | Significado |
 |---|---|---|
-| **SPF** | <Fail />Fail | El dominio `secure-update[.]com` no autoriza al servidor que envía para entregar correos |
-| **DKIM** | <Fail />Fail | El correo no tiene firma digital válida del remitente |
-| **DMARC** | <Fail />Fail | Falla la política de autenticación del dominio |
+| **SPF** | Fail | El dominio `secure-update[.]com` no autoriza al servidor que envía para entregar correos |
+| **DKIM** | Fail | El correo no tiene firma digital válida del remitente |
+| **DMARC** | Fail | Falla la política de autenticación del dominio |
 
 **Conclusión**: Todos estos fallos juntos = **muy probable que sea phishing**
 
@@ -389,10 +389,10 @@ Material de apoyo, fuera del informe. Se abre en ventana aparte.
 
 ### Recomendaciones
 
-- <Pass />Implementar filtrado de correo con machine learning
-- <Pass />Capacitación regular de conciencia de phishing
-- <Pass />Autenticación multifactor (MFA) obligatoria
-- <Pass />Monitorear URL/dominios nuevos sospechosos
+- Implementar filtrado de correo con machine learning
+- Capacitación regular de conciencia de phishing
+- Autenticación multifactor (MFA) obligatoria
+- Monitorear URL/dominios nuevos sospechosos
 
 ---
 

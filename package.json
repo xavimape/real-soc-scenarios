@@ -10,9 +10,11 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "check": "node scripts/check-defang.mjs && node scripts/check-i18n.mjs && node tools/contraste-globo.mjs",
+    "check": "node scripts/check-defang.mjs && node scripts/check-i18n.mjs && node tools/contraste-globo.mjs && node tools/verificar-invariantes.mjs",
     "audit:i18n": "node tools/i18n-audit.mjs",
-    "check:globo": "node tools/contraste-globo.mjs"
+    "check:globo": "node tools/contraste-globo.mjs",
+    "check:invariantes": "node tools/verificar-invariantes.mjs",
+    "check:idioma": "node tools/auditar-idioma-casos.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.3",

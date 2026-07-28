@@ -45,15 +45,15 @@ structural gap in how antivirus products analyse the semantic content of an SVG.
 
 ## Context: why this case matters
 
-<Pass />**It breaks a very common intuition.** An SVG reads as an image, and an
+**It breaks a very common intuition.** An SVG reads as an image, and an
 image reads as inert data. It is a text file that accepts arbitrary comments, and
 anything fits in there.
 
-<Pass />**The target is whoever builds, not whoever consumes.** A development
+**The target is whoever builds, not whoever consumes.** A development
 machine concentrates infrastructure credentials, repository access and signing
 keys. Compromising it pays better than compromising an end user.
 
-<Pass />**It shows the limit of centralised controls.** Nothing an organisation
+**It shows the limit of centralised controls.** Nothing an organisation
 deploys at its perimeter reaches a repository somebody clones and runs on their own
 machine.
 
@@ -503,7 +503,7 @@ Supporting material, outside the report. Each one opens in its own window.
 
 ### Recommendations
 
-<Pass />**Implement:**
+**Implement:**
 1. Software supply chain verification: code signing and package integrity
 2. Security training for the development team, focused on social engineering
 3. Repository scanning for payloads embedded in SVG and media files
@@ -513,7 +513,7 @@ Supporting material, outside the report. Each one opens in its own window.
 7. Browser extension audits and an allowlist
 8. An incident response plan for compromised development machines
 
-<Pass />**Monitor:**
+**Monitor:**
 1. Access to SVG and image files by JavaScript processes
 2. Socket.IO library imports from unusual origins
 3. Obfuscated code patterns in project dependencies
