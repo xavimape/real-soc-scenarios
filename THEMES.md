@@ -6,17 +6,21 @@ ni hacer un request: son atributos en `<html>` que el CSS resuelve al vuelo.
 
 ## Cómo funciona
 
-Tres atributos en `<html>` controlan la apariencia:
+Dos atributos en `<html>` controlan la apariencia:
 
 | Atributo     | Valores                                          | Clave en localStorage |
 | ------------ | ------------------------------------------------ | --------------------- |
 | `data-theme` | `light`, `dark`, `nord`, … (14 en total)          | `soc-theme`           |
 | `data-font`  | `inter`, `roboto`, `fira-code`, …                 | `soc-font`            |
-| `data-lang`  | `es`, `en`                                        | `soc-lang`            |
 
 El script inline de `src/layouts/BaseLayout.astro` los aplica **antes del primer
 pintado**, leyendo `localStorage`. Sin ese paso se vería un flash blanco al recargar
 en un tema oscuro. Si no hay nada guardado, respeta `prefers-color-scheme`.
+
+Hay un tercer atributo, `data-lang`, que no funciona igual: no sale de una
+preferencia sino de la ruta, y viene resuelto desde el servidor. La clave
+`soc-lang` guarda la última elección, pero solo la usa la página raíz para decidir
+a dónde mandar a quien entra sin idioma en la URL. Ver la sección de idioma.
 
 Todo el resto del sitio consume tokens (`var(--bg)`, `var(--sev-critical)`, …) y no
 conoce los temas: por eso agregar uno no toca ningún componente.
@@ -107,20 +111,27 @@ Para agregar una fuente: una entrada en el array `fonts` de `astro.config.mjs`, 
 
 ## Idioma
 
-El selector cambia `data-lang` y el CSS oculta la variante que no corresponde:
+El idioma no es una preferencia visual como el tema y la tipografía: es parte de la
+ruta. Cada página existe una vez por idioma y sale del build ya resuelta, así que
+el texto correcto llega en el HTML y no depende de JavaScript.
 
-```css
-:root[data-lang='es'] [data-lang='en'],
-:root[data-lang='en'] [data-lang='es'] {
-  display: none;
-}
+```text
+/es/scenarios/01-phishing-investigation/
+/en/scenarios/01-phishing-investigation/
 ```
 
-Las páginas emiten ambas versiones a partir de `title`/`titleEn` y
-`description`/`descriptionEn` del frontmatter. Cuando falta la traducción, cae al
-español.
+El contenido de cada idioma vive en su propio archivo, bajo
+`src/content/scenarios/<idioma>/`. El selector del encabezado navega a la página
+equivalente; si esa página no existe todavía, el botón queda deshabilitado con el
+motivo en lugar de llevar a un error.
 
-**Estado actual:** traducidos los títulos, descripciones y la interfaz. El cuerpo de
-cada caso sigue en español — los `.mdx` tienen un solo bloque de contenido. Para
-traducirlos habría que dividir el contenido por idioma o duplicar el archivo, y
-conviene decidirlo cuando haya más casos cargados.
+La raíz `/` no tiene contenido: reparte según el idioma del navegador, respetando
+la preferencia guardada si ya hubo una elección.
+
+El diccionario de la interfaz está en `src/i18n/strings.js`, con cada clave como
+objeto `{es, en}` explícito. Una clave incompleta rompe el build en lugar de caer
+en silencio al otro idioma.
+
+Los componentes interactivos reciben el idioma como prop desde su `.mdx`. Un
+componente sin ese atributo muestra su interfaz en el idioma por defecto, aunque la
+página esté en el otro.
