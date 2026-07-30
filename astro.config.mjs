@@ -70,5 +70,20 @@ export default defineConfig({
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+
+    /**
+     * El escáner de dependencias del servidor de desarrollo corre esbuild con su
+     * propia configuración y no lee el `jsxImportSource` de `tsconfig.json`. Sin
+     * esto busca `react/jsx-dev-runtime`, no lo encuentra —el proyecto es Preact,
+     * D-010— y aborta el pre-empaquetado con un error confuso que apunta a un
+     * componente al azar.
+     *
+     * Solo afecta al desarrollo: el build usa la integración de Preact, que sí
+     * aplica la transformación correcta, y por eso compilaba sin quejarse.
+     */
+    esbuild: {
+      jsx: 'automatic',
+      jsxImportSource: 'preact',
+    },
   },
 });
