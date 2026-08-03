@@ -207,16 +207,26 @@ export const strings = {
       en: 'There are two kinds of case. The real ones reconstruct publicly documented incidents and cite their sources. The educational ones are scenarios built for the exercise, and they say so on their first screen.',
     },
     invariantes: {
-      es: 'Tres reglas se sostienen en todos: ningún indicador inventado, los indicadores se publican defangueados para que no se puedan clickear ni copiar por accidente, y ningún marco de análisis aparece si no hay datos reales para llenarlo.',
-      en: 'Three rules hold across all of them: no invented indicators, indicators are published defanged so they cannot be clicked or copied by accident, and no analysis framework appears unless there is real data to fill it.',
+      es: 'En todos los casos ningún indicador es inventado, se publican defangueados para que no se puedan clickear ni copiar por accidente, y ningún marco de análisis aparece si no hay datos reales para llenarlo.',
+      en: 'In every case no indicator is invented, they are published defanged so they cannot be clicked or copied by accident, and no analysis framework appears unless there is real data to fill it.',
     },
     sintetico: {
       es: 'En los casos construidos, las direcciones IP salen de los rangos que las RFC reservan para documentación y los dominios usan el TLD .example. Nada de eso puede existir ni resolverse.',
       en: 'In the constructed cases, IP addresses come from the ranges the RFCs reserve for documentation and the domains use the .example TLD. None of it can exist or resolve.',
     },
+    /**
+     * En primera persona, y no como firma en tercera.
+     *
+     * El cuerpo de los casos ya está escrito así —"no incluyo el Diamond Model
+     * acá", "no mapeo esto como técnica aparte"—, y son justamente los momentos
+     * donde alguien se hace cargo de un criterio discutible. Una firma en
+     * tercera persona en el único lugar donde el autor aparece contradiría esa
+     * voz, y sonaría a ficha institucional de un sitio que escribe una sola
+     * persona.
+     */
     autor: {
-      es: 'Lo escribe Javier Mapelli, analista de seguridad. Las correcciones y los desacuerdos son bienvenidos.',
-      en: 'Written by Javier Mapelli, security analyst. Corrections and disagreements are welcome.',
+      es: 'Lo escribo yo, Javier Mapelli, analista de seguridad. Si encontrás un error o no estás de acuerdo con alguna lectura, decímelo: el enlace a mi perfil está en la barra de arriba.',
+      en: 'I write these cases myself. I am Javier Mapelli, a security analyst. If you find an error or disagree with a reading, tell me: the link to my profile is in the bar above.',
     },
   },
 
