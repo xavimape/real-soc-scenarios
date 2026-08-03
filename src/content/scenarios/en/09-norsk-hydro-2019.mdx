@@ -1,0 +1,557 @@
+---
+title: "Norsk Hydro 2019 - When there is nothing left to contain"
+description: "Real case: the ransomware changed everyone's password, including the team that had to respond. A hundred and sixty plants went back to paper and the company decided to tell the story while it was happening"
+pubDate: 2019-03-19
+caseId: "soc-009"
+caseNumber: 9
+difficulty: "advanced"
+caseType: "real_case_recovery"
+severity: "CRITICAL"
+tags: ["ransomware", "recovery", "incident-response", "ot", "ics", "crisis-communication", "backups", "lockergoga"]
+author: "Norsk Hydro's incident page, the LockerGoga entry (S0372) in MITRE ATT&CK, and a Microsoft security team publication"
+discoveryDate: "2019-03-19"
+locations:
+  - { lat: 59.9139, lng: 10.7522, label: "Oslo, Norsk Hydro headquarters" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+On 19 March 2019, the LockerGoga ransomware encrypted the systems of Norsk Hydro, an
+aluminium producer operating in forty countries. All 35,000 employees were affected.
+Most of its manufacturing plants moved to manual operations.
+
+The eight previous cases on this site are about detecting in time. This one starts
+where those end badly: **the encryption already happened, containment stopped existing
+as a category, and all that lies ahead are decisions under pressure.**
+
+It is here for three specific reasons, and none of them is the malware.
+
+**The first:** LockerGoga changes account passwords and logs users out of their
+sessions. That is, **it took the keys away from the team that had to respond.** A
+response plan that assumes you will be able to log in is a plan that does not work
+here.
+
+**The second:** it did not spread on its own. MITRE records that it moved across the
+network by being copied by hand from machine to machine, not as a worm. There were
+people on the other side, operating live, while the response team worked.
+
+**The third:** the company made three decisions on day one — pay no ransom, bring in
+outside help, communicate openly — and sustained the third with open broadcasts while
+the incident was under way. That transparency was not a communications virtue: it was
+a defensive decision, and it is worth understanding why it worked.
+
+**Key metrics:**
+
+- Date of encryption: 19 March 2019
+- People affected inside the organisation: 35,000, across 40 countries
+- Plants that moved to manual operations: most of around 160
+- Ransom paid: none
+- Decisions made on day one: three
+- Primary techniques: T1486, T1531, T1570, plus three techniques from the ICS matrix
+
+<Warn />**Real case.** The technical material comes from the LockerGoga entry in MITRE
+ATT&CK (S0372), which in turn cites analysis from several research teams and Hydro's
+own incident page. The description of the response comes from the Microsoft security
+team publication; Microsoft took part in the recovery.
+
+<Warn />**On the financial figures.** Estimates of around seventy-five million dollars
+circulated. Hydro published its own impact in quarterly reports, in Norwegian kroner. I
+did not verify those figures against the original reports, so I mention them as an
+order of magnitude and not as data.
+
+---
+
+## Context: why a recovery case is studied differently
+
+In the eight previous cases, the question that organises the analysis is always the
+same: what signal was there, when, and why was it not acted on. That is the right
+question while something can still be prevented.
+
+After the encryption that question remains valid for the post-incident report, and is
+**useless for the next seventy-two hours**. What replaces triage is a different list:
+
+- What is broken and what is not yet
+- What has to be switched off before it breaks too
+- In what order things get switched back on
+- Who communicates, to whom, and how often
+- What people work with in the meantime
+
+None of the five is a purely technical question. All five are answered better if they
+were answered earlier, in the cold, when nobody was shouting.
+
+And there is a fundamental difference from everything before: **here the enemy is not
+uncertainty about what happened, it is time.** What happened is perfectly well known.
+The problem is that every hour has a cost and the decisions cannot wait.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-009"
+  events={[
+    {
+      time: "Months earlier",
+      title: "Initial access",
+      description: "An email with a malicious attachment provides the first foothold. The operator stays in the network long enough to reach the corporate directory.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "19 Mar, early hours",
+      title: "Encryption deployed",
+      description: "LockerGoga is distributed across the network. It does not self-propagate: it is copied machine to machine over SMB, with live operators.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "19 Mar",
+      title: "Accounts locked out",
+      description: "The malware changes passwords and closes active sessions. Users, and the response team, lose access to their own machines.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "19 Mar",
+      title: "Loss of view and control",
+      description: "The systems used to supervise production become unavailable. The plants are left with no reading of the process.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "19 Mar",
+      title: "Switch to manual operations",
+      description: "Most manufacturing plants revert to manual procedures, with no information systems in the loop.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "19 Mar",
+      title: "Three decisions",
+      description: "Pay no ransom. Summon specialist outside help. Communicate openly about what was happening.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "Following days",
+      title: "Open, sustained communication",
+      description: "Broadcasts and regular updates throughout the crisis, to staff, customers, the market and the press.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "Following weeks",
+      title: "Progressive restoration",
+      description: "Rebuilding the environment and gradual return to normal operations, with external support.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The malware that takes the keys from whoever responds
+
+Of everything LockerGoga does, this is the characteristic a response team needs to
+know before meeting it.
+
+MITRE records it under technique **T1531, Account Access Removal**: LockerGoga was
+observed **changing account passwords and logging off current users**.
+
+Consider what that means at three in the morning.
+
+The on-call analyst gets the notification. They go to their machine to connect to the
+console, and their own session is already closed and their password is no longer their
+password. The administration console is on an encrypted server. The corporate
+directory, which is where credentials would be reset, is affected. The ticketing
+system too. Internal email too.
+
+**The incident destroyed the tools with which the incident is answered.**
+
+From this comes the most concrete requirement the case leaves behind, and it is one
+almost no written plan covers:
+
+> Every response plan needs at least one access path that does not depend on the
+> infrastructure the incident can take down. Emergency credentials held offline, a
+> communication channel that is not the corporate one, and a copy of the plan itself on
+> paper or on a separate device.
+
+And the corresponding verification, which is the part that gets skipped: **that path
+has to be tested.** An envelope of emergency credentials nobody has opened in three
+years has a high chance of holding a password that no longer exists.
+
+---
+
+## 2. It was not a worm
+
+The second characteristic that changes the response.
+
+MITRE describes it under **T1570, Lateral Tool Transfer**: LockerGoga moved across the
+victim network **over SMB, and analysis indicates the actors were copying the files
+from computer to computer manually rather than self-propagating**.
+
+The difference between a worm and a hands-on operation is enormous for whoever
+responds.
+
+A worm is a program: it behaves the same way every time, it does not learn, and once
+you understand its logic you know what it will do. A manual operation has **people on
+the other side**, looking at the same network, able to notice that a segment is being
+isolated and to speed up before the isolation finishes.
+
+That changes two things in the response playbook.
+
+**Isolation is done completely or not at all.** Cutting piecemeal warns the operator
+and gives them time. It is the same logic as the containment order in case 02: the
+partial action notifies the adversary without taking away their capability.
+
+**The response's own communications move off the compromised network.** If the
+corporate directory is in someone else's hands, internal chat and internal email are a
+channel shared with the attacker. Coordination moves to personal phones, to a group
+outside the company's infrastructure, or to a physical room.
+
+---
+
+## 3. The three decisions of day one
+
+According to the Microsoft security team publication — Microsoft took part in the
+recovery — leadership made three swift decisions: **pay no ransom, summon outside
+help, and communicate openly.**
+
+Each is worth looking at, because all three are executive decisions and all three have
+immediate technical consequences.
+
+**Not paying** defines the whole recovery plan. With no decryption key, the only source
+of truth is the backups, and the entire effort orients towards restoration and
+rebuilding rather than negotiation. It is a decision to take early because the two
+routes diverge immediately.
+
+**Summoning outside help** on day one, not in week two. In an incident of this scale
+the problem is not a lack of internal talent: it is that the internal team is also
+without access, without email, and thirty-six hours into a shift. External help brings
+capacity and, above all, rested people.
+
+**Communicating openly** is the one that most looks like public relations and least is.
+I develop it separately.
+
+---
+
+## 4. Why transparency was a defensive decision
+
+Publicly saying you are encrypted, while you are encrypted, is counter-intuitive. The
+reasons it worked are operational:
+
+**It takes the weapon away from the extortion.** A good part of the pressure in an
+attack like this is the threat of revealing what happened. Announcing it first turns
+that threat into nothing.
+
+**It replaces the internal channel that does not exist.** With corporate email down,
+35,000 people need to find out something from somewhere. Public, frequent communication
+reaches employees by the same route as everybody else, and stops rumour filling the
+vacuum.
+
+**It orders the outside.** Customers, suppliers and the market are going to ask anyway.
+A single periodic source costs far less than answering each enquiry separately, and it
+sustains the credibility of everything else that is said.
+
+**It protects the technical team internally.** When the whole organisation knows what
+is happening and what is being done, the pressure on the people doing the recovery
+drops and tolerance for the recovery taking as long as it takes goes up.
+
+Now the part that has to be said for the lesson to be usable rather than a moral:
+**this is decided beforehand.** Communicating well in a crisis requires having agreed in
+advance who speaks, how often, what can and cannot be said, and coordination with
+legal. Improvised at three in the morning, it goes badly.
+
+---
+
+## 5. Going back to paper
+
+MITRE records, citing Hydro's own incident page, that **most of its roughly 160
+manufacturing plants moved to manual operations**, with no information systems in the
+loop.
+
+That deserves a careful reading, because it is the most useful finding in the case and
+the easiest to romanticise.
+
+Going back to paper is not folklore or heroic improvisation. **It is a continuity plan
+that existed, or that was possible because there were still people who knew how to
+operate without the systems.** In a plant with operators of twenty years' experience,
+that capability is available. In a process designed to be inoperable without software,
+it is not.
+
+From this comes an uncomfortable question worth asking in the cold, and it is not a
+question about information security but about design:
+
+> What part of our operation can keep running, and for how long, without any of the
+> systems that assist it today? And is there anybody left who still knows how?
+
+And the one that comes with it, more concrete still: **is the manual procedure written
+down somewhere that is not the system that goes down?** An emergency instruction stored
+on the corporate intranet is an instruction you will not be able to read exactly when
+you need it.
+
+---
+
+## 6. The order of restoration
+
+With the decision not to pay taken, recovery is a sequencing problem. Three criteria,
+in this order:
+
+**First, a clean environment to restore into.** Restoring onto the compromised network
+reinfects what was restored and, worse, hands the operator back the access that had
+just been taken away. This is what makes recovery from an incident of this scale
+measured in weeks rather than days: the place has to be built before moving in.
+
+**Then, dependencies, not importance.** The system management declares most critical
+usually needs three less glamorous services to start: directory, name resolution,
+authentication, time. Restoring by declared importance produces systems that are
+switched on and do not work. The order is dictated by the dependency graph, and that
+graph has to be drawn beforehand, because in the middle of a crisis nobody reconstructs
+it from memory.
+
+**Finally, verification before reconnecting.** Each restored system is validated before
+returning to the general network. Haste here is what produces the second wave.
+
+And a warning about backups that this case leaves implicit: **the status of the backup
+job is not the same as the existence of a restorable backup.** The only verification
+that counts is having restored a test. It is the same recommendation that closes case
+06, and here you can see why: when the decision not to pay depends on those backups,
+the restoration test stops being good practice and becomes the condition that makes the
+decision available.
+
+---
+
+## 7. Production stopped without touching a controller
+
+ATT&CK has a separate matrix for industrial control environments, and MITRE maps three
+of its techniques to this incident, citing Hydro's own page:
+
+| MITRE ICS | Technique | In this case |
+|---|---|---|
+| **T0829** | Loss of View | The systems used to supervise the process became unavailable |
+| **T0827** | Loss of Control | The loss of control forced the switch to manual operations |
+| **T0828** | Loss of Productivity and Revenue | Most of around 160 plants operating by hand |
+
+The reading that mapping enables is the one that matters for a SOC, and it is worth
+stating carefully:
+
+**Impact on production does not require the malware to reach the controller.**
+
+A plant does not stop only because somebody manipulates a controller. It also stops
+when the IT layer from which it is planned, supervised, recorded and dispatched
+disappears. *Loss of view* is exactly that: the physical process may keep running, and
+nobody can see it.
+
+For an analyst working in an industrial organisation, the practical consequence is that
+**the boundary between IT and OT protects less than the diagram suggests.** The diagram
+shows two zones separated by a firewall. Operations show that one of those zones needs
+the other to function, and that dependency is not drawn anywhere.
+
+It is also worth noting that this is the first case on this site to use the ICS matrix.
+That is not a catalogue detail: if you work in industry, energy, water or transport,
+**the mapping that matters to your organisation is probably not in the enterprise
+matrix** but in this other one, where the techniques do not describe what the attacker
+does but what the organisation loses.
+
+---
+
+## 8. MITRE ATT&CK mapping, enterprise matrix
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-009"
+  tactics={[
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1570"]
+    },
+    {
+      id: "TA0005",
+      name: "Stealth",
+      techniques: ["T1553.002", "T1685", "T1070.004"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1486", "T1531", "T1529"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1570** | Lateral Tool Transfer | Manual copying of the binary over SMB, machine by machine |
+| **T1553.002** | Subvert Trust Controls: Code Signing | Signed with stolen certificates, to look more legitimate |
+| **T1685** | Disable or Modify Tools | A process-kill command immediately before, to disable the antivirus |
+| **T1070.004** | Indicator Removal: File Deletion | Deletes its own launcher after execution |
+| **T1486** | Data Encrypted for Impact | Encryption with RSA-OAEP MGF1, including operating system files |
+| **T1531** | Account Access Removal | Password changes and closure of active sessions |
+| **T1529** | System Shutdown/Reboot | Shutting down infected systems |
+
+Two notes on that table.
+
+**On T1486.** MITRE records that LockerGoga also encrypts operating system files. That
+is worse than it sounds for recovery: a machine whose operating system is encrypted
+does not boot, so there is no in-place decryption possible even with a key. The only
+way out is reinstall and restore.
+
+**On the naming of T1685.** The LockerGoga entry today maps disabling the antivirus to
+`T1685, Disable or Modify Tools`, as a top-level technique. In older material you will
+find the same behaviour described under *Impair Defenses*. It is the same behaviour
+reorganised, and it is the second case on this site where it is worth checking the date
+of a reference before comparing identifiers — the other is T1219 in case 06.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. It opens in its own window.
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-009"
+  indicators={{
+    hashes: ["LockerGoga samples published by several research teams"],
+    artifacts: [
+      "Stolen code-signing certificates",
+      "Mass change of local account passwords",
+      "Antivirus processes terminated immediately before encryption",
+      "Network interfaces disabled with the system utility"
+    ],
+    tools: ["Signed binary, copied by hand", "SMB shares as the distribution route"],
+    ttps: [
+      "Manual distribution instead of self-propagation",
+      "Encryption of operating system files, not only data",
+      "Blocking user access as part of the impact"
+    ]
+  }}
+  note="The code-signing certificate rung deserves attention because it rarely comes up. A stolen certificate is more expensive to replace than a hash and cheaper than a technique: you obtain one, use it until it is revoked, and obtain another. It is a reminder that the pyramid does not have only two zones. But what really organises this case is at the top: manual distribution instead of self-propagation is not an implementation detail, it is the difference between facing a program and facing people who are watching the same thing you are, live. No signature detects that, and yet it is what decides how isolation gets executed."
+/>
+
+I am not including the Kill Chain or the Diamond Model. The first describes how an
+intrusion advances, and this case is about what happens once the intrusion has finished
+advancing: the seven phases add nothing the timeline does not say better. The second
+needs an attributed adversary, and although MITRE records that a known group has used
+this ransomware family, there is no public attribution of this particular incident that
+I can cite.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-009"
+  summary={{
+    incidentId: "Norsk Hydro, 19 March 2019",
+    title: "Mass encryption with a switch to manual operations and recovery without payment",
+    status: "Publicly documented",
+    severity: "CRITICAL",
+    initialTriage: "Not applicable: the incident is known by its impact, not by an alert",
+    rootCause: "Email with a malicious attachment, followed by persistence in the network until reaching the corporate directory",
+    timeToContainment: "Not applicable: containment stopped being possible once the encryption had run",
+    dataCompromised: "The documented impact is on availability and production",
+    resolutionCode: "Case study"
+  }}
+/>
+
+The initial triage is worth noting. **There is none.** This case does not arrive through
+an alert somebody classifies: it arrives because the plants stopped. It is the one way
+of discovering an incident that no SOC wants, and it is why the eight previous cases
+exist.
+
+---
+
+## Lessons learned
+
+**The incident can destroy the tools with which it is answered.** LockerGoga changed
+passwords and closed sessions. A plan that assumes you will be able to log in, read
+internal email and open the console does not describe this scenario. An independent
+access path is needed, and it needs to have been tested.
+
+**A worm and a hands-on operation are not the same.** With people on the other side,
+partial isolation warns and does not protect. And the response's communications move
+off the compromised network, because the attacker is on it.
+
+**Not paying is a decision bought in advance.** It is only available if there are
+offline backups somebody tested by restoring. Without that it is not a brave decision,
+it is a decision that does not exist.
+
+**The transparency was defensive.** It took the weapon from the extortion, replaced the
+downed internal channel, ordered the external conversation and reduced pressure on the
+technical team. And it worked because it was prepared: who speaks, how often, and what
+can be said.
+
+**The continuity plan has to be executable without the systems that go down.**
+Including the plan itself: an instruction stored on the intranet cannot be read when
+the intranet is not there.
+
+**Restoration is ordered by dependencies, and into a clean environment.** The dependency
+graph has to be drawn beforehand; in the middle of a crisis nobody reconstructs it from
+memory.
+
+**Production stops without anybody touching a controller.** *Loss of view* and *loss of
+control* describe exactly that, and they are ICS matrix techniques. The IT/OT boundary
+protects less than the diagram suggests, because the diagram does not draw the
+dependency.
+
+---
+
+## Recommendations
+
+- Offline emergency credentials, with a procedure for their use, and a periodic test
+  confirming they still work
+- A crisis communication channel independent of the corporate infrastructure, agreed
+  and practised
+- A copy of the response plan on a medium that does not depend on the systems the plan
+  covers
+- Periodic restoration testing, with a record: the only evidence a backup exists is
+  having restored it
+- A maintained dependency graph between systems, as input to the restoration order
+- Manual operating procedures written down, accessible offline, and staff trained to
+  execute them
+- A crisis communication plan approved in advance, with defined spokespeople and legal
+  coordination
+- For industrial environments: map which OT functions depend on IT services, and treat
+  that dependency as impact surface
+- Isolation designed to be executed completely and quickly, not in stages
+
+---
+
+## References
+
+- [LockerGoga (S0372) - MITRE ATT&CK](https://attack.mitre.org/software/S0372/)
+- [Norsk Hydro responds to ransomware attack with transparency - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2019/12/17/norsk-hydro-ransomware-attack-transparency/)
+- [Cyber attack on Hydro - Norsk Hydro](https://www.hydro.com/en/media/on-the-agenda/cyber-attack/)
+- [Data Encrypted for Impact (T1486) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1486/)
+- [Account Access Removal (T1531) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1531/)
+- [Lateral Tool Transfer (T1570) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1570/)
+- [Subvert Trust Controls: Code Signing (T1553.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1553/002/)
+- [Loss of View (T0829) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0829/)
+- [Loss of Control (T0827) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0827/)
+- [Loss of Productivity and Revenue (T0828) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0828/)
+- [ICS Matrix - MITRE ATT&CK](https://attack.mitre.org/matrices/ics/)
+
+---
+
+## Up next
+
+Case 06 ends exactly where this one begins: three closed alerts, the encryption at
+02:08, and the recovery barely mentioned in a paragraph. Reading them back to back
+assembles the whole story, and shows that the two ends require different preparations,
+bought at different times.
