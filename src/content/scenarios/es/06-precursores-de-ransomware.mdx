@@ -1,0 +1,547 @@
+---
+title: "Precursores de ransomware - Tres alertas cerradas y bien cerradas"
+description: "Caso educativo: las señales que llegan a tiempo son ambiguas y las inequívocas llegan tarde. Por qué el triage por indicador no alcanza y qué lo reemplaza"
+pubDate: 2026-03-10
+caseId: "soc-006"
+caseNumber: 6
+difficulty: "advanced"
+caseType: "educational_synthetic"
+severity: "CRITICAL"
+tags: ["ransomware", "precursors", "living-off-the-land", "baseline", "alert-triage", "change-management", "edr"]
+author: "Escenario sintético - técnicas documentadas por MITRE ATT&CK y avisos de CISA"
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Resumen ejecutivo
+
+El 7 de marzo a las 02:08, seis servidores y ciento dieciocho estaciones de trabajo
+quedaron cifrados.
+
+El SOC había recibido tres alertas antes de eso, repartidas en tres días y media
+docena de horas. Las tres se cerraron. **Y las tres se cerraron de manera
+defendible**, porque cada una describía algo que la propia empresa hace de forma
+rutinaria: instalar una herramienta de acceso remoto, mandar datos a un proveedor de
+almacenamiento en la nube, ejecutar tareas de administración contra varios equipos.
+
+La única alerta que no admitía otra lectura llegó a las 02:06 del 7 de marzo: el
+borrado de las instantáneas de volumen. Ciento dieciocho segundos antes del cifrado.
+
+Ese desfasaje es el tema del caso, y no es mala suerte. **Las señales inequívocas de
+un ataque de ransomware pertenecen a la fase de impacto, que es el final. Todo lo que
+llega a tiempo es ambiguo por definición.** La habilidad que este caso ejercita no es
+reconocer un indicador malicioso: es desambiguar actividad legítima.
+
+**Métricas clave:**
+
+- Alertas generadas antes del cifrado: 3, todas cerradas como actividad esperada
+- Tiempo desde la primera alerta hasta el cifrado: 3 días, 11 horas y 46 minutos
+- Tiempo entre la única alerta inequívoca y el cifrado: 118 segundos
+- Herramientas usadas por el atacante que no eran maliciosas: todas
+- Muestras de malware detectadas antes del cifrado: ninguna
+- Técnicas principales: T1219.002, T1021.002, T1567.002, T1490
+
+<Warn />**Escenario sintético.** La organización, los equipos y las alertas son
+construidos para el ejercicio. Las direcciones IP salen de los rangos reservados
+para documentación por la RFC 5737 y los dominios usan el TLD `.example` de la
+RFC 2606. Las técnicas, los comandos y el patrón de abuso de herramientas legítimas
+están documentados por MITRE y por los avisos de CISA — ver las referencias al final.
+
+<Warn />**Qué no cubre este caso.** El escenario arranca con el operador ya dentro
+del entorno. Cómo obtuvo el acceso inicial es materia de los casos 01 y 03; lo que
+acá se ejercita es todo lo que pasa después, que es donde el SOC tuvo sus
+oportunidades y las tuvo mal servidas.
+
+---
+
+## Contexto: la organización
+
+Ribera Alimentos distribuye alimentos refrigerados. Cuatrocientos cincuenta puestos
+de trabajo, veintidós servidores, un equipo de sistemas de cuatro personas y ningún
+SOC propio: el EDR es un servicio gestionado y sus alertas caen en una cola que
+atiende un analista de primer nivel, entre otras tareas.
+
+Es un perfil corriente, y conviene tenerlo presente al juzgar las decisiones que
+siguen. No hay negligencia en este caso. Hay un procedimiento que permitía cerrar un
+ticket sin una respuesta autorizada, y tres oportunidades de descubrirlo.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-006"
+  events={[
+    {
+      time: "3 mar 14:22",
+      title: "Alerta 1 - Acceso remoto instalado",
+      description: "El EDR informa la instalación de una herramienta de escritorio remoto en ADM-FIN-07, un puesto de administración.",
+      severity: "LOW",
+      actor: "System"
+    },
+    {
+      time: "3 mar 15:40",
+      title: "Alerta 1 cerrada",
+      description: "Se cierra como actividad esperada: la herramienta está en la lista de software aprobado y sistemas la usa para soporte.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "4 mar 02:55",
+      title: "Sesión sobre el servidor de archivos",
+      description: "La cuenta de ADM-FIN-07 se autentica contra SRV-ARCH-02 fuera del horario laboral. Sin alerta asociada.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "4 mar 03:14",
+      title: "Alerta 2 - Volumen saliente a la nube",
+      description: "El proxy informa transferencia sostenida desde SRV-ARCH-02 hacia un proveedor de almacenamiento. Categoría permitida.",
+      severity: "LOW",
+      actor: "System"
+    },
+    {
+      time: "4 mar 07:24",
+      title: "Fin de la transferencia",
+      description: "Cuatro horas y diez minutos de subida sostenida. 42 GB desde el recurso compartido de contabilidad y legales.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "4 mar 09:12",
+      title: "Alerta 2 cerrada",
+      description: "Se cierra como respaldo nocturno: la empresa usa ese proveedor y el destino figura como permitido.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "6 mar 22:51",
+      title: "Alerta 3 - Ejecución remota en seis equipos",
+      description: "Herramienta de administración lanzada desde ADM-FIN-07 contra seis servidores en once minutos.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "6 mar 23:36",
+      title: "Alerta 3 cerrada",
+      description: "El analista consulta a sistemas por chat. La respuesta es 'puede ser, estuvimos con actualizaciones'. Se cierra.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "7 mar 02:06",
+      title: "Alerta 4 - Borrado de instantáneas",
+      description: "vssadmin delete shadows /all /quiet ejecutado en seis servidores de forma simultánea. Severidad alta.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "7 mar 02:08",
+      title: "Cifrado",
+      description: "Seis servidores y ciento dieciocho estaciones. La alerta 4 seguía sin asignar.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    }
+  ]}
+/>
+
+Vale mirar dos distancias en ese timeline. Entre la primera alerta y el cifrado hay
+más de tres días: tiempo de sobra. Entre la alerta que no admitía discusión y el
+cifrado hay menos de dos minutos: ninguno.
+
+---
+
+## 1. Las tres alertas, tal como se vieron
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-006"
+  type="alertas"
+  title="Lo que decía cada ticket"
+  data={{
+    "alerta 1": {
+      "regla": "Instalación de software de acceso remoto",
+      "severidad": "Baja",
+      "equipo": "ADM-FIN-07",
+      "software": "Herramienta de escritorio remoto comercial",
+      "estado de la herramienta": "En la lista de software aprobado",
+      "alertas iguales en los 30 días previos": "11, todas legítimas",
+      "verdict": "suspicious"
+    },
+    "alerta 2": {
+      "regla": "Volumen saliente anómalo",
+      "severidad": "Baja",
+      "equipo": "SRV-ARCH-02",
+      "destino": "Proveedor de almacenamiento en la nube",
+      "estado del destino": "Categoría permitida por política",
+      "volumen": "42 GB en 4 h 10 min",
+      "verdict": "suspicious"
+    },
+    "alerta 3": {
+      "regla": "Ejecución remota de herramienta de administración",
+      "severidad": "Media",
+      "origen": "ADM-FIN-07",
+      "destinos": "Seis servidores en once minutos",
+      "herramienta": "Utilitario firmado del propio sistema operativo",
+      "verdict": "suspicious"
+    }
+  }}
+/>
+
+Leídas así, una por una, las tres son razonables. Ninguna contiene un archivo
+malicioso, un dominio de mala reputación ni una dirección de un país inesperado. El
+atacante no trajo nada: **usó lo que ya estaba, o lo que la empresa ya permitía.**
+
+Es lo que los avisos de CISA describen para varias familias de ransomware activas.
+Los grupos que operan con herramientas de acceso remoto comerciales lo hacen
+justamente porque el software es legítimo, está firmado y, en muchas organizaciones,
+está aprobado.
+
+---
+
+## 2. Qué faltaba en cada alerta
+
+Acá está el método del caso. Ninguna de las tres alertas se puede resolver con lo que
+la alerta trae. **Eso no es una limitación del analista: es el hallazgo.** Y cada una
+tiene una pregunta concreta, dirigida a una persona concreta, que la habría resuelto
+en minutos.
+
+| Alerta | Lo que decía | Lo que faltaba | A quién preguntarle |
+|---|---|---|---|
+| 1 | Se instaló una herramienta aprobada | Quién la instaló, con qué cuenta, y si había un cambio autorizado | Gestión de cambios |
+| 2 | Salieron datos a un destino permitido | Cuál es el volumen normal de ese servidor a ese destino | Infraestructura |
+| 3 | Se ejecutaron tareas de administración | Si había una ventana de mantenimiento registrada esa noche | Responsable de sistemas |
+
+Y esto es lo que cada respuesta habría revelado:
+
+**Alerta 1.** La herramienta está aprobada **en los equipos que administra sistemas,
+instalada por la cuenta de despliegue, en horario laboral y contra un pedido**. Esta
+instalación fue en un puesto de administración financiera, con la cuenta local del
+usuario, y no había ningún pedido. La política aprobaba la herramienta; no aprobaba
+esa instalación.
+
+**Alerta 2.** El respaldo nocturno de `SRV-ARCH-02` corre a la 01:00 y mueve unos
+2,8 GB. Esta transferencia arrancó a las 03:14 y movió 42 GB. Mismo destino, mismo
+protocolo, quince veces el volumen y tres horas corridas fuera de la ventana. **El
+destino permitido explicaba a dónde iban los datos, no por qué eran tantos.**
+
+**Alerta 3.** El registro de cambios no tenía ninguna ventana de mantenimiento para
+la noche del 6 de marzo. La frase "puede ser, estuvimos con actualizaciones" era una
+impresión de una persona ocupada, no un dato. **El sistema de cambios tenía la
+respuesta autorizada y nadie la consultó.**
+
+Tres preguntas. Ninguna requiere una herramienta que la empresa no tuviera, ni una
+habilidad que el analista no tuviera. Lo que faltaba era un procedimiento que no
+permitiera cerrar sin respuesta.
+
+---
+
+## 3. La regla que se saca de acá
+
+Conviene enunciarla de una manera que sirva el lunes:
+
+**El resultado del triage de una alerta ambigua no es "verdadero positivo" o "falso
+positivo". Es una pregunta dirigida a quien tiene la respuesta autorizada.**
+
+Un ticket cerrado con "actividad esperada" y sin una fuente que lo respalde no está
+resuelto: está archivado. La diferencia entre las dos cosas es lo único que separa
+este caso de uno donde no pasa nada.
+
+Y el corolario incómodo, que vale explicitar porque protege al analista: **cerrar la
+alerta 1 fue estadísticamente correcto.** Once de once alertas iguales en el mes
+anterior habían sido legítimas. Con esa tasa base, cerrar es la apuesta que gana casi
+siempre. El problema no fue el criterio de la persona, fue que el sistema le pedía
+adivinar en vez de darle con qué verificar.
+
+Arreglar esto pidiéndole al analista que "sea más desconfiado" no funciona y además
+empeora las cosas: sube el costo de cada ticket y no cambia la información
+disponible. Lo que funciona es que la alerta llegue con el contexto pegado —cuenta
+que instaló, ticket de cambio asociado, línea base del equipo— o que el procedimiento
+obligue a ir a buscarlo.
+
+---
+
+## 4. La correlación que nadie hizo
+
+Las tres alertas están en la misma consola. En la consola son tres filas separadas
+por días, de tres reglas distintas, con tres severidades distintas. Nada las junta.
+
+Pero comparten entidades:
+
+```
+ADM-FIN-07 ─── alerta 1 (3 mar)  instalación de acceso remoto
+     │
+     └───────── alerta 3 (6 mar)  ejecución remota contra 6 servidores
+
+cuenta de ADM-FIN-07 ─── autenticación a SRV-ARCH-02 (4 mar 02:55)
+                              │
+                              └── alerta 2 (4 mar)  42 GB salientes
+```
+
+Un mismo equipo aparece en la primera y la tercera. La cuenta que opera ese equipo
+aparece autenticándose contra el servidor de la segunda, diecinueve minutos antes de
+que empiece la transferencia.
+
+**La unidad de análisis no es la alerta, es la entidad.** Tres alertas de baja
+severidad sobre el mismo equipo en cuatro días son un hecho distinto de tres alertas
+de baja severidad sobre tres equipos cualesquiera, y ninguna consola ordenada por
+tiempo y severidad muestra esa diferencia.
+
+Esto se traduce en un pedido concreto de herramienta: poder ver todas las alertas de
+un equipo o de una cuenta en una sola vista, sin importar la regla que las generó.
+Si eso no existe, se suple con un paso del procedimiento: **antes de cerrar, buscar
+la entidad en el histórico.** Es más lento y funciona igual.
+
+---
+
+## 5. Los dos minutos finales
+
+A las 02:06 del 7 de marzo se ejecutó en seis servidores, de forma simultánea:
+
+```
+vssadmin.exe delete shadows /all /quiet
+```
+
+MITRE documenta ese comando textualmente bajo T1490, junto con `wbadmin.exe delete
+catalog -quiet` y las modificaciones de `bcdedit.exe` que desactivan la recuperación
+automática de Windows. Es una de las señales menos ambiguas que existen: **el borrado
+masivo y silencioso de las instantáneas no tiene una lectura administrativa
+razonable**, y menos en seis servidores a la vez a las dos de la mañana.
+
+La alerta salió con severidad alta. Nadie la vio: a las 02:08 empezó el cifrado, y a
+esa hora la cola no tenía a nadie.
+
+Vale sacar la conclusión correcta de esto, porque hay una tentadora y equivocada. La
+equivocada es "hacía falta cobertura nocturna". Con dos minutos, un turno de noche
+tampoco llegaba: mientras el analista abre el ticket, ya está cifrando.
+
+La correcta es que **una detección que solo dispara en la fase de impacto no es una
+detección, es una notificación.** Sirve para saber qué pasó, no para impedirlo. Su
+valor es forense. El valor preventivo estaba tres días antes, repartido en tres
+tickets que se cerraron bien.
+
+Eso sí: el borrado de instantáneas merece respuesta automática, no alerta. Aislar el
+equipo primero y preguntar después es la única velocidad que le gana a ese comando.
+
+---
+
+## 6. Contención y recuperación
+
+Lo que se hizo, en orden, y por qué.
+
+1. **Aislar los equipos afectados de la red**, cortando también la ruta hacia los
+   respaldos. La primera preocupación después del cifrado es que no alcance lo que
+   todavía está sano.
+2. **Deshabilitar la cuenta comprometida y revocar sus sesiones**, incluida la
+   herramienta de acceso remoto instalada en `ADM-FIN-07`.
+3. **Buscar la misma herramienta en el resto del parque.** Apareció en otros dos
+   puestos, instalados el 5 de marzo, sin alerta asociada porque la regla ya estaba
+   silenciada por volumen.
+4. **Verificar el estado de los respaldos fuera de línea** antes de tocar nada más.
+5. **Recién entonces, restaurar**, priorizando por dependencia y no por importancia
+   declarada.
+
+El punto tres es el que más suele saltearse y el que más importa: después de un
+cifrado, la pregunta no es solo qué se rompió, sino **dónde más está el acceso del
+atacante**. Restaurar sobre una red donde sigue habiendo una puerta abierta es
+repetir el incidente con más trabajo.
+
+Y hay una consecuencia que el cifrado tapa: **los 42 GB salieron tres días antes.**
+Aunque la restauración fuera perfecta y todo volviera en horas, esos datos están
+afuera. El incidente de cifrado se resuelve con respaldos; el de exfiltración, no se
+resuelve.
+
+---
+
+## 7. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-006"
+  tactics={[
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1219.002"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1021.002"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1490", "T1486"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1219.002** | Remote Access Tools: Remote Desktop Software | La herramienta comercial instalada en ADM-FIN-07 el 3 de marzo |
+| **T1021.002** | Remote Services: SMB/Windows Admin Shares | La ejecución contra seis servidores del 6 de marzo |
+| **T1567.002** | Exfiltration Over Web Service: Exfiltration to Cloud Storage | Los 42 GB del 4 de marzo hacia un destino permitido |
+| **T1490** | Inhibit System Recovery | El borrado de instantáneas de las 02:06 |
+| **T1486** | Data Encrypted for Impact | El cifrado de las 02:08 |
+
+Nota de nomenclatura: **T1219 pasó a llamarse *Remote Access Tools*** y ahora tiene
+subtécnicas; el abuso de una herramienta de escritorio remoto corresponde a
+`T1219.002`. En material anterior la misma técnica figura como *Remote Access
+Software*, sin subtécnicas, sobre el mismo identificador `T1219`. Si una regla o un
+informe viejo dice lo segundo, está hablando de lo mismo.
+
+Vale notar cómo se reparte esa tabla. Las cuatro primeras filas son las tácticas
+donde el SOC tuvo tiempo; la última es donde no lo tuvo. Y **ninguna de las cinco
+técnicas requirió software malicioso**: cuatro usan herramientas legítimas o
+componentes del sistema operativo, y solo la última es un binario del atacante.
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Se abre en ventana aparte.
+
+<PyramidOfPain
+  client:load
+  lang="es"
+  caseId="soc-006"
+  indicators={{
+    hashes: ["Ninguno útil: las herramientas del atacante están firmadas y son legítimas"],
+    domains: ["El proveedor de almacenamiento, que la empresa usa de verdad"],
+    artifacts: [
+      "Instalación de acceso remoto por una cuenta que no es la de despliegue",
+      "Volumen quince veces por encima de la línea base del servidor",
+      "Ejecución remota sin ventana de mantenimiento registrada",
+      "Tres alertas de baja severidad sobre la misma entidad en cuatro días"
+    ],
+    tools: ["Herramienta de escritorio remoto comercial", "Utilitario de ejecución remota firmado por el sistema operativo"],
+    ttps: [
+      "Uso exclusivo de herramientas legítimas hasta la fase de impacto",
+      "Exfiltración hacia un destino de nube ya permitido por política",
+      "Borrado de instantáneas inmediatamente antes de cifrar"
+    ]
+  }}
+  note="Este caso es casi una demostración del argumento de la pirámide, y por eso los dos escalones de abajo están puestos a propósito para que se lea lo que les pasa. No hay hash que sirva, porque las herramientas del atacante son software real y firmado; bloquear su huella sería bloquear una herramienta que sistemas usa todos los días. Y el dominio es peor que inútil: bloquearlo rompe los respaldos de la empresa. Cuando el atacante no trae nada propio, los dos escalones inferiores no se degradan, directamente desaparecen. Lo que queda son los artefactos, y notar que ninguno de los cuatro describe una cosa: los cuatro describen una diferencia contra lo normal. Ahí está el trabajo de este caso."
+/>
+
+No incluyo la Cadena de Ataque ni el Diamond Model. La primera daría siete fases
+alcanzadas y ninguna cortada, que es lo mismo que ya muestra el caso 05 y que acá no
+agrega nada al timeline. El segundo necesita un adversario identificado, y en un
+escenario sintético no lo hay: dos de los cuatro vértices quedarían vacíos.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-006"
+  summary={{
+    incidentId: "INC-2026-0307-001",
+    title: "Cifrado de servidores y puestos con exfiltración previa",
+    status: "Resolved",
+    severity: "CRITICAL",
+    triageInicial: "Tres alertas de severidad baja y media, cerradas como actividad esperada",
+    causaRaiz: "Uso de herramientas legítimas y permitidas, sin contexto en la alerta para distinguirlo de la operación normal",
+    tiempoDeContencion: "Posterior al impacto",
+    datosComprometidos: "42 GB del recurso compartido de contabilidad y legales, exfiltrados tres días antes del cifrado",
+    resolutionCode: "Resuelto (verdadero positivo, detectado tarde)"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**Lo que llega a tiempo es ambiguo; lo inequívoco llega tarde.** No es mala suerte,
+es la forma de la intrusión: las señales sin doble lectura viven en la fase de
+impacto. Un SOC que solo actúa sobre lo inequívoco actúa siempre después.
+
+**El resultado del triage de una alerta ambigua es una pregunta, no un veredicto.**
+Dirigida a quien tiene la respuesta autorizada: gestión de cambios, infraestructura,
+el responsable del equipo. Cerrar sin esa respuesta es archivar, no resolver.
+
+**Que una herramienta esté aprobada no aprueba cada instalación.** La política
+aprobaba el software; no aprobaba que lo instalara la cuenta de un usuario de
+finanzas un martes a la tarde sin pedido. La pregunta correcta no es qué se instaló
+sino quién, dónde y contra qué autorización.
+
+**Un destino permitido explica el rumbo, no el volumen.** Los 42 GB fueron al mismo
+proveedor que usan los respaldos. Sin línea base del servidor, la alerta no tenía con
+qué comparar y no había nada que decidir.
+
+**La unidad de análisis es la entidad, no la alerta.** Tres alertas de baja severidad
+sobre el mismo equipo en cuatro días son un hecho distinto de tres alertas sueltas, y
+la consola ordenada por tiempo no muestra la diferencia.
+
+**El analista que cerró la primera alerta acertó según la tasa base.** Once de once
+casos iguales habían sido legítimos. Pedirle más desconfianza no arregla nada: lo que
+hay que cambiar es la información que llega con la alerta.
+
+**El cifrado y la exfiltración son dos incidentes.** Los respaldos resuelven uno. El
+otro ya ocurrió tres días antes y no tiene vuelta atrás.
+
+---
+
+## Recomendaciones
+
+- Enriquecer las alertas de instalación de software con la cuenta que ejecutó la
+  instalación y el ticket de cambio asociado, para que la verificación no dependa de
+  que alguien la busque
+- Línea base de volumen saliente por servidor y por destino, y alertar por desvío
+  contra esa línea en vez de por umbral fijo
+- Vista por entidad en la consola: todas las alertas de un equipo o una cuenta,
+  cualquiera sea la regla. Sin eso, un paso obligatorio de búsqueda en el histórico
+  antes de cerrar
+- Prohibir el cierre de un ticket con "actividad esperada" sin registrar la fuente
+  que lo confirma
+- Respuesta automática de aislamiento ante borrado de instantáneas, ejecución masiva
+  de `vssadmin`, `wbadmin` o `bcdedit`, sin esperar a un analista
+- Control de aplicaciones que limite las herramientas de acceso remoto a los equipos
+  de sistemas, en vez de aprobarlas para todo el parque
+- Revisar qué reglas están silenciadas por volumen y por qué: una regla ruidosa que
+  se apaga deja de existir como detección
+- Respaldos fuera de línea, verificados con restauraciones de prueba, no solo con el
+  estado del trabajo de respaldo
+
+---
+
+## Referencias
+
+- [Remote Access Tools (T1219) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1219/)
+- [Remote Access Tools: Remote Desktop Software (T1219.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1219/002/)
+- [Remote Services: SMB/Windows Admin Shares (T1021.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1021/002/)
+- [Exfiltration to Cloud Storage (T1567.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1567/002/)
+- [Inhibit System Recovery (T1490) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1490/)
+- [Data Encrypted for Impact (T1486) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1486/)
+- [AA25-071A: #StopRansomware: Medusa Ransomware - CISA](https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-071a)
+- [The five-day job: A BlackByte ransomware intrusion case study - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2023/07/06/the-five-day-job-a-blackbyte-ransomware-intrusion-case-study/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Próximas lecturas
+
+El caso 04 también termina con alertas que existieron y no se accionaron, pero por un
+motivo distinto: allí el problema fue el volumen y la falta de propiedad sobre la
+alerta. Acá las tres alertas se leyeron, se pensaron y se cerraron con criterio. Vale
+compararlos para ver que "la alerta estaba ahí" describe dos fallas muy diferentes, y
+que solo una se arregla con más atención.
