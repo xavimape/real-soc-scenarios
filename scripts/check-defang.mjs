@@ -36,6 +36,7 @@ const PERMITIDOS = [
   'jfrog.com',
   'google.com',
   'progress.com',
+  'amazon.com',
   // Reservado por RFC 2606 para documentación: no puede ser infraestructura real.
   'example.com',
   // Herramientas públicas citadas por nombre, no infraestructura del atacante.
@@ -57,6 +58,24 @@ const PERMITIDOS = [
  * subdominio delante y la coincidencia sí se informa.
  */
 const NO_SON_DOMINIOS = ['asp.net', 'vb.net', 'ado.net'];
+
+/**
+ * Direcciones IPv4 que no pueden ser infraestructura de un atacante.
+ *
+ * Solo el enlace local, `169.254.0.0/16` de la RFC 3927. Esas direcciones no se
+ * enrutan por internet: valen únicamente dentro del mismo segmento, así que
+ * defanguearlas no protege de nada. Aparecen en soc-007 porque `169.254.169.254`
+ * es el servicio de metadatos de instancia, una constante de plataforma que la
+ * documentación del propio proveedor publica tal cual.
+ *
+ * Deliberadamente NO se agregan acá los rangos de documentación de la RFC 5737
+ * —`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`—, aunque tampoco existan.
+ * En los casos sintéticos esas direcciones hacen de infraestructura del atacante,
+ * y publicarlas defangueadas es parte de lo que el sitio enseña. Que una
+ * dirección sea inofensiva no alcanza: la pregunta es qué papel cumple en el
+ * texto.
+ */
+const ENLACE_LOCAL = /^169\.254\./;
 
 /** Patrones de indicador que nunca deberían aparecer sin defanguear. */
 const PATRONES = [
@@ -92,10 +111,15 @@ for (const archivo of await archivosHtml(DIST)) {
       const anterior = html[coincidencia.index - 1];
       if (NO_SON_DOMINIOS.includes(valor.toLowerCase()) && anterior !== '.') continue;
 
-      // Las versiones de dependencias y los números sueltos no son IPs.
+      // Descarta lo que tiene forma de IP pero no puede serlo, o no puede ser
+      // infraestructura de nadie. Ojo: un número de versión de cuatro partes
+      // como `1.2.3.4` sí se informa, porque es indistinguible de una dirección
+      // válida. Todavía no apareció ninguno en el contenido; si aparece, se
+      // resuelve mirando el contexto, no ampliando esta condición.
       if (nombre.startsWith('IPv4')) {
         const octetos = valor.split('.').map(Number);
         if (octetos.some((o) => o > 255)) continue;
+        if (ENLACE_LOCAL.test(valor)) continue;
       }
 
       hallazgos.push({ archivo, nombre, valor });
