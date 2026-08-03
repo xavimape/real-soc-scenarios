@@ -1,0 +1,576 @@
+---
+title: "Amenaza interna - Cuando el SOC investiga una actividad, no una persona"
+description: "Caso educativo: no hay explotación, no hay herramienta ajena y cada acceso está autorizado. La señal es volumen, horario y destino, y el límite de hasta dónde puede llegar el analista es parte del caso"
+pubDate: 2026-04-21
+caseId: "soc-008"
+caseNumber: 8
+difficulty: "advanced"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["insider-threat", "dlp", "baseline", "peer-group", "data-exfiltration", "evidence-handling", "ethics"]
+author: "Escenario sintético - técnicas documentadas por MITRE ATT&CK"
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+
+## Resumen ejecutivo
+
+Todos los casos anteriores de este sitio empiezan igual: alguien que no debería estar
+adentro, entra. Este no.
+
+Acá no hay explotación, no hay credencial robada, no hay herramienta que no sea del
+trabajo. Una persona con acceso legítimo leyó registros que tiene permiso de leer, los
+exportó con una función que la aplicación ofrece, y los copió a un destino que la
+política no bloquea. **Ninguna acción individual es una violación.** El conjunto sí.
+
+Eso cambia la naturaleza del trabajo. No hay nada malo que reconocer: hay que medir
+una diferencia contra lo normal, y lo normal hay que haberlo definido antes.
+
+Y cambia algo más, que es la mitad del caso. Este es el único escenario donde la
+salida del análisis **no es una acción técnica sino un expediente que va a Recursos
+Humanos y a Legales**, sobre una persona identificable, con consecuencias sobre su
+trabajo y eventualmente su libertad. Un analista que se equivoca acá no genera un
+falso positivo: genera un daño.
+
+Por eso la regla que ordena el caso es una sola: **el SOC investiga una actividad, no
+investiga a una persona.**
+
+**Métricas clave:**
+
+- Acciones observadas que violan una política por sí solas: ninguna
+- Desvío contra la línea base individual: unas 140 veces
+- Desvío contra el grupo de pares en la misma función: 4,6 veces
+- Tiempo desde la alerta hasta el traspaso a RR.HH. y Legales: 6 horas
+- Datos que el SOC consultó sobre la vida de la persona: ninguno
+- Técnicas principales: T1213, T1074.001, T1567.002
+
+<Warn />**Escenario sintético.** La organización, las cuentas y los registros son
+construidos para el ejercicio. Las direcciones IP salen de los rangos reservados
+para documentación por la RFC 5737 y los dominios usan el TLD `.example` de la
+RFC 2606.
+
+<Warn />**Sobre el encuadre legal.** Lo que sigue describe criterios de trabajo, no
+asesoramiento legal. Qué se puede monitorear, qué se puede conservar y qué hace falta
+notificar cambia mucho según el país, el convenio colectivo y el contrato. La única
+recomendación que vale en todas partes es que esas preguntas se responden **antes** de
+que haya un caso, y las responde el área legal, no el SOC.
+
+---
+
+## Contexto: por qué este caso es distinto
+
+En una intrusión, el atacante tiene que conseguir algo que no tiene: una credencial,
+una sesión, un permiso. Cada uno de esos pasos deja un rastro anómalo, y sobre esos
+rastros se construyen las detecciones.
+
+Una persona de adentro no necesita conseguir nada. Ya lo tiene, y lo usa como todos
+los días. La consecuencia práctica:
+
+**La mitad izquierda del trabajo de detección desaparece.** No hay acceso inicial, no
+hay escalada, no hay movimiento lateral, no hay persistencia. El caso arranca
+directamente en recolección y exfiltración.
+
+Y una segunda consecuencia, más incómoda: como no hay nada prohibido que señalar, la
+única evidencia posible es **estadística**. Volumen contra una línea base. Horario
+contra un historial. Destino contra una costumbre. Ninguna de las tres, sola, prueba
+nada. Es un tipo de evidencia que hay que saber presentar sin exagerarla.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-008"
+  events={[
+    {
+      time: "1 abr",
+      title: "Cambio de función",
+      description: "La cuenta m.ibarra pasa de ejecutiva de cuentas a líder de cartera. La nueva función requiere acceso masivo al padrón de clientes.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "16 abr 23:10",
+      title: "Primera lectura fuera de horario",
+      description: "Consulta de 640 registros de clientes entre las 23:10 y la 01:05. Sin alerta: el volumen está dentro de lo que la nueva función permite.",
+      severity: "LOW",
+      actor: "User"
+    },
+    {
+      time: "17 abr 22:52",
+      title: "Segunda noche",
+      description: "918 registros más, en la misma franja. La regla de volumen acumula por día, no por período.",
+      severity: "LOW",
+      actor: "User"
+    },
+    {
+      time: "18 abr 23:40",
+      title: "Exportación",
+      description: "Tres archivos de valores separados por comas, 41 MB en total, generados con la función de exportación de la propia aplicación.",
+      severity: "MEDIUM",
+      actor: "User"
+    },
+    {
+      time: "19 abr 00:18",
+      title: "Alerta de prevención de fuga de datos",
+      description: "Subida de los tres archivos a una cuenta personal de almacenamiento en la nube. La categoría está permitida por política.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "19 abr 09:05",
+      title: "El analista toma el ticket",
+      description: "Comienza el triage por la actividad de la cuenta, sin abrir ninguna consulta sobre la persona.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "19 abr 10:30",
+      title: "Línea base individual descartada",
+      description: "El desvío contra el histórico de la cuenta no sirve, por grande que sea: la función cambió hace tres semanas.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "19 abr 11:45",
+      title: "Comparación con el grupo de pares",
+      description: "Otras cuatro cuentas en la misma función leyeron entre 480 y 700 registros en tres días. Esta leyó 2.412.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "19 abr 13:20",
+      title: "Preservación de evidencia",
+      description: "Se resguardan registros de acceso, de exportación y de proxy, con cadena de custodia. No se toca el equipo ni el buzón.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "19 abr 15:10",
+      title: "Traspaso a RR.HH. y Legales",
+      description: "Se entrega una cronología de hechos técnicos, sin conclusión sobre la intención ni sobre la persona.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. La alerta y lo que no dice
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-008"
+  type="actividad"
+  title="Actividad observada de la cuenta m.ibarra"
+  data={{
+    lecturas: {
+      "período": "16 al 18 de abril",
+      "registros de clientes consultados": "2.412",
+      "franja horaria": "22:40 a 01:15",
+      "permiso para leerlos": "Sí, otorgado el 1 de abril con el cambio de función",
+      "verdict": "suspicious"
+    },
+    exportación: {
+      "mecanismo": "Función de exportación de la propia aplicación",
+      "archivos": "3 archivos de valores separados por comas, 41 MB",
+      "permiso para exportar": "Sí, incluido en el perfil de la función",
+      "verdict": "suspicious"
+    },
+    destino: {
+      "servicio": "Almacenamiento personal en la nube",
+      "estado en la política": "Categoría permitida, sin bloqueo",
+      "cuenta": "Personal, no corporativa",
+      "verdict": "suspicious"
+    },
+    "lo que no hay": {
+      "malware": "Ninguno",
+      "credencial robada": "Ninguna",
+      "escalada de privilegios": "Ninguna",
+      "acción prohibida por política": "Ninguna"
+    }
+  }}
+/>
+
+Vale detenerse en la última fila. **Cada acción, mirada sola, es parte del trabajo.**
+Leer el padrón de clientes es la función. Exportarlo es una capacidad que el perfil
+incluye. Subir un archivo a un almacenamiento en la nube es algo que la política
+permite.
+
+Un triage que busque la acción prohibida no va a encontrarla, y va a cerrar el ticket.
+
+---
+
+## 2. La línea base individual, y por qué acá no sirve
+
+El primer reflejo es correcto: comparar con lo que esta cuenta hace habitualmente.
+
+```
+Histórico de la cuenta, 12 meses:  ~40 registros por semana  →  ~17 en tres días
+Observado, 16 al 18 de abril:      2.412 registros en tres días
+Desvío:                            unas 140 veces
+```
+
+Nótese el paso intermedio, que es fácil de saltear y cambia el resultado por más del
+doble: la línea base está expresada por semana y lo observado por tres días. Comparar
+2.412 contra 40 da sesenta veces y es una cuenta mal hecha. **Cada número con su
+denominador, también cuando el número juega a favor de la hipótesis.**
+
+Ciento cuarenta veces la línea base es un número que impresiona, y es **inservible**.
+
+El 1 de abril esta persona cambió de función. Pasó de atender cuentas individuales a
+liderar una cartera, y esa función requiere justamente lo que la línea base marca como
+imposible: acceso masivo al padrón.
+
+Acá hay una lección que se paga cara en cualquier programa de detección de conducta:
+
+**Una línea base construida sobre una persona caduca cuando su función cambia, y nada
+en el sistema avisa.** El histórico sigue ahí, sigue calculándose, sigue produciendo
+desvíos enormes, y todos son falsos. Peor todavía: producen desvíos convincentes,
+del tipo que en un informe se ve contundente.
+
+De ahí sale un requisito concreto, y es la parte más útil del caso para armar
+detecciones: **la línea base tiene que estar atada a la función, no al legajo, y el
+sistema de detección tiene que enterarse de los cambios de función.** Si Recursos
+Humanos mueve a alguien y el motor de conducta no lo sabe, ese motor va a generar
+falsos positivos sobre cada persona que cambie de puesto — que suelen ser las personas
+que están creciendo en la organización.
+
+---
+
+## 3. El grupo de pares
+
+Descartada la comparación consigo misma, queda la que sí corresponde: contra otras
+personas que hacen lo mismo hoy.
+
+```
+Otras cuatro cuentas en la función de líder de cartera,
+mismo período de tres días:
+
+  cuenta A    512 registros
+  cuenta B    480 registros
+  cuenta C    697 registros
+  cuenta D    534 registros
+  ─────────────────────────
+  mediana     523 registros
+
+  m.ibarra  2.412 registros   →  4,6 veces la mediana del grupo
+```
+
+Cuatro veces y media la mediana de los pares. Es una anomalía real, y conviene decir
+con precisión qué tan fuerte es: **es mucho más débil que ciento cuarenta veces, y es
+la única de las dos que significa algo.**
+
+Vale resistir la tentación de usar el número grande porque convence más. En un
+expediente que va a Legales, un desvío mal calculado que la otra parte desarma es peor
+que no haber presentado nada: quema la credibilidad del resto de la evidencia.
+
+Y aun así, cuatro veces la mediana no prueba nada por sí solo. Alguien puede leer
+cuatro veces más que sus pares porque le asignaron una migración, porque está cubriendo
+a un colega, o porque trabaja distinto. **La anomalía abre la pregunta; no la
+contesta.**
+
+---
+
+## 4. Las otras dos señales
+
+Lo que convierte una anomalía de volumen en un caso son las dos que la acompañan, y
+ninguna es más fuerte que la primera: lo que importa es que apuntan al mismo lado.
+
+**El horario.** Dieciocho meses de historial de esta cuenta muestran actividad entre
+las 08:30 y las 18:00, con excepciones aisladas. Las lecturas de estas tres noches
+ocurrieron entre las 22:40 y la 01:15, tres noches seguidas. El cambio de función no
+explica un cambio de horario.
+
+**El destino.** Los archivos exportados fueron a una cuenta personal de almacenamiento
+en la nube, no a un recurso de la organización. La política no lo bloquea, y esa es
+una falla de la política que el caso deja anotada. Pero el dato relevante para el
+análisis es otro: **no hay ninguna tarea de la función de líder de cartera que
+requiera sacar el padrón fuera de los sistemas de la empresa.**
+
+Las tres señales juntas —volumen contra pares, horario contra historial, destino fuera
+del perímetro— forman un cuadro coherente. Ninguna es concluyente. Las tres apuntando
+en la misma dirección es lo máximo que la evidencia técnica puede aportar, y es
+suficiente para escalar.
+
+No es suficiente para concluir.
+
+---
+
+## 5. El límite: qué no hace el SOC
+
+Acá está la parte del caso que no aparece en ningún indicador y que define si el
+analista hizo bien su trabajo.
+
+Con tres señales apuntando al mismo lado, la tentación es cerrar el círculo: leer el
+correo de la persona, revisar sus mensajes, mirar qué páginas visitó, buscar si
+renunció. Todo eso es técnicamente posible y en muchos entornos el SOC tiene los
+permisos para hacerlo.
+
+**No corresponde, y no principalmente por ética abstracta: por tres razones
+operativas.**
+
+**Uno, destruye la evidencia que ya se tiene.** Una investigación sobre una persona
+que se hizo sin encuadre legal previo puede volver inutilizable todo el expediente, y
+convertir al analista y a la empresa en la parte demandada. El orden importa: primero
+Legales autoriza el alcance, después se recolecta.
+
+**Dos, confunde el objeto.** Lo que se investiga es una actividad sobre datos de la
+empresa. En el momento en que el objeto pasa a ser la persona, el análisis empieza a
+buscar confirmación en vez de explicación, y encuentra: cualquier vida laboral mirada
+con sospecha ofrece material.
+
+**Tres, el SOC no tiene el contexto y no debería tenerlo.** La pregunta obvia —¿esta
+persona está por irse?— tiene una respuesta autorizada, y la tiene Recursos Humanos.
+El SOC no consulta legajos. Entrega el hecho técnico y **RR.HH. aporta el contexto que
+le corresponde**, que en este escenario resultó ser una renuncia presentada cuatro días
+antes de la primera noche.
+
+Ese dato cambia la lectura por completo, y es correcto que haya llegado por ese camino
+y no porque un analista se metió a buscarlo.
+
+La formulación que conviene llevarse: **el SOC produce hechos; la conclusión sobre la
+intención la produce otro, con más contexto y con mandato para hacerlo.**
+
+---
+
+## 6. Cómo se escribe el informe
+
+En este tipo de caso el lenguaje del ticket es parte del trabajo técnico, porque el
+ticket lo va a leer alguien de Legales y eventualmente un tercero.
+
+| Así no | Así sí |
+|---|---|
+| "Ibarra robó la cartera de clientes" | "La cuenta m.ibarra consultó 2.412 registros entre el 16 y el 18 de abril" |
+| "Se llevó los datos antes de renunciar" | "Las consultas ocurrieron entre las 22:40 y la 01:15, fuera del horario habitual de la cuenta según 18 meses de historial" |
+| "Es evidente que planeaba irse a la competencia" | "Los archivos exportados se subieron a una cuenta personal de almacenamiento en la nube" |
+| "Actividad claramente maliciosa" | "La actividad se desvía 4,6 veces de la mediana del grupo de pares en la misma función" |
+
+Tres reglas detrás de esa tabla:
+
+**Sujeto es la cuenta, no la persona.** Quien opera una cuenta es una inferencia
+razonable y no un hecho observado. Escribir "la cuenta" no es un eufemismo: es
+precisión.
+
+**Verbos de observación, no de intención.** "Consultó", "exportó", "se subió". Nunca
+"robó", "planeaba", "ocultó".
+
+**Cada número con su denominador.** "2.412 registros" no dice nada; "2.412 contra una
+mediana de 523 en el mismo período y la misma función" dice todo. Y si el desvío se
+calculó contra una línea base que ya no aplica, no va.
+
+---
+
+## 7. La versión inocente del mismo caso
+
+Vale hacer el ejercicio al revés, porque protege de la peor falla posible.
+
+Las mismas tres señales —volumen cuatro veces sobre los pares, horario nocturno,
+exportación a un almacenamiento personal— son exactamente lo que produce una persona
+a la que le encargaron migrar el padrón a una herramienta nueva, que trabaja de noche
+porque de día el sistema está cargado, y que usa su almacenamiento personal porque
+nadie le dio uno corporativo con espacio suficiente.
+
+**Los datos técnicos son idénticos en los dos escenarios.** No hay ninguna consulta,
+ninguna herramienta y ninguna correlación que los distinga, porque la diferencia no
+está en la actividad sino en la autorización, y la autorización vive fuera del SOC.
+
+Esta es la misma estructura que el caso 06: la alerta ambigua no se resuelve mirándola
+más de cerca, se resuelve preguntándole a quien tiene la respuesta autorizada. La
+diferencia es que acá el costo de saltearse ese paso no es un incidente que sigue
+corriendo: es una acusación contra alguien que no hizo nada.
+
+Por eso el traspaso a RR.HH. y Legales no es burocracia ni es sacarse el problema de
+encima. **Es el único paso del procedimiento que puede distinguir entre los dos
+escenarios.**
+
+---
+
+## 8. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-008"
+  tactics={[
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1213", "T1074.001"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1213** | Data from Information Repositories | Las 2.412 consultas al padrón de clientes |
+| **T1074.001** | Data Staged: Local Data Staging | Los tres archivos exportados y reunidos antes de subirlos |
+| **T1567.002** | Exfiltration Over Web Service: Exfiltration to Cloud Storage | La subida al almacenamiento personal |
+
+Y acá conviene decir algo sobre el mapa que este caso deja, porque **la ausencia es el
+dato**.
+
+Dos tácticas. Los casos anteriores de este sitio usan entre tres y cinco, y siempre
+incluyen alguna de la mitad izquierda de la matriz: acceso inicial, ejecución,
+persistencia, escalada, movimiento lateral. Acá no hay ninguna, y no porque falte
+investigación: **es que no ocurrieron.** Quien tiene la credencial no necesita
+obtenerla, y quien ya está donde están los datos no necesita moverse.
+
+ATT&CK modela el comportamiento de un adversario que tiene que abrirse camino. Un caso
+de amenaza interna empieza pasado ese camino, así que el marco tiene poco que decir
+sobre la parte que importa —el volumen, el horario, el destino, la autorización— y eso
+no es un defecto del marco sino un límite de su alcance.
+
+La lectura práctica: **un mapa ATT&CK que solo toca recolección y exfiltración es, en
+sí mismo, una señal de que se está frente a un actor que ya estaba adentro con
+permiso.** Sirve como pregunta de triage.
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Se abre en ventana aparte.
+
+<DiamondModel
+  client:load
+  lang="es"
+  caseId="soc-008"
+  campaign="Escenario sintético de amenaza interna"
+  confidence="No aplica - escenario construido para el ejercicio"
+  adversary={{
+    value: "Persona con acceso legítimo vigente",
+    detail: "En un caso real, la identificación la establece RR.HH. y Legales con el expediente completo, no el SOC con los registros de acceso."
+  }}
+  capability={{
+    value: "El permiso otorgado por su propia función",
+    detail: "Lectura del padrón y exportación a archivo, ambas incluidas en el perfil desde el cambio de función del 1 de abril."
+  }}
+  infrastructure={{
+    value: "Cuenta personal de almacenamiento en la nube",
+    detail: "Servicio comercial de uso masivo, en una categoría que la política permite. No es infraestructura montada para el hecho."
+  }}
+  victim={{
+    value: "El padrón de clientes de la propia empleadora",
+    detail: "2.412 registros consultados y 41 MB exportados en tres noches."
+  }}
+  note="El diamante se usa normalmente para pivotear: se parte del vértice que se conoce —casi siempre infraestructura o capacidad— y se llega al adversario, que es el que cuesta. Acá el recorrido está invertido y por eso el modelo se lee distinto. El vértice del adversario es el primero que se conoce, porque la actividad viene firmada con una credencial que tiene dueño. Y los otros tres, que en una intrusión son hallazgos, acá son cosas normales de la empresa: la capacidad es un permiso que se otorgó a propósito, la infraestructura es un servicio comercial permitido por política, y la víctima es un sistema propio. Un diamante donde tres vértices describen operación legítima es exactamente el retrato de por qué este caso no se detecta con listas de lo malo."
+/>
+
+No incluyo la Pirámide del Dolor ni la Cadena de Ataque. La primera quedaría con los
+tres escalones de abajo vacíos, que es lo mismo que ya muestran los casos 06 y 07 y
+con menos que agregar. La segunda describe una intrusión que avanza desde afuera:
+reconocimiento, armado, entrega, explotación, instalación. Acá no hay ninguna de esas
+fases, y forzar el modelo para que entre enseñaría el modelo mal.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-008"
+  summary={{
+    incidentId: "INC-2026-0419-002",
+    title: "Consulta y exportación masiva del padrón de clientes desde una cuenta autorizada",
+    status: "Escalated",
+    severity: "HIGH",
+    triageInicial: "Alerta de prevención de fuga de datos, severidad media",
+    causaRaiz: "Uso de permisos vigentes fuera del propósito de la función, sin control técnico que lo impidiera",
+    tiempoDeContencion: "6 horas desde la alerta hasta el traspaso a RR.HH. y Legales",
+    datosComprometidos: "2.412 registros de clientes, 41 MB exportados a un almacenamiento personal",
+    resolutionCode: "Escalado - la determinación sobre la intención corresponde a RR.HH. y Legales"
+  }}
+/>
+
+Vale notar el estado del informe. **No dice "Resuelto".** El trabajo del SOC terminó y
+el incidente no está cerrado: sigue abierto en otra área, con otro mandato. Cerrarlo
+como resuelto sería afirmar una conclusión que el SOC no tomó ni le corresponde tomar.
+
+---
+
+## Lecciones aprendidas
+
+**El SOC investiga una actividad, no una persona.** Es la regla que ordena todo lo
+demás. Protege a quien es inocente, protege la validez del expediente cuando no lo es,
+y protege al analista.
+
+**Una línea base individual caduca con un cambio de función, y nadie avisa.** El desvío
+contra el histórico era enorme, convincente y falso. La línea base tiene que estar atada a
+la función vigente, y el motor de detección tiene que enterarse cuando esa función
+cambia.
+
+**El grupo de pares es la comparación que corresponde.** Cuatro veces y media la
+mediana de quienes hacen el mismo trabajo hoy es un número más chico y es el único que
+significa algo.
+
+**Tres señales débiles apuntando al mismo lado es todo lo que la evidencia técnica
+puede dar.** Volumen, horario y destino. Ninguna concluye. Juntas alcanzan para
+escalar, no para acusar.
+
+**El lenguaje del informe es trabajo técnico.** Sujeto es la cuenta, verbos de
+observación, cada número con su denominador. Un desvío mal calculado que la otra parte
+desarma quema la credibilidad de toda la evidencia.
+
+**Los mismos datos describen a alguien culpable y a alguien que está haciendo su
+trabajo.** La diferencia está en la autorización, y la autorización vive fuera del SOC.
+El traspaso no es burocracia: es el único paso que distingue los dos escenarios.
+
+**Un mapa ATT&CK que solo toca recolección y exfiltración es una señal en sí mismo.**
+La mitad izquierda vacía indica un actor que ya estaba adentro con permiso.
+
+---
+
+## Recomendaciones
+
+- Línea base por función vigente, alimentada por los cambios de puesto, y no por
+  histórico individual del legajo
+- Comparación automática contra el grupo de pares como parte de la alerta, para que el
+  analista no tenga que construirla a mano
+- Procedimiento escrito de traspaso a RR.HH. y Legales, con el alcance de lo que el SOC
+  puede recolectar antes de esa autorización explícitamente delimitado
+- Revisar la política de almacenamiento personal en la nube: en este caso permitía la
+  salida sin fricción, y es la falla de control más concreta del incidente
+- Alerta específica por exportación masiva desde aplicaciones de negocio, separada de
+  la alerta de volumen de lectura
+- Revisión de permisos al cambiar de función, incluyendo el retiro de los anteriores,
+  que este caso no ejercita pero que la misma mecánica hace evidente
+- Definir con Legales, antes de que exista un caso, qué se puede monitorear, cuánto se
+  conserva y qué hace falta notificar
+- Formación específica del equipo sobre redacción de informes que van a otras áreas
+
+---
+
+## Referencias
+
+- [Data from Information Repositories (T1213) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1213/)
+- [Data Staged: Local Data Staging (T1074.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1074/001/)
+- [Exfiltration to Cloud Storage (T1567.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1567/002/)
+- [Collection, táctica TA0009 - MITRE ATT&CK](https://attack.mitre.org/tactics/TA0009/)
+- [Exfiltration, táctica TA0010 - MITRE ATT&CK](https://attack.mitre.org/tactics/TA0010/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Próximas lecturas
+
+El caso 06 comparte la estructura del problema: alertas que describen actividad
+permitida y que solo se resuelven con una respuesta autorizada de fuera del SOC. La
+diferencia es el costo de saltearse ese paso. Allá, un incidente que sigue corriendo.
+Acá, una acusación contra alguien que quizá estaba haciendo su trabajo.
