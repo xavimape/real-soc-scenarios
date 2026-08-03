@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 import '@/styles/toc.css';

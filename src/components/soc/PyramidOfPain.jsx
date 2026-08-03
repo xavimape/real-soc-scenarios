@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 import FrameworkModal from './FrameworkModal.jsx';
 import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 

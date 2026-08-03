@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 /**
  * Set de iconos de interfaz.
  *

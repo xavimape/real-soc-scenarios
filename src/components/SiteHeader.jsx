@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { THEMES, FONTS, LANGUAGES, STORAGE_KEYS, DEFAULTS } from '@/config/appearance.js';
 import { t } from '@/i18n/strings.js';

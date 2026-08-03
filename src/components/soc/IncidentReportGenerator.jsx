@@ -1,3 +1,4 @@
+/** @jsxImportSource preact */
 import { useState } from 'preact/hooks';
 import Icon from '@/components/Icon.jsx';
 import { t, DEFAULT_LANG } from '@/i18n/strings.js';

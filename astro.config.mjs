@@ -81,10 +81,16 @@ export default defineConfig({
      * Solo afecta al desarrollo: el build usa la integración de Preact, que sí
      * aplica la transformación correcta, y por eso compilaba sin quejarse.
      *
-     * Si el error del runtime de React vuelve a aparecer en `npm run dev`, ver
-     * E-025 antes de tocar nada: la respuesta que circula —declararlo también en
-     * `optimizeDeps.esbuildOptions`— está deprecada en esta versión, no hace
-     * nada y agrega una advertencia por cada entrada del build.
+     * **Esto ya no es la defensa principal.** Cada `.jsx` del proyecto declara
+     * `@jsxImportSource preact` en su primera línea, así que cada archivo se
+     * describe solo y no depende de que ninguna herramienta lea esta
+     * configuración. Este bloque queda porque no molesta y cubre el caso de un
+     * archivo nuevo al que se le olvide el pragma.
+     *
+     * Si el error vuelve, ver E-025 antes de tocar nada: la respuesta que
+     * circula —declararlo también en `optimizeDeps.esbuildOptions`— está
+     * deprecada en esta versión, no hace nada, y agrega una advertencia por cada
+     * entrada del build.
      */
     esbuild: {
       jsx: 'automatic',
