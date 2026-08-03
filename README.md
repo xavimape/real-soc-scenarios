@@ -1,19 +1,26 @@
 # Real SOC Scenarios
 
-English version: [README.en.md](README.en.md)
+**Live:** <https://real-soc-scenarios.javiermapelli.workers.dev> | English version: [README.en.md](README.en.md)
 
-Casos de investigación en un SOC, documentados paso a paso: qué disparó la
-alerta, qué miró el analista, en qué orden, y por qué llegó a esa conclusión.
+> Qué disparó la alerta · Qué miró el analista · Por qué llegó a esa conclusión
+
+---
+
+## ¿Qué es este proyecto?
+
+Casos de investigación en un SOC, documentados paso a paso. El objetivo no es
+catalogar amenazas —para eso ya está MITRE— sino mostrar el razonamiento
+completo: qué decía la alerta, qué se verificó, contra qué fuente, qué quedó sin
+verificar, y por qué el analista llegó a esa conclusión y no a otra.
 
 Cada caso combina la narrativa con componentes interactivos — línea de tiempo del
 incidente, tabla de indicadores, mapeo a MITRE ATT&CK y la ficha de cierre — para
 que se pueda seguir el razonamiento y no solo el resultado.
 
-**Sitio en línea:** https://real-soc-scenarios.javiermapelli.workers.dev
+Sitio estático y bilingüe, con una página por idioma resuelta en build desde la
+ruta.
 
----
-
-## Estado
+## Estado actual
 
 Dieciséis casos, completos en español e inglés. Cada idioma tiene su propia ruta
 y su propio archivo de contenido.
@@ -191,6 +198,14 @@ que hace que las dos formas funcionen sin tocar el contenido.
 
 ---
 
+## Seguridad
+
+Ver [`SECURITY.md`](SECURITY.md) para cómo reportar un problema. Importante: los
+casos no son reglas de detección listas para producción. Las consultas y los
+criterios que aparecen son un punto de partida educativo y necesitan calibrarse
+contra el entorno real antes de usarse, cosa que cada caso dice en su propia
+sección de detección.
+
 ## Uso responsable
 
 Este proyecto tiene fines educativos y defensivos. Los casos describen técnicas
@@ -206,9 +221,11 @@ sin autorización ni entornos productivos.
 
 ---
 
-## Contribuciones
+## Contribuir
 
-Ver [CONTRIBUTING.md](CONTRIBUTING.md) y [SECURITY.md](SECURITY.md).
+Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) para las convenciones del proyecto —las nueve
+invariantes, el orden de verificación, la anatomía de un caso— y cómo proponer
+cambios. Este proyecto sigue un [Código de Conducta](CODE_OF_CONDUCT.md).
 
 Lo que más valor tiene es una corrección de contenido: un dato mal citado, una
 fuente que no dice lo que el caso le atribuye, o un desacuerdo con alguna de las
@@ -227,6 +244,4 @@ Son dos licencias porque el repositorio es dos cosas: software y material
 escrito, y no se licencian igual. El material citado de terceros conserva la
 licencia de su autor.
 
----
-
-**Autor**: [@xavimape](https://github.com/xavimape)
+El registro de cambios está en [CHANGELOG.md](CHANGELOG.md).

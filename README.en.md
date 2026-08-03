@@ -1,19 +1,26 @@
 # Real SOC Scenarios
 
-Versión en español: [README.md](README.md)
+**Live:** <https://real-soc-scenarios.javiermapelli.workers.dev> | Versión en español: [README.md](README.md)
 
-SOC investigation cases, documented step by step: what triggered the alert, what
-the analyst looked at, in what order, and why they reached that conclusion.
+> What triggered the alert · What the analyst looked at · Why they reached that conclusion
+
+---
+
+## What is this project?
+
+SOC investigation cases, documented step by step. The goal is not to catalogue
+threats — MITRE already does that — but to show the full reasoning: what the
+alert said, what was verified, against which source, what was left unverified,
+and why the analyst reached that conclusion and not another.
 
 Each case combines narrative with interactive components — incident timeline,
 indicator table, MITRE ATT&CK mapping and the closing report — so the reasoning
 can be followed, not just the outcome.
 
-**Live site:** https://real-soc-scenarios.javiermapelli.workers.dev
+A static, bilingual site, with one page per language resolved at build time from
+the route.
 
----
-
-## Status
+## Current status
 
 Sixteen cases, complete in Spanish and English. Each language has its own route
 and its own content file.
@@ -188,6 +195,13 @@ what makes both forms work without touching the content.
 
 ---
 
+## Security
+
+See [`SECURITY.md`](SECURITY.md) for how to report a problem. Important: the
+cases are not production-ready detection rules. The queries and criteria that
+appear are an educational starting point and need calibrating against the real
+environment before use, which each case states in its own detection section.
+
 ## Responsible use
 
 This project is educational and defensive in purpose. The cases describe attack
@@ -205,7 +219,9 @@ others, systems without authorisation, or production environments.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the project's conventions — the nine
+invariants, the verification order, the anatomy of a case — and how to propose
+changes. This project follows a [Code of Conduct](CODE_OF_CONDUCT.md).
 
 The most valuable contribution is a content correction: a misquoted fact, a
 source that does not say what the case attributes to it, or a disagreement with
@@ -224,6 +240,4 @@ Two licences because the repository is two things: software and written material
 and they are not licensed the same way. Third-party material quoted in the cases
 keeps its author's licence.
 
----
-
-**Author**: [@xavimape](https://github.com/xavimape)
+The changelog is in [CHANGELOG.md](CHANGELOG.md).
