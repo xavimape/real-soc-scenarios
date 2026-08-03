@@ -1,0 +1,534 @@
+---
+title: "Okta and LAPSUS$ 2022 - The incident is your supplier's and the problem is yours"
+description: "Real case: the compromise happened at the support company of an identity provider. The alert existed in January and customers found out in March, from a screenshot on a public channel"
+pubDate: 2022-03-22
+caseId: "soc-011"
+caseNumber: 11
+difficulty: "advanced"
+caseType: "real_case_third_party"
+severity: "HIGH"
+tags: ["third-party", "identity-provider", "supply-chain", "social-engineering", "mfa", "sim-swap", "crisis-communication"]
+author: "Okta's publications on the January 2022 compromise, the Cyber Safety Review Board report (August 2023) and the LAPSUS$ entry (G1004) in MITRE ATT&CK"
+discoveryDate: "2022-01-20"
+locations:
+  - { lat: 37.7749, lng: -122.4194, label: "San Francisco, Okta headquarters" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+
+## Executive summary
+
+In January 2022, somebody obtained remote access to the machine of a person working in
+customer support, at a company contracted by Okta, an identity provider thousands of
+organisations rely on to authenticate their people.
+
+**On 20 January the Okta security team received an alert**: a new factor had been added
+to that support person's account, and that factor was a password. The detection worked,
+and it worked on the fourth day of a five-day access window.
+
+Okta's customers found out on **22 March**, when the LAPSUS$ group published
+screenshots on an open channel.
+
+That two-month gap is the case, and it is worth saying up front what it is not. **It is
+not a case about a detection that failed.** The detection existed and it was early.
+What took two months was everything that comes after detecting: obtaining the forensic
+report from the contracted company, understanding the scope, and telling whoever
+depended on the service.
+
+For an analyst working at one of those customer organisations, the question this case
+poses is one none of the previous ten raises: **what does a SOC do when the incident is
+not its own, the information arrives late, is partial, and the parties do not agree with
+each other?**
+
+**Key metrics:**
+
+- Access window to the support machine: 16 to 21 January 2022, five days
+- Alert at the identity provider: 20 January 2022
+- Public disclosure: 22 March 2022, from the group's own post
+- Distance between the alert and notifying customers: around two months
+- Initial estimate of potentially affected customers: around 2.5 per cent
+- Primary techniques: T1199, T1591.002, T1621, T1598.004, plus T1451 in the Mobile matrix
+
+<Warn />**Real case, with sources that do not agree.** The technical facts and dates
+come from Okta's publications on the January 2022 compromise, the Cyber Safety Review
+Board report of August 2023, and the LAPSUS$ entry in MITRE ATT&CK. On several points —
+the actual scope, what was known and when — the parties gave different accounts at
+different moments, and some figures were revised afterwards. Where something comes from
+one party's account, the text says so.
+
+---
+
+## Context: what it means to depend on an identity provider
+
+An organisation that uses an external identity provider delegates the most important
+question in its security: **who each person coming in is.** That provider authenticates
+staff against email, business applications, the cloud and everything else.
+
+The delegation is sensible. A specialist provider does that job better than most
+organisations, and concentrating authentication in one place lets policy be applied
+once.
+
+But it moves the trust boundary, and it moves it further out than the diagram usually
+shows:
+
+```
+your organisation
+    └── trusts → your identity provider
+                     └── trusts → its support suppliers
+                                      └── trusts → its staff's machines
+```
+
+Each arrow is a contractual relationship and none appears in your asset inventory. This
+case is about the third arrow, which is the one almost nobody looks at.
+
+And there is an asymmetry worth stating once: **the incident happens on a system you do
+not administer, it is investigated by people you do not know, and the consequences land
+in your organisation.** Your ability to act is minimal; your responsibility is not.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-011"
+  events={[
+    {
+      time: "16 Jan 2022",
+      title: "Access to the support machine",
+      description: "A five-day window begins with remote RDP access to a customer support person's computer, owned by the contracted company.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "20 Jan 2022",
+      title: "The alert works",
+      description: "A new factor is added to that person's account at the identity provider, and that factor is a password. The security team is notified.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "21 Jan 2022",
+      title: "End of the access window",
+      description: "The five-day period that the later forensic report would identify comes to an end.",
+      severity: "INFO",
+      actor: "Attacker"
+    },
+    {
+      time: "Jan to Mar 2022",
+      title: "Investigation across two companies",
+      description: "The identity provider depends on the forensic report commissioned by the contracted company. Customers do not know there is an incident.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "22 Mar 2022",
+      title: "The group posts",
+      description: "LAPSUS$ circulates screenshots on an open channel. The provider determines they correspond to the January incident.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "22 to 25 Mar 2022",
+      title: "Successive communications",
+      description: "Statements are published that correct one another within days, with changing scope estimates.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "Aug 2023",
+      title: "Cyber Safety Review Board report",
+      description: "A US federal board reviews the group's activity and publishes findings and recommendations about the identity ecosystem.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+Two distances are worth looking at. Four days passed between first access and the
+alert: **that is a reasonable detection.** Two months passed between the alert and the
+moment a customer could find out.
+
+---
+
+## 1. The alert that did exist
+
+The detail is worth dwelling on because it teaches a concrete and good detection.
+
+According to Okta's account, on 20 January its security team was alerted that **a new
+factor had been added to the account** of a support person at the contracted company,
+and that **the factor was a password**.
+
+Consider why that is an alert and not noise.
+
+Adding an authentication factor to somebody else's account is an infrequent,
+high-impact administrative action: whoever can do it can come in later. On an account
+with access to customer support tooling, the impact multiplies.
+
+It is exactly the same kind of signal as case 02: there, a device enrolled for the
+second factor at 09:51. **Changes to an account's authentication mechanism are among
+the few actions that almost never have a spontaneous benign explanation**, which is
+why they pay off so well as a detection.
+
+The uncomfortable conclusion of the case is not that this alert was missing. It is that
+**it existed, it was handled, and customers still took two months to find out.**
+Detecting is one part of the work; getting the information to whoever can act is
+another, and the second does not improve on its own when the first does.
+
+---
+
+## 2. What a support account could and could not do
+
+This point is central and is usually told badly. According to what Okta published,
+support personnel **could not create or delete users, or download customer databases**.
+They did have access to limited data, such as tickets and lists of users, and to
+assistance tooling.
+
+It is worth taking seriously in both directions.
+
+**Downwards:** it is not total access. The picture of "the attacker got into the
+identity provider and could do anything to any customer" is false, and repeating it
+prevents understanding the real risk.
+
+**Upwards:** a support tool that can assist with access problems is, by definition, a
+tool that can act on people's authentication. That is its purpose. You do not need to be
+able to download a database to do damage if you can help somebody recover access to an
+account.
+
+From that comes the question a customer can ask, and that does not depend on any
+statement from the provider:
+
+> What exactly can my provider's support personnel do to my instance? And is it recorded
+> in a log I can read?
+
+Almost no organisation knows the answer before the incident. It gets learned during,
+which is the worst moment.
+
+---
+
+## 3. What a customer SOC can do without waiting for the provider
+
+This is the most useful part of the case, and the one that turns a news story into a
+procedure.
+
+When the group's post appears and the provider still has no numbers, the temptation is
+to wait. **There is no need.** A customer has its own logs, and those logs can answer
+the question that matters: *did they touch my instance?*
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-011"
+  type="verification"
+  title="What a customer can verify on its own"
+  data={{
+    "in your own instance log": {
+      "window to review": "16 to 21 January 2022, with margin on both sides",
+      "actions initiated by provider support": "Any, in that window",
+      "password resets": "Who requested them and who executed them",
+      "second factor resets or changes": "Especially those not requested by the user",
+      "verdict": "clean"
+    },
+    "signs of later use": {
+      "sessions from unusual origins": "On accounts that had changes in that window",
+      "new administrative accounts": "Created or elevated in the period",
+      "mail rules": "Forwarding and transport, as in case 02",
+      "verdict": "clean"
+    },
+    "what does not depend on the provider": {
+      "credential rotation": "For the most privileged accounts, without waiting for confirmation",
+      "session revocation": "To invalidate already-issued authentication material",
+      "review of the MFA exclusion list": "As in case 003",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+The logic is the same one case 07 puts in writing for the cloud: **look for the
+contradiction with the design.** A support action by the provider on your instance is
+legitimate when you asked for it. In a window where you opened no ticket, it is not.
+You can make that comparison on your own, and it does not require anybody to confirm
+anything.
+
+And there is an underlying decision worth taking early: **rotating privileged
+credentials and revoking sessions does not require confirmation of impact.** It is
+cheap, reversible and does not depend on the provider finishing its investigation.
+Waiting for confirmation to do something that could have been done on day one is the
+expensive mistake in this kind of incident.
+
+---
+
+## 4. When the figures move
+
+The initial estimate published spoke of around 2.5 per cent of customers potentially
+affected. With further investigation, the figures were revised.
+
+A number moving during an incident is not an anomaly: **it is normal**, and it is worth
+understanding why before judging it.
+
+At first you are answering "how many could have been touched?", which is an upper bound
+built on what was technically possible. Later you are answering "how many were
+touched?", which requires positive evidence for each case. They are two different
+questions and the second always gives a smaller number.
+
+For a SOC communicating inside its own organisation, two practical rules follow.
+
+**Label each number with the question it answers.** "Up to X customers may have been
+reached" is not the same as "X customers were reached", and the difference is lost on
+the first retelling if it is not written down.
+
+**Do not adopt the provider's figure as your own.** A customer does not need to know how
+many organisations were affected in total: it needs to know whether its own was. And
+that, as we saw, is answered with your own logs.
+
+---
+
+## 5. How this group gets in, and why it matters for the case
+
+MITRE documents LAPSUS$ techniques under `G1004`, and two of them explain the structure
+of the incident better than any narrative.
+
+**`T1591.002`, Gather Victim Org Information: Business Relationships.** The group
+gathers detailed knowledge of an organisation's supply chain relationships. That is not
+a reconnaissance detail: **it is the design of the attack.** They look for who provides
+services to whom, in order to come in where trust is already granted.
+
+**`T1199`, Trusted Relationship.** MITRE states it plainly: the group accessed
+internet-facing identity providers, including Azure Active Directory and Okta, to reach
+specific organisations.
+
+The rest of the documented repertoire shares a trait worth seeing together:
+
+| Technique | What they do |
+|---|---|
+| `T1598.004` Spearphishing Voice | Call the help desk to have a privileged account's credentials reset |
+| `T1684.001` Social Engineering: Impersonation | Pose as legitimate people using information gathered beforehand |
+| `T1621` MFA Request Generation | Flood with second factor prompts until somebody approves |
+| `T1586.002` Compromise Accounts | Pay employees, suppliers and partners for credentials |
+| `T1597.002` Purchase Technical Data | Buy credentials and session cookies on forums |
+| `T1451` SIM Card Swap | Take over the victim's phone number |
+
+None of them is a software vulnerability. **They all target people and processes**: the
+help desk, the person who approves a prompt, the employee who accepts an offer, the
+telephone operator who transfers a line.
+
+The Cyber Safety Review Board reached a conclusion worth quoting because it reorders
+priorities: it found that **the multi-factor implementations in broad use today are not
+sufficient** for most organisations, and specifically pointed to the collective failure
+to account for the risks of using text messages and voice calls as a second factor.
+
+Read alongside case 002 on this site, the message completes itself: there MFA was
+bypassed with a stolen cookie; here it is bypassed by telephoning the help desk. **In
+both cases the second factor was not broken: it was gone around.**
+
+---
+
+## 6. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-011"
+  tactics={[
+    {
+      id: "TA0043",
+      name: "Reconnaissance",
+      techniques: ["T1591.002", "T1598.004"]
+    },
+    {
+      id: "TA0042",
+      name: "Resource Development",
+      techniques: ["T1586.002", "T1597.002"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1199", "T1078"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1621", "T1111"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1591.002** | Gather Victim Org Information: Business Relationships | Knowing the supplier chain in order to choose where to come in |
+| **T1598.004** | Phishing for Information: Spearphishing Voice | Calling the help desk to obtain a reset |
+| **T1586.002** | Compromise Accounts: Email Accounts | Paying employees, suppliers and partners for credentials |
+| **T1597.002** | Search Closed Sources: Purchase Technical Data | Buying credentials and session cookies on forums |
+| **T1199** | Trusted Relationship | Coming in through the support supplier, which already had access granted |
+| **T1078** | Valid Accounts | Operating with valid credentials and sessions |
+| **T1621** | MFA Request Generation | Flooding with prompts until an approval is obtained |
+| **T1111** | MFA Interception | Replaying stolen sessions and passwords to trigger simple approvals |
+
+### And one technique from another matrix
+
+| MITRE Mobile | Technique | In this case |
+|---|---|---|
+| **T1451** | SIM Card Swap | Taking over the victim's phone number to receive their codes |
+
+It is the second case on this site to step outside the enterprise matrix; the other is
+09, with the ICS matrix. And it is not a catalogue detail: **if your second factor
+arrives by text message, your security control depends on the telephone operator**,
+which is not your provider, did not sign your contract and is not in your inventory.
+That dependency only shows up if you look at the right matrix.
+
+It is also worth noting where the map concentrates. Eight of the nine techniques are in
+reconnaissance, resource development, initial access and credential access: **all before
+getting in, or in the act of getting in.** There is no escalation, no sophisticated
+lateral movement, no malware. It is the Cyber Safety Review Board's observation about
+this group, and it is what makes them hard to defend against: there is nothing to patch.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. It opens in its own window.
+
+<DiamondModel
+  client:load
+  lang="en"
+  caseId="soc-011"
+  campaign="LAPSUS$ activity, 2021 and 2022"
+  confidence="High - group catalogued by MITRE as G1004, with a US federal board review"
+  adversary={{
+    value: "LAPSUS$ (G1004, also DEV-0537 and Strawberry Tempest)",
+    detail: "Criminal extortion group active since at least mid-2021. The official review found no evidence of a link to a nation-state or political entity."
+  }}
+  capability={{
+    value: "Social engineering against processes, not software exploitation",
+    detail: "Help desk calls, flooding second factor prompts, taking over phone lines, and buying credentials from employees and on forums."
+  }}
+  infrastructure={{
+    value: "Rented virtual servers and commercial VPN egress",
+    detail: "No distinctive infrastructure of their own. What was stolen was circulated through a public messaging channel."
+  }}
+  victim={{
+    value: "Organisations reached through the trust relationship",
+    detail: "Technology, telecommunications and media companies, and the customers of the compromised providers."
+  }}
+  note="The victim vertex is the one that teaches something different here, and it is worth pausing on. In every other case on this site the victim is one: the organisation where the intrusion happens. This one has two layers. The support company is the victim of the access; the identity provider is the victim of the exposure; and the customer organisations, which nobody broke into, are the ones who have to answer to their board. A model designed for pivoting between four vertices falls short when one of them is actually a chain. The practical reading: if your organisation appears at the victim vertex of a case where there was no intrusion into your systems, your job is not to investigate the intrusion, it is to measure your exposure to it. Those are two different tasks and the second does depend on your own logs."
+/>
+
+I am not including the Kill Chain or the Pyramid of Pain. The first describes an
+intrusion advancing inside one organisation, and here the route crosses three companies
+with different responsibilities: the seven phases do not represent that. The second
+would be almost entirely empty, because this group's repertoire leaves no technical
+artefacts — a phone call to the help desk has no hash.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-011"
+  summary={{
+    incidentId: "January 2022 compromise, disclosed in March",
+    title: "Compromise at an identity provider's support company",
+    status: "Publicly documented",
+    severity: "HIGH",
+    initialTriage: "Alert for an authentication factor added to a support account",
+    rootCause: "Remote access to a support person's machine, at a company contracted by the provider",
+    timeToContainment: "The alert came on the fourth day of a five-day window. Notice to customers, around two months later",
+    dataCompromised: "Scope disputed and revised. Support access did not allow creating or deleting users or downloading databases",
+    resolutionCode: "Case study"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**The trust boundary reaches your provider's provider.** Your organisation trusts its
+identity provider, which trusts its support companies, which trust their staff's
+machines. None of those relationships appears in your asset inventory, and the attacker
+studies them deliberately.
+
+**Detecting and communicating are two different capabilities.** Here the detection
+worked on the fourth day of five. What took two months was obtaining a third party's
+forensics, understanding the scope and giving notice. Improving detection does not
+improve that.
+
+**A customer can answer "was I touched?" with its own logs.** Support actions by the
+provider on your instance in a window where you opened no ticket: you verify that
+contradiction on your own, without waiting for anyone.
+
+**Rotating credentials and revoking sessions does not require confirmation of impact.**
+It is cheap, reversible and can be done on day one. Waiting for confirmation to do it is
+the expensive mistake in this kind of incident.
+
+**Figures moving is normal.** First you answer how many *could* have been reached, then
+how many were. They are different questions. Every number has to carry its own, or the
+distinction is lost on the first retelling.
+
+**This group does not exploit software, it exploits processes.** Help desk, prompt
+approvals, employees willing to sell access, operators who transfer a line. There is
+nothing to patch, which is why the controls that work are process controls: identity
+verification at the help desk, a second factor resistant to approval by habit, and less
+trust in the phone number.
+
+**If your second factor arrives by text message, it depends on your telephone
+operator.** Which is not your provider, did not sign your contract and is not in your
+inventory. The board that reviewed this activity concluded that broadly used
+multi-factor implementations are not sufficient, and pointed specifically at text and
+voice.
+
+---
+
+## Recommendations
+
+- Inventory, for each critical provider, what its support personnel can do to your
+  instance, and whether those actions land in a log you can read
+- Your own detection of administrative actions initiated by provider support, compared
+  against your own open tickets
+- An alert for changes to an account's authentication mechanism: factors added, reset or
+  removed
+- A written response procedure for a third-party incident, with the actions that do not
+  require confirmation of impact identified in advance
+- Contractual notification clauses with a deadline, and a right to receive the forensic
+  report rather than just a summary
+- A second factor resistant to approval by habit and bound to the origin, instead of
+  text message codes or approve-or-deny prompts
+- Reinforced identity verification at the help desk for credential and second factor
+  resets, using a method that does not rely on data that can be looked up
+- Instance log retention sufficient to investigate a window of months backwards, not
+  days
+
+---
+
+## References
+
+- [Okta's Investigation of the January 2022 Compromise - Okta](https://www.okta.com/blog/2022/03/oktas-investigation-of-the-january-2022-compromise/)
+- [Updated Okta Statement on LAPSUS$ - Okta](https://www.okta.com/blog/2022/03/updated-okta-statement-on-lapsus/)
+- [Okta Concludes its Investigation Into the January 2022 Compromise - Okta](https://www.okta.com/blog/2022/04/okta-concludes-its-investigation-into-the-january-2022-compromise/)
+- [Review of the Attacks Associated with Lapsus$ and Related Threat Groups - Cyber Safety Review Board](https://www.cisa.gov/resources-tools/resources/review-attacks-associated-lapsus-and-related-threat-groups-report)
+- [LAPSUS$ (G1004) - MITRE ATT&CK](https://attack.mitre.org/groups/G1004/)
+- [DEV-0537 criminal actor targeting organizations for data exfiltration and destruction - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2022/03/22/dev-0537-criminal-actor-targeting-organizations-for-data-exfiltration-and-destruction/)
+- [Trusted Relationship (T1199) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1199/)
+- [Gather Victim Org Information: Business Relationships (T1591.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1591/002/)
+- [Multi-Factor Authentication Request Generation (T1621) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1621/)
+- [Phishing for Information: Spearphishing Voice (T1598.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1598/004/)
+- [SIM Card Swap (T1451) - MITRE ATT&CK Mobile](https://attack.mitre.org/techniques/T1451/)
+
+---
+
+## Up next
+
+Case 04 is the other third-party case on this site, and they are worth comparing because
+they fail differently. There the attacker used a supplier's credentials to get into the
+victim's network and move as far as the tills. Here nobody got into any customer's
+network: the exposure came from what the provider's support could do to their instances.
+Third-party risk does not always mean the same thing, and the two forms call for
+different controls.
