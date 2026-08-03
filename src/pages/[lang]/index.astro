@@ -34,10 +34,15 @@ const sevVar = (severity: string) =>
 // una lista sin casos.
 const alternativas = Object.fromEntries(LANGS.map((l) => [l, rutaIndice(l)]));
 
-// El mazo destaca los primeros casos; la lista completa queda debajo para quien
-// quiera escanear. Un mazo que rota solo no sirve como único acceso a quince
-// casos: muestra lo que quiere, cuando quiere.
-const destacados = casos.slice(0, 4).map((entry) => ({
+// El mazo lleva todos los casos. Antes cortaba en los primeros cuatro, que era
+// lo mismo que tener todos cuando había cuatro; al agregar el quinto empezó a
+// esconder en silencio lo más reciente, sin que nada lo señalara.
+//
+// El componente sostiene la cantidad: mantiene tres tarjetas a la vista y apila
+// el resto, así que el largo del mazo no cambia lo que se dibuja. La lista
+// completa sigue debajo, porque un mazo que rota solo no sirve como único acceso
+// a quince casos: muestra lo que quiere, cuando quiere.
+const destacados = casos.map((entry) => ({
   number: entry.data.caseNumber,
   title: entry.data.title,
   description: entry.data.description,
