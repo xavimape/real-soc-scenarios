@@ -1,0 +1,613 @@
+---
+title: "Túnel de DNS - Un caso que se descubre buscando"
+description: "Caso educativo: nadie mandó una alerta. La detección salió de una cacería semanal sobre el tráfico de nombres, y la cadena se cortó antes de que saliera un solo archivo"
+pubDate: 2026-05-14
+caseId: "soc-010"
+caseNumber: 10
+difficulty: "advanced"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["threat-hunting", "dns-tunneling", "c2", "beaconing", "network-telemetry", "detection-engineering", "contained"]
+author: "Escenario sintético - técnicas documentadas por MITRE ATT&CK"
+duration_minutes: 310
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Resumen ejecutivo
+
+Los nueve casos anteriores empiezan de una de tres formas: una alerta en la cola, un
+aviso de afuera, o el impacto ya consumado. Este empieza de una cuarta, y es la única
+que el equipo controla: **alguien se sentó a buscar.**
+
+Una consulta programada sobre el tráfico de nombres, de las que se corren los martes
+a la mañana sin esperar encontrar nada, devolvió un dominio con **14.302 subdominios
+distintos consultados en siete días**. El segundo de la lista tenía cuarenta.
+
+Ninguna alerta se había disparado, y con razón: el canal usaba DNS, que está permitido
+en toda organización porque sin él no funciona nada. El volumen de datos era mínimo.
+No había archivo malicioso en disco que un antivirus pudiera reconocer.
+
+Lo que había era una **forma**: consultas de longitud pareja, sin repeticiones, a
+intervalos de cuarenta y pico de segundos, siete días seguidos, incluido el domingo.
+El tráfico de una persona no tiene esa forma. El de un programa, sí.
+
+La cadena se cortó en el séptimo eslabón, que es el último y el único irreversible.
+**No salió un solo archivo.**
+
+**Métricas clave:**
+
+- Origen de la detección: cacería programada, sin alerta previa
+- Subdominios distintos en 7 días: 14.302, contra 40 del segundo dominio de la lista
+- Intervalo entre consultas: 40 a 44 segundos, mediana de 42
+- Equipos comprometidos: 3, los tres del mismo correo
+- Datos exfiltrados: ninguno
+- Tiempo desde el hallazgo hasta la contención: 5 horas 10 minutos
+- Técnicas principales: T1566.001, T1204.002, T1071.004, T1572
+
+<Warn />**Escenario sintético.** La organización, los equipos y los registros son
+construidos para el ejercicio. Las direcciones IP salen de los rangos reservados
+para documentación por la RFC 5737 y los dominios usan el TLD `.example` de la
+RFC 2606. Las técnicas y la lógica de detección están documentadas por MITRE.
+
+---
+
+## Contexto: por qué el DNS
+
+Un canal encubierto necesita un protocolo que salga siempre. La lista de candidatos es
+corta, y el DNS está primero por una razón estructural: **si el DNS no sale, no
+funciona nada**, así que ninguna organización lo bloquea.
+
+El mecanismo es simple de entender. El atacante controla un dominio y su servidor de
+nombres autoritativo. El programa implantado en el equipo víctima codifica lo que
+quiere decir dentro del nombre que consulta:
+
+```
+[datos codificados].tunel.ejemplo-malicioso.example
+```
+
+Esa consulta no va directo al atacante: la resuelve el resolutor interno de la
+organización, que a su vez pregunta hacia arriba hasta llegar al servidor autoritativo
+del dominio, que es del atacante. Ahí llega el mensaje. La respuesta vuelve por el
+mismo camino, dentro de un registro TXT o de una dirección inventada.
+
+De eso salen las tres propiedades que definen el caso.
+
+**Es lento y ruidoso en cantidad.** Cada consulta transporta unas pocas decenas de
+bytes. Sacar un documento por este canal exige miles de consultas, y eso deja una
+huella enorme en cantidad aunque sea diminuta en volumen.
+
+**Atraviesa casi cualquier control.** No hay conexión saliente del equipo al servidor
+del atacante: hay una consulta de nombres, que es exactamente lo que se espera de
+cualquier equipo.
+
+**El contenido no sirve para detectarlo.** Está codificado y a menudo cifrado. Lo que
+sirve es la forma: cuántos nombres distintos, de qué largo, con qué regularidad.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-010"
+  events={[
+    {
+      time: "5 may",
+      title: "Correo con adjunto",
+      description: "Tres personas del área de proyectos reciben un documento desde la casilla de un proveedor real, comprometida.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "5 may",
+      title: "Ejecución y persistencia",
+      description: "Dos de las tres abren el documento y habilitan el contenido. Se instala una tarea que arranca con la sesión.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "6 may",
+      title: "Tercer equipo",
+      description: "La tercera persona abre el documento al día siguiente. Ningún control lo detecta en los tres casos.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "5 al 12 may",
+      title: "Canal de mando activo",
+      description: "Consultas cada 40 a 44 segundos hacia subdominios únicos. Reconocimiento del equipo y de los recursos compartidos accesibles.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "12 may 09:20",
+      title: "Cacería semanal",
+      description: "Consulta programada sobre siete días de telemetría de nombres: dominios ordenados por subdominios únicos.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "12 may 09:35",
+      title: "El primer resultado no se parece a nada",
+      description: "14.302 subdominios únicos contra 40 del segundo. La diferencia de escala es el hallazgo.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12 may 10:40",
+      title: "El resolutor tapa el origen",
+      description: "En los registros del perímetro las 14.302 consultas vienen del resolutor interno. Hay túnel y no se sabe de qué equipo.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "12 may 11:25",
+      title: "Identificación de los equipos",
+      description: "Con el registro de consultas del propio resolutor aparecen tres equipos, no uno.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12 may 12:50",
+      title: "Alcance cerrado",
+      description: "Los tres se rastrean al mismo correo del 5 de mayo. Sin señales de movimiento lateral ni de transferencia masiva.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12 may 14:30",
+      title: "Contención simultánea",
+      description: "Aislamiento de los tres equipos, bloqueo del dominio en el resolutor y restablecimiento de credenciales, todo a la vez.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. La consulta que encontró el caso
+
+No hubo alerta. Hubo una consulta programada que corre todos los martes y que casi
+siempre devuelve nada interesante.
+
+```sql
+-- Dominios padre ordenados por cantidad de subdominios distintos, 7 días
+SELECT
+    dominio_padre,
+    COUNT(DISTINCT nombre_consultado) AS subdominios_unicos,
+    COUNT(*)                          AS consultas_totales,
+    COUNT(DISTINCT cliente)           AS clientes_distintos
+FROM consultas_dns
+WHERE fecha >= CURRENT_DATE - 7
+GROUP BY dominio_padre
+ORDER BY subdominios_unicos DESC
+LIMIT 20;
+```
+
+El resultado:
+
+```
+dominio_padre                    subdominios_unicos  consultas  clientes
+───────────────────────────────────────────────────────────────────────
+tunel.ejemplo-malicioso.example         14.302        14.302        1
+cdn-imagenes.proveedor.example              40         8.911      612
+telemetria.antivirus.example                31        21.004      874
+...
+```
+
+Las tres primeras filas dicen todo lo que hace falta, y conviene leerlas juntas.
+
+**La primera columna separa la fila uno del resto por un factor de trescientos.** No es
+una diferencia de grado, es una diferencia de tipo.
+
+**La relación entre subdominios y consultas es exactamente 1 a 1.** Cada nombre se
+consultó una sola vez. Eso no le pasa a ningún servicio legítimo: una red de
+distribución de contenido tiene pocos nombres consultados muchas veces, porque el
+propósito de un nombre es que la gente vuelva a él. Un nombre que se usa una vez y
+nunca más no es un nombre, es un mensaje.
+
+**La última columna la confirma.** Los dominios legítimos de la lista los consultan
+cientos de clientes. Este, uno solo.
+
+Vale detenerse en algo del método: **la consulta no busca nada malo.** No tiene lista
+de dominios sospechosos ni firma de familia de malware. Ordena por una propiedad
+estructural y mira el extremo. Es la diferencia entre buscar lo conocido y buscar lo
+raro, y es la única de las dos que encuentra algo que nadie vio antes.
+
+---
+
+## 2. La forma del tráfico
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-010"
+  type="trafico"
+  title="Características del tráfico hacia el dominio"
+  data={{
+    volumen: {
+      "subdominios únicos en 7 días": "14.302",
+      "consultas totales": "14.302",
+      "relación consultas por nombre": "1,00",
+      "clientes internos que lo consultan": "1 (el resolutor)",
+      "verdict": "malicious"
+    },
+    forma: {
+      "longitud de la etiqueta": "entre 31 y 46 caracteres",
+      "alfabeto": "base32, sin repeticiones entre consultas",
+      "tipos de registro": "TXT y A",
+      "proporción de respuestas NXDOMAIN": "1,8 por ciento",
+      "verdict": "malicious"
+    },
+    ritmo: {
+      "intervalo entre consultas": "40 a 44 segundos",
+      "mediana": "42 segundos",
+      "esperado en 7 días a ese ritmo": "unas 14.400 consultas",
+      "cobertura horaria": "las 24 horas, incluidos sábado y domingo",
+      "verdict": "malicious"
+    },
+    "el dominio en sí": {
+      "registrado": "3 semanas antes",
+      "reputación en fuentes públicas": "Sin clasificar",
+      "presencia en listas de bloqueo": "Ninguna",
+      "verdict": "suspicious"
+    }
+  }}
+/>
+
+Cada bloque de esa tabla aporta algo distinto, y conviene saber cuál pesa.
+
+**El ritmo es la señal más fuerte y la más difícil de falsificar.** Cuarenta y dos
+segundos de mediana, sostenidos siete días, incluidos el sábado y el domingo. Ninguna
+actividad humana tiene esa regularidad, y ningún equipo apagado a la noche la produce.
+La aritmética cierra sola: siete días son 604.800 segundos, y a cuarenta y dos por
+consulta dan unas 14.400. Se observaron 14.302.
+
+**La baja proporción de NXDOMAIN dice que del otro lado hay alguien.** Un dominio
+generado al azar por un algoritmo produce muchísimas respuestas de "no existe", porque
+la mayoría de los nombres que prueba no están registrados. Acá casi todos resuelven:
+el servidor autoritativo contesta a lo que le preguntan, que es exactamente lo que
+hace un servidor de mando y control.
+
+**La reputación del dominio no aportó nada, y es el punto que más conviene subrayar.**
+Registrado hacía tres semanas, sin clasificar en ninguna fuente pública, en ninguna
+lista de bloqueo. Un flujo de inteligencia de amenazas no habría dicho una palabra
+sobre este dominio. **Lo que lo delató fue su comportamiento, no su identidad.**
+
+---
+
+## 3. El resolutor tapa el origen
+
+Acá aparece el obstáculo práctico que hace tropezar a mucha investigación de DNS, y que
+vale conocer antes de encontrárselo.
+
+En los registros del perímetro, las 14.302 consultas salen de `192.0.2[.]10`. Esa
+dirección no es del equipo comprometido: **es el resolutor interno de la
+organización.**
+
+Es el comportamiento normal del sistema. Los equipos no consultan a internet
+directamente: le preguntan al resolutor, y el resolutor pregunta hacia arriba. Desde
+afuera, toda la organización tiene una sola cara.
+
+La consecuencia es incómoda: **con telemetría de perímetro se puede probar que hay un
+túnel y no se puede saber de qué equipo sale.** Y sin el equipo, no hay nada que
+contener.
+
+Lo que resuelve el problema es el registro de consultas del propio resolutor, que sí
+tiene la dirección del cliente que preguntó. En este caso existía. Cuando no existe, la
+investigación se traba en el peor momento posible, y el arreglo no es una herramienta
+nueva sino una decisión de registro que hay que haber tomado antes.
+
+De ahí sale una regla que aplica más allá del DNS:
+
+> **Todo punto de agregación borra el origen.** El resolutor de nombres, el proxy web,
+> el servidor de correo saliente, la traducción de direcciones. En cada uno de ellos,
+> el registro que importa es el del propio punto de agregación, no el de lo que sale
+> después.
+
+Con el registro del resolutor apareció además el dato que cambió el alcance: **no era
+un equipo, eran tres.**
+
+---
+
+## 4. La decisión de cuándo cortar
+
+Con el túnel confirmado y tres equipos identificados, a las 11:25, el impulso es
+bloquear el dominio inmediatamente. El equipo no lo hizo hasta las 14:30, y ese
+intervalo merece explicación porque es donde se juega el caso.
+
+Bloquear el dominio primero tiene tres problemas.
+
+**No saca al atacante.** El programa implantado sigue en los tres equipos. Pierde el
+canal, no la presencia. Muchos implantes tienen un segundo canal previsto justamente
+para esto.
+
+**Avisa.** Un canal que se corta de golpe es una señal clarísima para quien está del
+otro lado. Si todavía queda algo que el operador quería hacer, lo va a intentar ahora.
+
+**Cierra la ventana de conocimiento.** Mientras el canal está vivo se puede ver qué
+consulta, con qué frecuencia y si aparecen equipos nuevos. Apagado, esa información
+desaparece.
+
+Y sin embargo esperar también tiene un costo, y no es teórico: cada minuto que el canal
+sigue abierto es un minuto en el que el operador puede empezar a sacar datos.
+
+**El criterio que resuelve la tensión no se improvisa. Es este:**
+
+> Si hay transferencia de volumen en curso, se corta ahora y se investiga después. Si
+> es un canal de mando sin transferencia masiva, hay una ventana acotada para cerrar
+> el alcance, y esa ventana se define de antemano y con un reloj.
+
+En este caso los números decían canal de mando: 14.302 consultas de unas decenas de
+bytes en siete días son unos pocos cientos de kilobytes en total, casi todo tráfico de
+ida. No hay ningún documento saliendo por ahí. Con ese dato, la ventana de tres horas
+para cerrar el alcance fue una decisión defendible y no una demora.
+
+Y cuando se cortó, se cortó **todo junto**: los tres equipos aislados, el dominio
+bloqueado en el resolutor y las credenciales restablecidas, en la misma maniobra. Es la
+misma lógica que el caso 09 deja escrita: **con personas del otro lado, la acción
+parcial avisa sin quitar capacidad.**
+
+---
+
+## 5. Qué se hizo, en orden
+
+1. **Aislamiento de los tres equipos** en simultáneo, a nivel de red, conservándolos
+   encendidos para la evidencia en memoria.
+2. **Bloqueo del dominio en el resolutor**, no solo en el perímetro, para que un equipo
+   olvidado tampoco pueda resolverlo.
+3. **Restablecimiento de las credenciales** usadas en esos equipos y revocación de sus
+   sesiones.
+4. **Búsqueda de la misma persistencia** en el resto del parque, por la tarea que
+   arranca con la sesión y no por el hash del archivo.
+5. **Búsqueda retroactiva del mismo patrón** en noventa días de telemetría, para
+   descartar que el canal existiera antes con otro dominio.
+6. **Revisión de qué recursos compartidos** eran accesibles desde esos tres equipos,
+   para saber qué estuvo al alcance aunque no se haya llevado.
+
+El punto cinco es el que más suele faltar. Encontrar un dominio no cierra la pregunta:
+la pregunta es desde cuándo, y eso solo lo contesta mirar hacia atrás con el patrón,
+no con el indicador.
+
+Y el seis marca la diferencia entre "no se llevaron nada" y "no vimos que se llevaran
+nada". Acá el alcance de lo accesible se documentó, aunque no hubiera evidencia de
+transferencia.
+
+---
+
+## 6. La detección que queda
+
+La cacería se convierte en dos reglas, y la segunda es la que vale.
+
+```sql
+-- Regla 1: cardinalidad de subdominios por dominio padre, diaria
+SELECT dominio_padre, COUNT(DISTINCT nombre_consultado) AS unicos
+FROM consultas_dns
+WHERE fecha = CURRENT_DATE
+GROUP BY dominio_padre
+HAVING COUNT(DISTINCT nombre_consultado) > 500;
+
+-- Regla 2: regularidad del intervalo por par cliente-dominio
+-- Un desvío estándar muy bajo del intervalo entre consultas
+-- describe automatización, no comportamiento humano.
+```
+
+Tres advertencias sobre esas reglas, para que no se lean como una solución cerrada.
+
+**La primera regla tiene falsos positivos legítimos y frecuentes.** Redes de
+distribución de contenido, servicios de reputación de antivirus y telemetría de
+productos en la nube usan subdominios de alta cardinalidad por diseño. La regla
+necesita una lista de excepciones, **y esa lista necesita revisión periódica**: cada
+entrada es un lugar donde la detección deja de mirar.
+
+**La segunda regla es la que envejece bien.** La cardinalidad se evade repartiendo el
+tráfico entre varios dominios. La regularidad del intervalo es más cara de evitar,
+porque el atacante tiene que introducir variación real, y la variación le cuesta
+previsibilidad a él.
+
+**Un umbral fijo se calibra contra el propio entorno.** Quinientos subdominios por día
+puede ser mucho o poco según el tamaño de la organización, y el número correcto sale de
+mirar la distribución real durante unas semanas, no de copiarlo de un artículo.
+
+---
+
+## 7. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-010"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.001"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1204.002"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1547.001"]
+    },
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1071.004", "T1572"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1566.001** | Phishing: Spearphishing Attachment | El documento enviado desde la casilla comprometida de un proveedor |
+| **T1204.002** | User Execution: Malicious File | Las tres personas que abrieron el documento y habilitaron el contenido |
+| **T1547.001** | Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder | La tarea que arranca con la sesión |
+| **T1071.004** | Application Layer Protocol: DNS | El canal de mando y control sobre consultas de nombres |
+| **T1572** | Protocol Tunneling | La encapsulación de los mensajes dentro del propio protocolo |
+
+Y ahora lo más importante de esta tabla, que es lo que **no** está en ella.
+
+**No hay ninguna técnica de exfiltración.** No hay `T1041`, no hay `T1567`, no hay
+`T1030`. En los casos 05, 06, 07 y 08 esas técnicas aparecen, porque los datos salieron.
+
+Ese hueco es el resultado del caso. El mapa ATT&CK de un incidente contenido a tiempo
+**termina antes**, y dónde termina es exactamente la medida de qué tan bien salió. Vale
+leerlo como un indicador de desempeño más honesto que cualquier tiempo medio de
+respuesta: no cuánto tardaste, sino hasta qué columna llegó el otro.
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Cada uno se abre en ventana aparte.
+
+<KillChain
+  client:load
+  lang="es"
+  caseId="soc-010"
+  phases={[
+    { state: "reached", detail: "Selección de tres personas del área de proyectos, y de la casilla de un proveedor real como remitente creíble." },
+    { state: "reached", detail: "Documento con contenido activo y un implante que habla por consultas de nombres, más el dominio y su servidor autoritativo, registrados tres semanas antes." },
+    { state: "reached", detail: "Correo entregado el 5 de mayo desde una casilla legítima comprometida. Ningún control lo frenó." },
+    { state: "reached", detail: "Dos personas abren y habilitan el contenido el mismo día; la tercera, al día siguiente." },
+    { state: "reached", detail: "Persistencia por tarea que arranca con la sesión, en los tres equipos." },
+    { state: "reached", detail: "Canal de mando activo durante siete días: reconocimiento del equipo y de los recursos compartidos al alcance." },
+    { state: "blocked", detail: "Contención simultánea el 12 de mayo, antes de cualquier transferencia de datos. No salió un solo archivo." }
+  ]}
+  note="Este es el primer caso del sitio desde el 02 donde hay un eslabón cortado, y conviene mirar cuál. Se cortó el séptimo, que es el último: seis fases alcanzadas es casi todo el recorrido. Y sin embargo alcanzó, porque el séptimo eslabón es el único irreversible. Todo lo anterior —el correo entregado, el documento abierto, la persistencia instalada, el canal funcionando siete días— es reparable con trabajo. La exfiltración no se repara con nada. La conclusión práctica es menos heroica y más útil que 'cortar temprano': cortar temprano es mejor, pero lo que decide si el incidente fue grave o no es un solo eslabón, y es el último. Vale compararlo con el caso 06, donde la cadena llegó al final y por eso hay dos incidentes: uno se resolvió con respaldos y el otro no se resolvió nunca."
+/>
+
+<PyramidOfPain
+  client:load
+  lang="es"
+  caseId="soc-010"
+  indicators={{
+    hashes: ["El documento adjunto, sin detección en el momento"],
+    domains: ["tunel.ejemplo-malicioso[.]example, sin clasificar y sin reputación"],
+    artifacts: [
+      "Relación de 1,00 entre consultas y nombres únicos",
+      "Etiquetas de 31 a 46 caracteres en base32",
+      "Intervalo de 42 segundos de mediana, sostenido siete días",
+      "Actividad de madrugada y de fin de semana en un equipo de oficina"
+    ],
+    tools: ["Implante que se comunica por consultas de nombres"],
+    ttps: [
+      "Canal de mando sobre un protocolo que ninguna organización bloquea",
+      "Dominio registrado semanas antes, sin uso previo que genere reputación",
+      "Remitente legítimo comprometido como origen del correo"
+    ]
+  }}
+  note="Los otros casos de este sitio usan la pirámide para explicar por qué los escalones de abajo fallaron. Este la usa al revés, y por eso vale la pena. Acá el hash no detectó, el dominio no tenía reputación y ninguna lista lo contenía: los dos escalones de abajo no fallaron después, no existían desde el principio. La detección se construyó directamente en los artefactos y en las TTP, a propósito, antes de que hubiera un incidente. Esa es la tesis de la pirámide demostrada hacia adelante en vez de hacia atrás: no 'los indicadores baratos nos fallaron', sino 'nunca dependimos de ellos'. Y tiene un costo que conviene decir, porque es real: una cacería sobre comportamiento devuelve resultados que hay que interpretar, no alertas que se cierran. Cuesta más tiempo de analista, y es tiempo que hay que asignar de antemano."
+/>
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-010"
+  summary={{
+    incidentId: "INC-2026-0512-003",
+    title: "Canal de mando y control sobre DNS, contenido antes de la exfiltración",
+    status: "Resolved",
+    severity: "HIGH",
+    triageInicial: "Sin alerta previa: hallazgo de una cacería programada",
+    causaRaiz: "Documento con contenido activo entregado desde la casilla comprometida de un proveedor",
+    tiempoDeContencion: "5 horas 10 minutos desde el hallazgo, 7 días desde el primer acceso",
+    datosComprometidos: "Ninguno. Se documentó el alcance de lo accesible desde los tres equipos",
+    resolutionCode: "Resuelto (verdadero positivo, contenido antes del impacto)"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**Una cuarta forma de descubrir un incidente: buscarlo.** Alerta, aviso externo,
+impacto consumado, y cacería. Es la única de las cuatro que depende del equipo, y la
+única que puede encontrar algo para lo que nadie escribió una firma.
+
+**La consulta que encontró el caso no buscaba nada malo.** Ordenaba por una propiedad
+estructural y miraba el extremo. Buscar lo conocido encuentra lo conocido; buscar lo
+raro encuentra lo que nadie vio.
+
+**La reputación del dominio no aportó nada.** Registrado hacía tres semanas, sin
+clasificar, sin listas. Lo delató el comportamiento, no la identidad.
+
+**Todo punto de agregación borra el origen.** El resolutor mostraba una sola dirección
+para toda la organización. Sin el registro del propio resolutor hay túnel confirmado y
+ningún equipo que contener.
+
+**Cuándo cortar es una decisión con criterio previo, no una corazonada.** Transferencia
+en curso, se corta ya. Canal de mando sin volumen, hay una ventana acotada para cerrar
+el alcance, definida de antemano y con reloj.
+
+**Se corta todo junto.** Tres equipos, dominio y credenciales en la misma maniobra. La
+acción parcial avisa sin quitar capacidad.
+
+**El mapa ATT&CK de un incidente contenido termina antes, y ahí está la medida.** Sin
+columna de exfiltración. Hasta qué columna llegó el otro dice más que cualquier tiempo
+medio de respuesta.
+
+**Cortar el último eslabón alcanzó, y eso no contradice cortar temprano.** Seis fases
+alcanzadas son mucho, y todas eran reparables. La séptima no lo es. Cortar temprano es
+mejor; cortar la última es lo que decide la gravedad.
+
+---
+
+## Recomendaciones
+
+- Registro de consultas en el propio resolutor interno, con la dirección del cliente,
+  conservado el tiempo suficiente para una búsqueda retroactiva de noventa días
+- Cacería programada por cardinalidad de subdominios y por regularidad de intervalo,
+  con tiempo de analista asignado de antemano
+- Lista de excepciones de la regla de cardinalidad, con revisión periódica y con dueño:
+  cada entrada es un lugar donde la detección deja de mirar
+- Umbrales calibrados contra la distribución real del propio entorno, medida durante
+  semanas
+- Criterio escrito de cuándo cortar un canal de mando, con la condición de volumen
+  explícita y una ventana máxima
+- Búsqueda retroactiva del patrón, no del indicador, ante cualquier hallazgo de canal
+  encubierto
+- Documentar el alcance de lo accesible desde los equipos comprometidos, aunque no haya
+  evidencia de transferencia
+- Bloqueo de dominios en el resolutor además del perímetro
+
+---
+
+## Referencias
+
+- [Phishing: Spearphishing Attachment (T1566.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1566/001/)
+- [User Execution: Malicious File (T1204.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1204/002/)
+- [Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder (T1547.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1547/001/)
+- [Application Layer Protocol: DNS (T1071.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1071/004/)
+- [Protocol Tunneling (T1572) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1572/)
+- [Behavioral Detection of DNS Tunneling and Application Layer Abuse (DET0400) - MITRE ATT&CK](https://attack.mitre.org/detectionstrategies/DET0400/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Próximas lecturas
+
+El caso 09 muestra el otro extremo de la misma escala: allí la cadena llegó hasta el
+final y el trabajo empezó cuando ya no quedaba nada que contener. Leídos juntos, los
+dos dicen lo mismo desde lados opuestos — la diferencia entre un incidente y una
+catástrofe se decide en un solo eslabón, y las dos preparaciones que hacen falta se
+compran en momentos distintos.
