@@ -39,6 +39,19 @@ pantalla.
 
 ---
 
+## Capturas
+
+Portada: mazo de casos y globo con la geografía de los incidentes reales.
+
+![Portada de Real SOC Scenarios](docs/screenshots/home.png)
+
+Página de caso: marcos de análisis, ficha de cierre e índice lateral con
+seguimiento del scroll.
+
+![Página de caso, con el reporte final y el índice lateral](docs/screenshots/case.png)
+
+---
+
 ## Fuentes y criterio
 
 Los casos reales se arman a partir de material público: avisos de agencias,

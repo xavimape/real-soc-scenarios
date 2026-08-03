@@ -38,6 +38,19 @@ scenarios built for the exercise, and they say so on their first screen.
 
 ---
 
+## Screenshots
+
+Home: case deck and globe with the geography of the real incidents.
+
+![Real SOC Scenarios home page](docs/screenshots/home.png)
+
+Case page: analysis frameworks, closing report and side index with scroll
+tracking.
+
+![Case page, with the closing report and the side index](docs/screenshots/case.png)
+
+---
+
 ## Sources and standard
 
 Real cases are built from public material: agency advisories, research team
