@@ -38,6 +38,9 @@ const PERMITIDOS = [
   'progress.com',
   'amazon.com',
   'hydro.com',
+  'okta.com',
+  // Cubre también `genai.owasp.org`: el patrón captura los dos últimos niveles.
+  'owasp.org',
   // Reservado por RFC 2606 para documentación: no puede ser infraestructura real.
   'example.com',
   // Herramientas públicas citadas por nombre, no infraestructura del atacante.
