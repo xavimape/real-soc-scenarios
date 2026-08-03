@@ -1,0 +1,537 @@
+---
+title: "Okta y LAPSUS$ 2022 - El incidente es de tu proveedor y el problema es tuyo"
+description: "Caso real: el compromiso ocurrió en la empresa de soporte de un proveedor de identidad. La alerta existió en enero y los clientes se enteraron en marzo, por una captura de pantalla en un canal público"
+pubDate: 2022-03-22
+caseId: "soc-011"
+caseNumber: 11
+difficulty: "advanced"
+caseType: "real_case_third_party"
+severity: "HIGH"
+tags: ["third-party", "identity-provider", "supply-chain", "social-engineering", "mfa", "sim-swap", "crisis-communication"]
+author: "Publicaciones de Okta sobre el compromiso de enero de 2022, informe del Cyber Safety Review Board (agosto de 2023) y entrada de LAPSUS$ (G1004) en MITRE ATT&CK"
+discoveryDate: "2022-01-20"
+locations:
+  - { lat: 37.7749, lng: -122.4194, label: "San Francisco, casa central de Okta" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+
+## Resumen ejecutivo
+
+En enero de 2022, alguien obtuvo acceso remoto al equipo de una persona que trabajaba
+en soporte al cliente, en una empresa contratada por Okta, un proveedor de identidad
+del que dependen miles de organizaciones para autenticar a su gente.
+
+**El 20 de enero el equipo de seguridad de Okta recibió una alerta**: se había
+agregado un factor nuevo a la cuenta de esa persona de soporte, y ese factor era una
+contraseña. La detección funcionó, y funcionó al cuarto día de una ventana de acceso
+de cinco.
+
+Los clientes de Okta se enteraron el **22 de marzo**, cuando el grupo LAPSUS$ publicó
+capturas de pantalla en un canal abierto.
+
+Ese hueco de dos meses es el caso, y conviene decir desde el principio qué no es.
+**No es un caso sobre una detección que falló.** La detección existió y fue temprana.
+Lo que tardó dos meses fue todo lo que viene después de detectar: conseguir el informe
+forense de la empresa contratada, entender el alcance, y contárselo a quien dependía
+de ese servicio.
+
+Para un analista que trabaja en una de esas organizaciones clientes, la pregunta del
+caso es una que ninguno de los diez anteriores plantea: **¿qué hace un SOC cuando el
+incidente no es suyo, la información llega tarde, es parcial, y las partes no
+coinciden entre sí?**
+
+**Métricas clave:**
+
+- Ventana de acceso al equipo de soporte: 16 al 21 de enero de 2022, cinco días
+- Alerta en el proveedor de identidad: 20 de enero de 2022
+- Divulgación pública: 22 de marzo de 2022, por una publicación del propio grupo
+- Distancia entre la alerta y el aviso a los clientes: unos dos meses
+- Estimación inicial de clientes potencialmente afectados: alrededor del 2,5 por ciento
+- Técnicas principales: T1199, T1591.002, T1621, T1598.004, más T1451 en la matriz Mobile
+
+<Warn />**Caso real, con fuentes que no coinciden.** Los hechos técnicos y las fechas
+salen de las publicaciones de Okta sobre el compromiso de enero de 2022, del informe
+del Cyber Safety Review Board de agosto de 2023, y de la entrada de LAPSUS$ en MITRE
+ATT&CK. Sobre varios puntos —el alcance real, qué se sabía y cuándo— las partes
+dieron versiones distintas en momentos distintos, y algunas cifras se revisaron
+después. Cuando algo proviene del relato de una de las partes, está dicho.
+
+---
+
+## Contexto: qué significa depender de un proveedor de identidad
+
+Una organización que usa un proveedor de identidad externo le delega la pregunta más
+importante de su seguridad: **quién es cada persona que entra.** Ese proveedor
+autentica al personal contra el correo, las aplicaciones de negocio, la nube y todo lo
+demás.
+
+La delegación es sensata. Un proveedor especializado hace ese trabajo mejor que la
+mayoría de las organizaciones, y concentrar la autenticación en un lugar permite
+aplicar políticas una sola vez.
+
+Pero mueve la frontera de confianza, y la mueve más lejos de lo que suele figurar en
+el diagrama:
+
+```
+tu organización
+    └── confía en → tu proveedor de identidad
+                        └── confía en → sus proveedores de soporte
+                                            └── confía en → los equipos de su personal
+```
+
+Cada flecha es una relación contractual y ninguna aparece en tu inventario de activos.
+El caso trata de la tercera flecha, que es la que casi nadie mira.
+
+Y hay una asimetría que conviene enunciar de una vez: **el incidente ocurre en un
+sistema que no administrás, lo investiga gente que no conocés, y las consecuencias
+caen en tu organización.** Tu capacidad de acción es mínima; tu responsabilidad, no.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-011"
+  events={[
+    {
+      time: "16 ene 2022",
+      title: "Acceso al equipo de soporte",
+      description: "Comienza una ventana de cinco días con acceso remoto por RDP a la computadora de una persona de soporte al cliente, propiedad de la empresa contratada.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "20 ene 2022",
+      title: "La alerta funciona",
+      description: "Se agrega un factor nuevo a la cuenta de esa persona en el proveedor de identidad, y ese factor es una contraseña. El equipo de seguridad recibe el aviso.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "21 ene 2022",
+      title: "Fin de la ventana de acceso",
+      description: "Termina el período de cinco días que el informe forense posterior identificaría.",
+      severity: "INFO",
+      actor: "Attacker"
+    },
+    {
+      time: "ene a mar 2022",
+      title: "Investigación entre dos empresas",
+      description: "El proveedor de identidad depende del informe forense que encarga la empresa contratada. Los clientes no saben que hay un incidente.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "22 mar 2022",
+      title: "Publicación del grupo",
+      description: "LAPSUS$ difunde capturas de pantalla en un canal abierto. El proveedor determina que corresponden al incidente de enero.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "22 al 25 mar 2022",
+      title: "Comunicaciones sucesivas",
+      description: "Se publican declaraciones que se corrigen entre sí en cuestión de días, con estimaciones de alcance que cambian.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "ago 2023",
+      title: "Informe del Cyber Safety Review Board",
+      description: "Una junta federal estadounidense revisa la actividad del grupo y publica hallazgos y recomendaciones sobre el ecosistema de identidad.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+Vale mirar dos distancias. Entre el primer acceso y la alerta pasaron cuatro días:
+**eso es una detección razonable.** Entre la alerta y el momento en que un cliente
+pudo enterarse pasaron dos meses.
+
+---
+
+## 1. La alerta que sí existió
+
+El detalle vale la pena porque enseña una detección concreta y buena.
+
+Según el relato de Okta, el 20 de enero su equipo de seguridad fue alertado de que
+**se había agregado un factor nuevo a la cuenta** de una persona de soporte de la
+empresa contratada, y de que **ese factor era una contraseña**.
+
+Pensemos por qué eso es una alerta y no ruido.
+
+Agregar un factor de autenticación a una cuenta ajena es una acción administrativa
+poco frecuente y de alto impacto: quien puede hacerlo puede entrar después. En una
+cuenta con acceso a herramientas de soporte de clientes, el impacto se multiplica.
+
+Es exactamente el mismo tipo de señal que el caso 02: allí, un dispositivo enrolado
+para el segundo factor a las 09:51. **Los cambios en el mecanismo de autenticación de
+una cuenta son de las pocas acciones que casi nunca tienen una explicación benigna
+espontánea**, y por eso rinden tanto como detección.
+
+La conclusión incómoda del caso no es que faltara esa alerta. Es que **existió, se
+atendió, y aun así los clientes tardaron dos meses en saberlo.** Detectar es una parte
+del trabajo; que la información llegue a quien puede actuar es otra, y la segunda no
+mejora sola cuando mejora la primera.
+
+---
+
+## 2. Qué podía y qué no podía hacer una cuenta de soporte
+
+Este punto es central y suele contarse mal. Según lo publicado por Okta, las personas
+de soporte **no podían crear ni borrar usuarios, ni descargar bases de datos de
+clientes**. Sí tenían acceso a datos limitados, como tickets y listados de usuarios,
+y a herramientas de asistencia.
+
+Vale tomarlo en serio en las dos direcciones.
+
+**Hacia abajo:** no es acceso total. La imagen de "el atacante entró al proveedor de
+identidad y pudo hacer cualquier cosa con cualquier cliente" es falsa, y repetirla
+impide entender el riesgo real.
+
+**Hacia arriba:** una herramienta de soporte que puede asistir con problemas de acceso
+es, por definición, una herramienta que puede intervenir sobre la autenticación de
+personas. Ese es su propósito. No hace falta poder descargar una base de datos para
+hacer daño si se puede ayudar a alguien a recuperar el acceso a una cuenta.
+
+De ahí sale la pregunta que un cliente sí puede hacerse, y que no depende de ninguna
+declaración del proveedor:
+
+> ¿Qué puede hacer, exactamente, el personal de soporte de mi proveedor sobre mi
+> instancia? ¿Y queda registrado en un log que yo pueda leer?
+
+Casi ninguna organización sabe la respuesta antes del incidente. Se aprende durante,
+que es el peor momento.
+
+---
+
+## 3. Qué puede hacer un SOC cliente sin esperar al proveedor
+
+Esta es la parte más útil del caso, y la que convierte una noticia en un procedimiento.
+
+Cuando aparece la publicación del grupo y el proveedor todavía no tiene números, la
+tentación es esperar. **No hace falta.** Un cliente tiene sus propios registros, y
+esos registros pueden contestar la pregunta que importa: *¿tocaron mi instancia?*
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-011"
+  type="verificacion"
+  title="Lo que un cliente puede verificar por su cuenta"
+  data={{
+    "en el registro de la propia instancia": {
+      "ventana a revisar": "16 al 21 de enero de 2022, con margen a los dos lados",
+      "acciones iniciadas por soporte del proveedor": "Cualquiera, en esa ventana",
+      "restablecimientos de contraseña": "Quién los pidió y quién los ejecutó",
+      "restablecimientos o cambios de segundo factor": "Especialmente los no solicitados por la persona usuaria",
+      "verdict": "clean"
+    },
+    "señales de uso posterior": {
+      "sesiones desde orígenes inhabituales": "En cuentas que hayan tenido cambios en esa ventana",
+      "cuentas administrativas nuevas": "Creadas o elevadas en el período",
+      "reglas de correo": "Reenvíos y transporte, como en el caso 02",
+      "verdict": "clean"
+    },
+    "lo que no depende del proveedor": {
+      "rotación de credenciales": "De las cuentas con más privilegio, sin esperar confirmación",
+      "revocación de sesiones": "Para invalidar material de autenticación ya emitido",
+      "revisión de la lista de excepciones de MFA": "Como en el caso 003",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+La lógica es la misma que el caso 07 deja escrita para la nube: **buscar la
+contradicción con el diseño.** Una acción de soporte del proveedor sobre tu instancia
+es legítima cuando vos la pediste. En una ventana donde no abriste ningún ticket, no
+lo es. Ese cruce lo podés hacer solo, y no requiere que nadie te confirme nada.
+
+Y hay una decisión de fondo que conviene tomar temprano: **rotar credenciales
+privilegiadas y revocar sesiones no requiere confirmación de impacto.** Es barato,
+reversible y no depende de que el proveedor termine su investigación. Esperar a la
+confirmación para hacer algo que se podría haber hecho el primer día es el error
+caro de este tipo de incidente.
+
+---
+
+## 4. Cuando las cifras se mueven
+
+La estimación inicial que se publicó hablaba de alrededor del 2,5 por ciento de los
+clientes potencialmente afectados. Con investigación posterior, las cifras se
+revisaron.
+
+Que un número se mueva durante un incidente no es una anomalía: **es lo normal**, y
+conviene entender por qué antes de juzgarlo.
+
+Al principio se responde "¿cuántos pudieron ser tocados?", que es una cota superior
+construida sobre lo que era técnicamente posible. Más adelante se responde "¿cuántos
+fueron tocados?", que exige evidencia positiva por cada caso. Son dos preguntas
+distintas y la segunda siempre da un número menor.
+
+Para un SOC que comunica hacia adentro de su organización, de ahí salen dos reglas
+prácticas.
+
+**Etiquetar cada número con la pregunta que contesta.** "Hasta X clientes pudieron
+verse alcanzados" no es lo mismo que "X clientes se vieron alcanzados", y la
+diferencia se pierde en la primera repetición si no está escrita.
+
+**No adoptar la cifra del proveedor como propia.** Un cliente no necesita saber cuántas
+organizaciones fueron afectadas en total: necesita saber si la suya lo fue. Y eso, como
+vimos, se responde con registros propios.
+
+---
+
+## 5. Cómo entra este grupo, y por qué importa para el caso
+
+MITRE documenta las técnicas de LAPSUS$ bajo `G1004`, y dos de ellas explican la
+estructura del incidente mejor que cualquier relato.
+
+**`T1591.002`, Gather Victim Org Information: Business Relationships.** El grupo reúne
+conocimiento detallado de las relaciones de la cadena de suministro de una
+organización. No es un detalle de reconocimiento: **es el diseño del ataque.** Buscan
+quién le presta servicios a quién, para entrar por donde la confianza ya está
+concedida.
+
+**`T1199`, Trusted Relationship.** MITRE lo consigna sin rodeos: el grupo accedió a
+proveedores de identidad expuestos a internet, incluidos Azure Active Directory y
+Okta, para llegar a organizaciones concretas.
+
+El resto del repertorio documentado tiene un rasgo común que vale ver junto:
+
+| Técnica | Qué hacen |
+|---|---|
+| `T1598.004` Spearphishing Voice | Llaman a la mesa de ayuda para que restablezcan las credenciales de una cuenta privilegiada |
+| `T1684.001` Social Engineering: Impersonation | Se hacen pasar por personas legítimas con datos reunidos de antemano |
+| `T1621` MFA Request Generation | Saturan de solicitudes de segundo factor hasta que alguien aprueba |
+| `T1586.002` Compromise Accounts | Pagan a empleados, proveedores y socios por credenciales |
+| `T1597.002` Purchase Technical Data | Compran credenciales y cookies de sesión en foros |
+| `T1451` SIM Card Swap | Se apropian del número de teléfono de la víctima |
+
+Ninguna es una vulnerabilidad de software. **Todas apuntan a personas y a procesos**:
+la mesa de ayuda, la persona que aprueba una notificación, el empleado que acepta una
+oferta, la operadora telefónica que transfiere una línea.
+
+El Cyber Safety Review Board llegó a una conclusión que conviene citar porque
+reordena prioridades: encontró que **las implementaciones de segundo factor de uso
+extendido hoy no alcanzan** para la mayoría de las organizaciones, y señaló
+específicamente la falla colectiva en considerar los riesgos de usar mensajes de texto
+y llamadas de voz como segundo factor.
+
+Leído junto al caso 002 de este sitio, el mensaje se completa: allí el MFA fue
+esquivado con una cookie robada; acá es esquivado llamando por teléfono a la mesa de
+ayuda. **En los dos casos el segundo factor no se rompió: se rodeó.**
+
+---
+
+## 6. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-011"
+  tactics={[
+    {
+      id: "TA0043",
+      name: "Reconnaissance",
+      techniques: ["T1591.002", "T1598.004"]
+    },
+    {
+      id: "TA0042",
+      name: "Resource Development",
+      techniques: ["T1586.002", "T1597.002"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1199", "T1078"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1621", "T1111"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1591.002** | Gather Victim Org Information: Business Relationships | Conocer la cadena de proveedores para elegir por dónde entrar |
+| **T1598.004** | Phishing for Information: Spearphishing Voice | Llamar a la mesa de ayuda para conseguir un restablecimiento |
+| **T1586.002** | Compromise Accounts: Email Accounts | Pagar a empleados, proveedores y socios por credenciales |
+| **T1597.002** | Search Closed Sources: Purchase Technical Data | Comprar credenciales y cookies de sesión en foros |
+| **T1199** | Trusted Relationship | Entrar por el proveedor de soporte, que ya tenía acceso concedido |
+| **T1078** | Valid Accounts | Operar con credenciales y sesiones válidas |
+| **T1621** | MFA Request Generation | Saturar de notificaciones hasta obtener una aprobación |
+| **T1111** | MFA Interception | Reutilizar sesiones y contraseñas robadas para disparar aprobaciones simples |
+
+### Y una técnica de otra matriz
+
+| MITRE Mobile | Técnica | En este caso |
+|---|---|---|
+| **T1451** | SIM Card Swap | Apropiarse del número de teléfono de la víctima para recibir sus códigos |
+
+Es el segundo caso de este sitio que sale de la matriz de empresa; el otro es el 09,
+con la matriz ICS. Y no es un detalle de catálogo: **si tu segundo factor llega por
+mensaje de texto, tu control de seguridad depende de la operadora telefónica**, que no
+es tu proveedor, no firmó tu contrato y no está en tu inventario. Esa dependencia solo
+aparece si mirás la matriz que corresponde.
+
+Vale notar además dónde se concentra el mapa. Ocho de las nueve técnicas están en
+reconocimiento, desarrollo de recursos, acceso inicial y acceso a credenciales: **todo
+antes de entrar, o en el acto de entrar.** No hay escalada, no hay movimiento lateral
+sofisticado, no hay malware. Es la observación del Cyber Safety Review Board sobre este
+grupo, y es lo que lo vuelve difícil de defender: no hay nada que parchear.
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Se abre en ventana aparte.
+
+<DiamondModel
+  client:load
+  lang="es"
+  caseId="soc-011"
+  campaign="Actividad de LAPSUS$, 2021 y 2022"
+  confidence="Alta - grupo catalogado por MITRE como G1004, con revisión de una junta federal estadounidense"
+  adversary={{
+    value: "LAPSUS$ (G1004, también DEV-0537 y Strawberry Tempest)",
+    detail: "Grupo criminal de extorsión activo desde al menos mediados de 2021. La revisión oficial no encontró evidencia de vínculo con un Estado ni con una entidad política."
+  }}
+  capability={{
+    value: "Ingeniería social sobre procesos, no explotación de software",
+    detail: "Llamadas a la mesa de ayuda, saturación de notificaciones de segundo factor, apropiación de líneas telefónicas, y compra de credenciales a empleados y en foros."
+  }}
+  infrastructure={{
+    value: "Servidores virtuales alquilados y salidas por VPN comercial",
+    detail: "Sin infraestructura propia distintiva. La difusión de lo robado se hizo por un canal público de mensajería."
+  }}
+  victim={{
+    value: "Organizaciones alcanzadas por la relación de confianza",
+    detail: "Empresas de tecnología, telecomunicaciones y medios, y los clientes de los proveedores comprometidos."
+  }}
+  note="El vértice de la víctima es el que enseña algo distinto acá, y conviene detenerse en él. En todos los otros casos del sitio la víctima es una: la organización donde ocurre la intrusión. Este tiene dos capas. La empresa de soporte es la víctima del acceso; el proveedor de identidad es la víctima de la exposición; y las organizaciones clientes, que no fueron intruidas por nadie, son las que tienen que responderle a su directorio. Un modelo pensado para pivotear entre cuatro vértices se queda corto cuando uno de ellos es en realidad una cadena. La lectura práctica: si tu organización aparece en el vértice de víctima de un caso donde no hubo intrusión en tus sistemas, tu trabajo no es investigar la intrusión, es medir tu exposición a ella. Son dos tareas distintas y la segunda sí depende de tus propios registros."
+/>
+
+No incluyo la Cadena de Ataque ni la Pirámide del Dolor. La primera describe una
+intrusión que avanza dentro de una organización, y acá el recorrido cruza tres
+empresas con responsabilidades distintas: las siete fases no representan eso. La
+segunda tendría casi todo vacío, porque el repertorio del grupo no deja artefactos
+técnicos —una llamada telefónica a la mesa de ayuda no tiene hash.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-011"
+  summary={{
+    incidentId: "Compromiso de enero de 2022, divulgado en marzo",
+    title: "Compromiso en la empresa de soporte de un proveedor de identidad",
+    status: "Documentado públicamente",
+    severity: "HIGH",
+    triageInicial: "Alerta por agregado de un factor de autenticación a una cuenta de soporte",
+    causaRaiz: "Acceso remoto al equipo de una persona de soporte, en una empresa contratada por el proveedor",
+    tiempoDeContencion: "La alerta llegó al cuarto día de una ventana de cinco. El aviso a los clientes, unos dos meses después",
+    datosComprometidos: "Alcance disputado y revisado. El acceso de soporte no permitía crear ni borrar usuarios ni descargar bases de datos",
+    resolutionCode: "Caso de estudio"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**La frontera de confianza llega hasta el proveedor de tu proveedor.** Tu organización
+confía en su proveedor de identidad, que confía en sus empresas de soporte, que confían
+en los equipos de su personal. Ninguna de esas relaciones aparece en tu inventario de
+activos, y el atacante las estudia expresamente.
+
+**Detectar y comunicar son dos capacidades distintas.** Acá la detección funcionó al
+cuarto día de cinco. Lo que tardó dos meses fue conseguir el forense de un tercero,
+entender el alcance y avisar. Mejorar la detección no mejora eso.
+
+**Un cliente puede responder "¿me tocaron?" con sus propios registros.** Acciones de
+soporte del proveedor sobre tu instancia en una ventana donde no abriste ningún
+ticket: esa contradicción la verificás solo, sin esperar a nadie.
+
+**Rotar credenciales y revocar sesiones no requiere confirmación de impacto.** Es
+barato, reversible y se puede hacer el primer día. Esperar la confirmación para
+hacerlo es el error caro de este tipo de incidente.
+
+**Que las cifras se muevan es normal.** Primero se contesta cuántos *pudieron* ser
+alcanzados y después cuántos lo fueron. Son preguntas distintas. Cada número tiene que
+ir etiquetado con la suya, o la distinción se pierde en la primera repetición.
+
+**Este grupo no explota software, explota procesos.** Mesa de ayuda, aprobación de
+notificaciones, empleados dispuestos a vender acceso, operadoras que transfieren una
+línea. No hay nada que parchear, y por eso los controles que sirven son de proceso:
+verificación de identidad en la mesa de ayuda, segundo factor resistente a la
+aprobación por hábito, y menos confianza en el número de teléfono.
+
+**Si tu segundo factor llega por mensaje de texto, depende de tu operadora.** Que no es
+tu proveedor, no firmó tu contrato y no está en tu inventario. La junta que revisó esta
+actividad concluyó que las implementaciones de segundo factor de uso extendido no
+alcanzan, y señaló específicamente el texto y la voz.
+
+---
+
+## Recomendaciones
+
+- Inventariar, por cada proveedor crítico, qué puede hacer su personal de soporte sobre
+  tu instancia, y si esas acciones quedan en un registro que vos puedas leer
+- Detección propia de acciones administrativas iniciadas por el soporte del proveedor,
+  cruzadas contra tus propios tickets abiertos
+- Alerta por cambios en el mecanismo de autenticación de una cuenta: factores
+  agregados, restablecidos o eliminados
+- Procedimiento escrito de respuesta ante incidente de un tercero, con las acciones que
+  no requieren confirmación de impacto identificadas de antemano
+- Cláusulas contractuales de notificación con plazo, y derecho a recibir el informe
+  forense, no solo un resumen
+- Segundo factor resistente a la aprobación por hábito y ligado al origen, en lugar de
+  códigos por mensaje de texto o notificaciones de aprobar o rechazar
+- Verificación de identidad reforzada en la mesa de ayuda para restablecimientos de
+  credenciales y de segundo factor, con un método que no dependa de datos que se pueden
+  averiguar
+- Retención de registros de la instancia suficiente para investigar hacia atrás una
+  ventana de meses, no de días
+
+---
+
+## Referencias
+
+- [Okta's Investigation of the January 2022 Compromise - Okta](https://www.okta.com/blog/2022/03/oktas-investigation-of-the-january-2022-compromise/)
+- [Updated Okta Statement on LAPSUS$ - Okta](https://www.okta.com/blog/2022/03/updated-okta-statement-on-lapsus/)
+- [Okta Concludes its Investigation Into the January 2022 Compromise - Okta](https://www.okta.com/blog/2022/04/okta-concludes-its-investigation-into-the-january-2022-compromise/)
+- [Review of the Attacks Associated with Lapsus$ and Related Threat Groups - Cyber Safety Review Board](https://www.cisa.gov/resources-tools/resources/review-attacks-associated-lapsus-and-related-threat-groups-report)
+- [LAPSUS$ (G1004) - MITRE ATT&CK](https://attack.mitre.org/groups/G1004/)
+- [DEV-0537 criminal actor targeting organizations for data exfiltration and destruction - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2022/03/22/dev-0537-criminal-actor-targeting-organizations-for-data-exfiltration-and-destruction/)
+- [Trusted Relationship (T1199) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1199/)
+- [Gather Victim Org Information: Business Relationships (T1591.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1591/002/)
+- [Multi-Factor Authentication Request Generation (T1621) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1621/)
+- [Phishing for Information: Spearphishing Voice (T1598.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1598/004/)
+- [SIM Card Swap (T1451) - MITRE ATT&CK Mobile](https://attack.mitre.org/techniques/T1451/)
+
+---
+
+## Próximas lecturas
+
+El caso 04 es el otro caso de tercero del sitio, y conviene compararlos porque fallan
+distinto. Allá el atacante usó las credenciales de un proveedor para entrar a la red
+de la víctima y moverse hasta las cajas registradoras. Acá nadie entró a la red de
+ningún cliente: la exposición vino de lo que el soporte del proveedor podía hacer sobre
+sus instancias. Riesgo de terceros no significa siempre lo mismo, y las dos formas
+piden controles distintos.
