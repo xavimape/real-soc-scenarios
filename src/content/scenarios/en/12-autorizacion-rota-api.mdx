@@ -1,0 +1,527 @@
+---
+title: "Broken API authorization - The 403 that never came"
+description: "Educational case: eleven thousand requests, all authenticated and all answered 200. The web application firewall had nothing to do with it, and the absence of errors was the proof"
+pubDate: 2026-06-25
+caseId: "soc-012"
+caseNumber: 12
+difficulty: "intermediate"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["api", "bola", "idor", "broken-access-control", "web-logs", "owasp", "business-logic"]
+author: "Synthetic scenario - references from the OWASP API Security Top 10 and MITRE ATT&CK"
+duration_minutes: 265
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+
+## Executive summary
+
+Transandino runs a portal where its customers look up their shipments and their
+invoices. Over nine days, one customer account downloaded **11,414 invoices that were
+not its own**.
+
+There was no intrusion. The account was real, the password was theirs, the second
+factor was satisfied, and the API answered `200 OK` to every one of the 11,437
+requests. The web application firewall blocked nothing because there was nothing to
+block: no request carried an injection, an odd character or a malicious payload. They
+were correct requests to an API working exactly as it was written.
+
+The problem is that it was written wrong. The server verified that whoever asked for an
+invoice was authenticated, and **never verified that the invoice was theirs**.
+
+The signal that solved the case was not an error. It was **the absence of errors**: in
+nine days and eleven thousand requests, that account did not receive a single `403`.
+And that, in a portal where every account gets some, does not describe a tidy user: it
+describes a control that does not exist.
+
+**Key metrics:**
+
+- Other people's invoices downloaded: 11,414, belonging to 1,062 distinct customers
+- Requests answered 200: 99.8 per cent
+- 403 responses the account received in nine days: zero
+- 403 responses a normal account receives in a week: between 1 and 6
+- Source of the detection: a performance alert from the platform team
+- Time from the referral to blocking the account: 4 hours 25 minutes
+- Primary techniques: T1190, T1078, T1119, and OWASP API1:2023
+
+<Warn />**Synthetic scenario.** The organisation, the accounts and the logs were built
+for the exercise. IP addresses come from the ranges RFC 5737 reserves for
+documentation and the domains use the `.example` TLD from RFC 2606. The class of flaw
+and its remediation are documented by OWASP.
+
+---
+
+## Context: why this flaw is invisible to almost everything
+
+An object level authorization failure — OWASP calls it **Broken Object Level
+Authorization**, and places it first in its list of API risks — happens when an
+endpoint receives an object's identifier and acts on it **without checking that the
+requester has permission over that particular object**.
+
+The OWASP documentation states it as a requirement: every API endpoint that receives an
+ID of an object and performs any action on it should implement object-level
+authorization checks, validating that the logged-in user has permission to perform the
+requested action on the requested record.
+
+Put that way it sounds obvious. What makes it dangerous is how it looks when it fails,
+and the list is worth going through because it explains why nobody detects it:
+
+**The web application firewall sees nothing.** That class of product recognises attack
+patterns: quotes in a parameter, script tags, escape sequences. There are none here.
+`GET /api/v2/invoices/48231` is an impeccable request. The only way to know it is wrong
+is to know who owns invoice 48231, and the firewall does not know that.
+
+**The authentication logs see nothing.** The person authenticated properly, once, with
+their second factor. Everything they did afterwards used that legitimate session.
+
+**The application sees nothing.** It answers `200` because, to it, the request is
+valid. There is no exception, no error, no trace.
+
+**And the development team does not see it in testing either**, because testing is done
+with your own account and your own account really does see your own invoices.
+
+From that comes the statement that organises the case: **when a control does not exist,
+it does not fail.** And because it does not fail, it does not generate the event you
+would look for it by.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-012"
+  events={[
+    {
+      time: "16 Jun",
+      title: "First manual probes",
+      description: "The account looks up 14 other people's invoices by changing the number in the address bar. All answer 200.",
+      severity: "MEDIUM",
+      actor: "User"
+    },
+    {
+      time: "17 to 23 Jun",
+      title: "Automated collection",
+      description: "Sequential walk through identifiers, between 900 and 1,600 requests a day, during business hours.",
+      severity: "HIGH",
+      actor: "User"
+    },
+    {
+      time: "24 Jun 11:05",
+      title: "Performance alert",
+      description: "The platform team receives a notification about rising latency on the invoices endpoint.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "24 Jun 11:40",
+      title: "One account, 6 per cent of the traffic",
+      description: "Looking for the cause of the latency, an engineer finds that a single account generates 6 per cent of the portal's requests.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "24 Jun 12:15",
+      title: "Referred to the SOC",
+      description: "The platform team does not treat it as a capacity problem and refers it as a possible incident.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "24 Jun 13:30",
+      title: "The fact that closes the case",
+      description: "The account queried 11,437 distinct identifiers and did not receive a single 403 in nine days.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "24 Jun 15:30",
+      title: "Account blocked",
+      description: "The account is suspended and its sessions revoked. The vulnerability remains open for every other account.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "24 Jun 19:50",
+      title: "Authorization check on the server",
+      description: "The ownership check is deployed on the endpoint. From here on, asking for someone else's invoice returns 403.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "25 to 27 Jun",
+      title: "Retroactive sweep",
+      description: "Twelve months of logs are reviewed looking for the same pattern across the portal's other 4,179 accounts.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. How it surfaced: it was not the SOC
+
+Case 010 ends with four ways of discovering an incident: an alert, an external tip-off,
+completed impact, and hunting. This one adds a fifth, and it is the most frequent of
+all in organisations that build their own products.
+
+**Another team found it, while looking at something else.**
+
+The original notification was about latency: the invoices endpoint had got slow. A
+platform engineer went looking for the cause, grouped requests by account, and found
+that one account was generating 6 per cent of the portal's traffic.
+
+At that point there was a decision worth more than the whole technical part of the
+case: **she did not treat it as a capacity problem.** She could have added an instance,
+put in a rate limit and closed the ticket. Instead she asked why one account was doing
+that, did not close the question with an infrastructure fix, and referred it.
+
+For a SOC, the lesson is organisational rather than technical: **the platform teams see
+things earlier, and in more detail.** If there is no known, frictionless path for them
+to refer something odd, those signals get resolved as performance problems and never
+arrive.
+
+---
+
+## 2. What the logs showed
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-012"
+  type="requests"
+  title="Account activity on the portal, 16 to 24 June"
+  data={{
+    volume: {
+      "requests to the invoices endpoint": "11,462",
+      "distinct identifiers queried": "11,437",
+      "of those, belonging to the account": "23",
+      "of those, belonging to others": "11,414",
+      "distinct customers reached": "1,062",
+      "verdict": "malicious"
+    },
+    "response codes": {
+      "200 OK": "11,437 (99.8 per cent)",
+      "404 not found": "25, identifiers that do not exist in the gaps of the sequence",
+      "403 forbidden": "0",
+      "reference: a normal account in a week": "between 1 and 6 responses of 403",
+      "verdict": "malicious"
+    },
+    shape: {
+      "identifier pattern": "Sequential ascending, with jumps",
+      "rate": "Between 2 and 4 requests per second, business hours only",
+      "user agent": "The browser's own, constant",
+      "origin": "198.51.100[.]77, the same address the account always signs in from",
+      "verdict": "suspicious"
+    },
+    authentication: {
+      "sessions opened in the period": "9, one per working day",
+      "second factor": "Satisfied on all of them",
+      "credentials": "The account's legitimate ones",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+The last block is worth looking at. **The authentication is clean, and that is not an
+analysis error: it is the case.** Nobody stole anything to get in. The account did
+everything it did while being exactly who it said it was.
+
+---
+
+## 3. The 403 that never came
+
+This is the part worth understanding well, because it inverts a reflex.
+
+An analyst looks for errors. Spikes of `401`, bursts of `403`, unexpected `500`s:
+errors are usually where the signal is. Here the indicator is the opposite.
+
+On this portal, a normal account receives between one and six `403`s a week, for boring
+reasons: an old bookmarked link, an invoice that was reassigned, a permission that
+changed. The error is part of normal use.
+
+This account made 11,462 requests in nine days **and received none**.
+
+There are two possible readings and only one is coherent. The first is that the account
+asked for exactly what it was entitled to, eleven thousand four hundred times in a row,
+without ever slipping — and that clashes with only 23 of those 11,437 invoices being
+theirs. The second is that **the server has nothing to answer 403 with**, because it
+never compares the invoice's owner with the person asking.
+
+Stated as a working rule:
+
+> **An error code that never appears does not mean everything is fine. It can mean the
+> control that would emit it is not implemented.**
+
+And that can be verified in a concrete and cheap way, which is the one used here: search
+twelve months of logs for **how many times the invoices endpoint returned 403 to any
+account**. The answer was zero. An endpoint that in a year never denied anything, on a
+portal with more than four thousand customers, is not denying.
+
+---
+
+## 4. The trap of the normalised log
+
+Here is an obstacle that almost ruined the investigation and that is worth knowing about
+beforehand.
+
+The portal's observability system records routes **normalised**: instead of storing the
+real URL, it stores the template.
+
+```
+What happened:                What the metrics tool stores:
+
+GET /api/v2/invoices/48231   →   GET /api/v2/invoices/:id
+GET /api/v2/invoices/48232   →   GET /api/v2/invoices/:id
+GET /api/v2/invoices/48233   →   GET /api/v2/invoices/:id
+```
+
+And it does so for a good reason: if it stored every URL as a separate series, one
+identifier per invoice would generate millions of time series and the metrics system
+would become unusable. Reducing that cardinality is correct engineering practice.
+
+The problem is that **the field discarded so the metrics work is exactly the one
+security needs.** Without the identifier, the 11,437 requests are indistinguishable from
+11,437 reloads of the same page. Object cardinality — which is the entire signal —
+disappears.
+
+In this case it was saved because the reverse proxy's access log did keep the full URL,
+with twelve months of retention. Without that, the incident was undetectable.
+
+It is the same family as the resolver in case 010: **an intermediate layer optimises for
+its own purpose and destroys the data another purpose needs.** The difference is that
+here the loss is deliberate and well founded, so the conversation is not "fix that log"
+but "make sure a second log exists that keeps what this one discards".
+
+---
+
+## 5. Containment, in the right order
+
+This case has an order that is not obvious, and getting it wrong leaves the problem
+open.
+
+**First, block the account.** It stops the extraction in progress. It is the only urgent
+thing.
+
+**Second, fix the authorization, not the account.** And this is the central distinction:
+suspending whoever exploited it **fixes nothing**. The flaw is still there, and any of
+the portal's other 4,179 accounts can do exactly the same tomorrow. An incident of this
+type does not close by containing whoever came in; it closes when the check exists.
+
+**Third, measure the exposure backwards.** With the flaw confirmed, the question stops
+being who exploited it and becomes **who else could have exploited it and did**. The
+retroactive sweep over twelve months looks for the same pattern — many distinct
+identifiers, few of them your own — across all accounts.
+
+That third step is the equivalent of case 010's ninety-day sweep, and the reason is the
+same: **finding a flaw does not tell you how long it has been there.** Authorization
+never existed on that endpoint, so the exposure window is the entire life of the portal,
+not the nine days of the incident.
+
+**Fourth, and separately:** what was taken is the commercial terms of a thousand and
+sixty-two customers. That has contractual and regulatory consequences the SOC does not
+decide. Just as in case 008, the technical work produces facts and the rest goes to
+other departments.
+
+---
+
+## 6. What detection remains
+
+Three rules, in order of value.
+
+```sql
+-- 1. Object cardinality per account and per endpoint
+--    The same shape as the subdomain cardinality in case 010.
+SELECT account, COUNT(DISTINCT object_id) AS objects
+FROM api_access
+WHERE path LIKE '/api/v2/invoices/%' AND date >= CURRENT_DATE - 1
+GROUP BY account
+HAVING COUNT(DISTINCT object_id) > 50;
+
+-- 2. Proportion of other people's objects over the total queried
+--    Requires joining with the ownership table. It is the rule that
+--    actually describes the abuse, and the most expensive to compute.
+
+-- 3. Endpoints that never return 403
+--    Not an alert: a periodic audit of the route inventory.
+--    An endpoint that receives identifiers and never denies
+--    is probably not checking.
+```
+
+The third is the most valuable and the least used, and it is worth saying why: **it does
+not look for an attack, it looks for a missing control.** It runs once a quarter against
+the application's route list and does not depend on anybody exploiting anything. It is
+the closest thing a SOC has to confirming a defence exists, rather than waiting for it
+to be tested.
+
+And a warning about the first, in line with what cases 006 and 010 already left: the
+threshold of fifty objects per day has to be calibrated. A large customer with four
+hundred invoices a month crosses it without doing anything wrong. What separates them is
+not the volume but the proportion of objects that are their own, which is why rule 2 —
+more expensive — is the one that ends up staying.
+
+---
+
+## 7. The framework that does describe this case
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-012"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190", "T1078"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1119"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1190** | Exploit Public-Facing Application | The endpoint with no authorization check |
+| **T1078** | Valid Accounts | The legitimate customer account used throughout |
+| **T1119** | Automated Collection | The sequential walk through eleven thousand identifiers |
+
+Three techniques, and none describes well what happened. `T1190` talks about exploiting
+an exposed application, and nothing was exploited here in the usual sense: the
+application was used exactly as written. **ATT&CK models what an adversary does to
+advance inside an environment, and a business logic flaw is not an advance: it is a
+badly set permission.**
+
+The framework that does describe this case is another one:
+
+| OWASP | Risk | In this case |
+|---|---|---|
+| **API1:2023** | Broken Object Level Authorization | The endpoint receives an identifier and acts without checking ownership |
+| **A01:2021** | Broken Access Control | The equivalent category in the general web application list |
+
+It is worth an analyst knowing the difference between the two worlds, because it changes
+who you talk to. **ATT&CK is for talking to the SOC and to threat intelligence. OWASP is
+for talking to whoever writes the application**, which is who has to fix this. Handing a
+development team an ATT&CK map that says "Exploit Public-Facing Application" does not
+tell them which line of code to change; telling them API1:2023 does.
+
+And that is why this is the first case on the site **without any of the four usual
+analysis frameworks**. The Kill Chain describes an intrusion advancing, and there is no
+advance here. The Diamond Model needs an adversary, and here there is a customer with an
+account. The Pyramid of Pain orders indicators, and there are none: no hash, no domain,
+no foreign address. The model that applies is the OWASP list, and it is above.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-012"
+  summary={{
+    incidentId: "INC-2026-0624-007",
+    title: "Bulk download of other customers' invoices due to a missing authorization check",
+    status: "Resolved",
+    severity: "HIGH",
+    initialTriage: "Referral from the platform team following a latency alert",
+    rootCause: "The invoices endpoint did not check ownership of the requested object",
+    timeToContainment: "4 h 25 min to block the account, 8 h 45 min to fix the control",
+    dataCompromised: "11,414 invoices belonging to others, across 1,062 customers, with commercial terms",
+    resolutionCode: "Resolved (true positive). Exposure window: the life of the endpoint, not the 9 days"
+  }}
+/>
+
+The resolution code is worth noting. The incident lasted nine days; **the vulnerability
+existed from the moment that endpoint was written.** Confusing the two is the most
+common way of underestimating this kind of case.
+
+---
+
+## Lessons learned
+
+**When a control does not exist, it does not fail, and therefore it does not generate
+the event that would give it away.** The whole difficulty of the case comes from there.
+
+**The absence of errors can be the indicator.** Zero 403 responses across eleven
+thousand requests does not describe a tidy user: it describes a server with nothing to
+deny with. And it is cheap to verify: ask how many 403s that endpoint returned in a
+year.
+
+**The web application firewall cannot see this, and that is not a defect of the
+product.** It recognises attack patterns in the content of the request. Here the content
+is impeccable; what is wrong is who is asking for what, and that requires knowing who
+owns the object.
+
+**A log optimised for metrics destroys the security signal.** Normalising the route to
+`/invoices/:id` is correct for observability and removes exactly the field that is
+needed. The conversation is not to change that log, it is to ensure another one exists
+that keeps what this one discards.
+
+**Suspending whoever exploited it fixes nothing.** The flaw stays open for the other four
+thousand accounts. The incident closes when the check exists, not when the person who
+used it is blocked.
+
+**The exposure window is not the incident's.** If the control never existed, the exposure
+is the entire life of the endpoint, and you have to sweep backwards as far as retention
+allows.
+
+**Other teams see it first.** Here the finding started as a latency alert and reached the
+SOC because an engineer decided not to close the question with an infrastructure fix.
+That path has to exist and it has to be comfortable.
+
+**ATT&CK and OWASP do not compete: they are for talking to different people.** For this
+to get fixed you have to talk to whoever writes the application, and to that person
+`API1:2023` says something `T1190` does not.
+
+---
+
+## Recommendations
+
+- Object level authorization checks on every endpoint that receives an identifier,
+  verified on the server and not in the interface
+- Periodic audit of routes that receive identifiers and never return 403: it looks for
+  the missing control, not the attack
+- An access log that keeps the full URL, separate from the metrics system that normalises
+  routes, with long retention
+- Detection by object cardinality per account, and by the proportion of other people's
+  objects over the total queried
+- Non-guessable identifiers on exposed objects, understanding that they **raise the cost
+  of the walk and do not replace the authorization check**
+- Rate limiting per account as well as per source address
+- An explicit, frictionless path for platform and development teams to refer odd things
+  to the SOC
+- Authorization tests in the development cycle, using an account other than the object's
+  owner
+
+---
+
+## References
+
+- [API1:2023 Broken Object Level Authorization - OWASP API Security Top 10](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/)
+- [OWASP Top 10 API Security Risks 2023 - OWASP](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)
+- [OWASP API Security Project - OWASP Foundation](https://owasp.org/www-project-api-security/)
+- [Exploit Public-Facing Application (T1190) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1190/)
+- [Valid Accounts (T1078) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1078/)
+- [Automated Collection (T1119) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1119/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Up next
+
+Case 010 shares the shape of the signal: many distinct identifiers queried by a single
+origin. There they were subdomains and here they are invoices, and in both the detection
+is built by counting unique things rather than by looking for bad things. Worth reading
+them back to back to see that this shape repeats across domains with nothing in common,
+and that this is why learning it once pays so well.
