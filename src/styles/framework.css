@@ -343,6 +343,20 @@
   border: 1px solid var(--border);
 }
 
+/* Cuerpo del Acerca de. Es prosa corrida, no una ficha de datos como el resto
+   de las ventanas, así que necesita interlineado de lectura y no la densidad
+   compacta de los marcos de análisis. */
+.acerca-cuerpo p {
+  margin: 0 0 0.95rem;
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+.acerca-cuerpo p:last-child {
+  margin-bottom: 0;
+  color: var(--text-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fw-trigger {
     transition: none;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { THEMES, FONTS, LANGUAGES, STORAGE_KEYS, DEFAULTS } from '@/config/appearance.js';
 import { t } from '@/i18n/strings.js';
+import AboutModal from '@/components/AboutModal.jsx';
 import '@/styles/dock.css';
 
 /**
@@ -68,9 +69,21 @@ const ICONS = {
   ),
 };
 
-/** Enlaces de perfil — pendientes de completar con las URLs reales. */
+/**
+ * Enlaces de perfil.
+ *
+ * Los que todavía no tienen destino quedan como `href: null` y se dibujan
+ * apagados, con el motivo en el `title`. Es a propósito: un icono que no lleva
+ * a ninguna parte es menos malo que uno que promete algo y no cumple, y el
+ * hueco reservado evita que la fila se reacomode cuando se completen.
+ */
 const LINKS = [
-  { key: 'linkedin', label: 'LinkedIn', icon: ICONS.linkedin, href: null },
+  {
+    key: 'linkedin',
+    label: 'LinkedIn',
+    icon: ICONS.linkedin,
+    href: 'https://www.linkedin.com/in/javiermapelli',
+  },
   { key: 'github', label: 'GitHub', icon: ICONS.github, href: null },
   { key: 'portfolio', label: 'Portfolio', icon: ICONS.portfolio, href: null },
   { key: 'contact', label: 'Contact', icon: ICONS.contact, href: null },
@@ -350,7 +363,10 @@ export default function SiteHeader({
           <span className="volver-texto">{backLabel}</span>
         </a>
       ) : (
-        <span className="volver-hueco" aria-hidden="true" />
+        /* En la portada la celda no queda vacía: la ocupa el Acerca de. Sigue
+           sin ser una salida —no navega— así que la señal original se conserva:
+           desde el inicio no hay de dónde volver. */
+        <AboutModal lang={lang} />
       )}
     </header>
   );

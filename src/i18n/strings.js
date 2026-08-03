@@ -179,6 +179,47 @@ export const strings = {
     warning: { es: 'Atención', en: 'Warning' },
   },
 
+  /**
+   * Texto del Acerca de.
+   *
+   * Vive en el diccionario y no en un .mdx porque no es un caso: es interfaz, y
+   * tiene que existir en los dos idiomas sí o sí. Los párrafos son claves
+   * separadas para que `check-i18n` pueda contrastarlos uno por uno; un bloque
+   * único sería una sola frase gigante y el verificador no diría nada útil.
+   */
+  acerca: {
+    label: { es: 'Acerca de', en: 'About' },
+    title: { es: 'Acerca de este sitio', en: 'About this site' },
+    subtitle: {
+      es: 'Qué es, para quién, y con qué criterio está escrito',
+      en: 'What it is, who it is for, and the standard it is written to',
+    },
+    queEs: {
+      es: 'Real SOC Scenarios reúne casos de investigación de un centro de operaciones de seguridad, escritos para que se puedan estudiar completos: la alerta, el razonamiento, lo que se verificó y lo que quedó sin verificar.',
+      en: 'Real SOC Scenarios collects security operations centre investigation cases, written so they can be studied end to end: the alert, the reasoning, what was verified and what was left unverified.',
+    },
+    paraQuien: {
+      es: 'Está pensado para quien trabaja o quiere trabajar en el primer nivel de un SOC. No supone experiencia previa en cada tema, y sí supone ganas de leer con atención.',
+      en: 'It is aimed at people working, or wanting to work, on the first line of a SOC. It assumes no prior experience with each topic, and it does assume a willingness to read carefully.',
+    },
+    dosTipos: {
+      es: 'Hay dos clases de caso. Los reales reconstruyen incidentes documentados públicamente, y citan sus fuentes. Los educativos son escenarios construidos para el ejercicio, y lo dicen en su primera pantalla.',
+      en: 'There are two kinds of case. The real ones reconstruct publicly documented incidents and cite their sources. The educational ones are scenarios built for the exercise, and they say so on their first screen.',
+    },
+    invariantes: {
+      es: 'Tres reglas se sostienen en todos: ningún indicador inventado, los indicadores se publican defangueados para que no se puedan clickear ni copiar por accidente, y ningún marco de análisis aparece si no hay datos reales para llenarlo.',
+      en: 'Three rules hold across all of them: no invented indicators, indicators are published defanged so they cannot be clicked or copied by accident, and no analysis framework appears unless there is real data to fill it.',
+    },
+    sintetico: {
+      es: 'En los casos construidos, las direcciones IP salen de los rangos que las RFC reservan para documentación y los dominios usan el TLD .example. Nada de eso puede existir ni resolverse.',
+      en: 'In the constructed cases, IP addresses come from the ranges the RFCs reserve for documentation and the domains use the .example TLD. None of it can exist or resolve.',
+    },
+    autor: {
+      es: 'Lo escribe Javier Mapelli, analista de seguridad. Las correcciones y los desacuerdos son bienvenidos.',
+      en: 'Written by Javier Mapelli, security analyst. Corrections and disagreements are welcome.',
+    },
+  },
+
   dock: {
     config: { es: 'Config', en: 'Config' },
     theme: { es: 'Tema', en: 'Theme' },

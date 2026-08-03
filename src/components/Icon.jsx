@@ -112,6 +112,17 @@ export const PATHS = {
       <rect x="8.5" y="2.5" width="7" height="4" rx="1" />
     </>
   ),
+
+  // El punto va como trazo de largo cero con extremo redondeado, y no como un
+  // círculo relleno: estos iconos se dibujan solo con `stroke`, y un `fill`
+  // acá saldría del color del texto en unos temas y no en otros.
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5" />
+      <path d="M12 7.6v0" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = '1em', strokeWidth = 1.8, style, ...rest }) {

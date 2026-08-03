@@ -15,7 +15,21 @@ import '@/styles/framework.css';
  * Requiere `client:load` en el .mdx: sin hidratar, el botón no abre nada.
  */
 
-export default function FrameworkModal({ lang = DEFAULT_LANG, icon, label, title, subtitle, children }) {
+/**
+ * `triggerClass` existe para el Acerca de del encabezado, que reusa toda la
+ * mecánica de esta ventana —Escape, click en el fondo, foco atrapado— con el
+ * aspecto del botón de volver, que es la celda donde vive. El valor por
+ * defecto es el de los marcos de análisis, así que ningún caso cambia.
+ */
+export default function FrameworkModal({
+  lang = DEFAULT_LANG,
+  icon,
+  label,
+  title,
+  subtitle,
+  triggerClass = 'fw-trigger',
+  children,
+}) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
 
@@ -44,7 +58,7 @@ export default function FrameworkModal({ lang = DEFAULT_LANG, icon, label, title
 
   return (
     <>
-      <button type="button" className="fw-trigger" onClick={() => setOpen(true)}>
+      <button type="button" className={triggerClass} onClick={() => setOpen(true)}>
         {/* Mismo anillo que el botón de volver del encabezado. Los dos son
             controles que abren algo fuera del flujo de lectura, así que
             comparten señal: si laten igual, se aprenden una sola vez. */}

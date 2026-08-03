@@ -197,9 +197,31 @@ a.marca-texto:hover {
   transform: translateX(-3px);
 }
 
-/* En la portada no hay a dónde volver, pero el hueco se reserva igual: si no,
-   las otras dos celdas se corren al pasar de un caso a la portada y el
-   encabezado deja de sentirse como el mismo elemento entre páginas. */
+/* El Acerca de ocupa la misma celda que el botón de volver y comparte su
+   aspecto, pero es un <button> y no un <a>: sin apagar los estilos que el
+   navegador le pone por defecto, las dos celdas se verían distintas al pasar de
+   la portada a un caso, que es justamente lo que la grilla evita. */
+.volver.acerca-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* La flecha de volver se corre al pasar el puntero porque señala hacia dónde
+   lleva. El icono del Acerca de no lleva a ninguna parte, así que no se mueve:
+   el mismo gesto significaría algo que no va a pasar. */
+.volver.acerca-btn:hover .icon,
+.volver.acerca-btn:focus-visible .icon {
+  transform: none;
+}
+
+/* En las páginas de caso no hay Acerca de y el hueco se reserva igual: si no,
+   las otras dos celdas se corren al cambiar de página y el encabezado deja de
+   sentirse como el mismo elemento. */
 .volver-hueco {
   display: block;
   height: 60px;
