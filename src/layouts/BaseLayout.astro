@@ -60,6 +60,30 @@ const alternativasConBase = Object.fromEntries(
     <meta property="og:title" content={title} />
     {description && <meta property="og:description" content={description} />}
     <meta property="og:locale" content={lang} />
+    <meta property="og:type" content="website" />
+
+    {/* La imagen de la tarjeta al compartir.
+
+        Va absoluta y no relativa: las plataformas que arman la vista previa no
+        resuelven rutas contra la página, así que una ruta relativa no se
+        descarga y la tarjeta sale sin imagen.
+
+        Sale de `Astro.site`, o sea de `SITE_URL`. Mientras esa variable no esté
+        cargada en el hosting, esto genera una URL a localhost y la vista previa
+        queda rota — que es exactamente el motivo por el que cargarla figura
+        como pendiente. Sin `site` definido no se emite la etiqueta: es
+        preferible que no haya imagen a que haya una que no se puede descargar. */}
+    {
+      Astro.site && (
+        <>
+          <meta property="og:image" content={new URL(withBase('/og.png'), Astro.site).href} />
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+          <meta property="og:image:alt" content={title} />
+          <meta name="twitter:card" content="summary_large_image" />
+        </>
+      )
+    }
 
     {/* Le dice a los buscadores que estas páginas son la misma en otro idioma.
         Solo se declaran las que existen: anunciar una traducción que no está
