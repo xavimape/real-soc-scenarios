@@ -37,6 +37,16 @@ cadena de verificación cerrada.
 - Acerca de en ventana, desde el encabezado de la portada.
 - Marca propia: favicon de terminal y tarjeta para compartir.
 
+### Privacidad y medición
+
+- Google Analytics 4, detrás de consentimiento explícito: no se descarga el
+  script, no se escribe cookie y no sale ninguna petición a Google hasta que el
+  visitante acepta en el aviso.
+- El aviso distingue tres estados —sin preguntar, aceptado y rechazado— y
+  persiste la decisión. Rechazar y aceptar tienen el mismo peso visual.
+- La vista de página se envía a mano en cada navegación, porque el sitio navega
+  con transiciones y sin recarga.
+
 ### Verificación
 
 - `verificar-catalogo`: coherencia entre archivos de caso — paridad de idiomas,
