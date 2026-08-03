@@ -46,12 +46,22 @@ const leerFrontmatter = async (ruta) => {
 
   const datos = {};
   for (const linea of bloque[1].split(/\r?\n/)) {
-    // Solo las claves de primer nivel. Las anidadas —`locations`— no se
-    // comparan acá y no hacen falta para lo que este verificador mira.
     const m = linea.match(/^([a-zA-Z_]+):\s*(.*)$/);
     if (!m) continue;
     datos[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
   }
+
+  /**
+   * Coordenadas del globo, aparte porque están anidadas.
+   *
+   * Se comparan solo `lat` y `lng`: el `label` se traduce y tiene que diferir.
+   * Un dígito cambiado en un solo idioma pone el marcador en otro continente
+   * en la mitad del sitio, y es de las cosas que nadie revisa dos veces.
+   */
+  datos._coords = [...bloque[1].matchAll(/lat:\s*(-?[\d.]+)\s*,\s*lng:\s*(-?[\d.]+)/g)]
+    .map((m) => `${m[1]},${m[2]}`)
+    .join(' | ');
+
   return datos;
 };
 
@@ -117,6 +127,13 @@ for (const [archivo, es] of casos.es) {
         `${archivo}: ${campo} difiere entre idiomas — es="${es[campo]}" en="${en[campo]}"`
       );
     }
+  }
+
+  if (es._coords !== en._coords) {
+    problemas.push(
+      `${archivo}: las coordenadas del globo difieren entre idiomas — ` +
+        `es=[${es._coords || 'ninguna'}] en=[${en._coords || 'ninguna'}]`
+    );
   }
 }
 
