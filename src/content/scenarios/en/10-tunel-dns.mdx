@@ -1,0 +1,609 @@
+---
+title: "DNS tunnel - A case found by looking for it"
+description: "Educational case: nobody sent an alert. The detection came out of a weekly hunt over name resolution traffic, and the chain was cut before a single file left"
+pubDate: 2026-05-14
+caseId: "soc-010"
+caseNumber: 10
+difficulty: "advanced"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["threat-hunting", "dns-tunneling", "c2", "beaconing", "network-telemetry", "detection-engineering", "contained"]
+author: "Synthetic scenario - techniques documented by MITRE ATT&CK"
+duration_minutes: 310
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+The nine previous cases begin in one of three ways: an alert in the queue, a tip-off
+from outside, or the impact already done. This one begins in a fourth way, and it is
+the only one the team controls: **somebody sat down and looked.**
+
+A scheduled query over name resolution traffic — the kind that runs on Tuesday
+mornings without expecting to find anything — returned a domain with **14,302 distinct
+subdomains queried in seven days**. Second on the list had forty.
+
+No alert had fired, and rightly so: the channel used DNS, which is permitted in every
+organisation because without it nothing works. The data volume was tiny. There was no
+malicious file on disk for an antivirus to recognise.
+
+What there was, was a **shape**: queries of even length, never repeated, at intervals
+of forty-something seconds, seven days running, Sunday included. A person's traffic
+does not have that shape. A program's does.
+
+The chain was cut at the seventh link, which is the last one and the only irreversible
+one. **Not a single file left.**
+
+**Key metrics:**
+
+- Source of the detection: scheduled hunt, no prior alert
+- Distinct subdomains in 7 days: 14,302, against 40 for the second domain on the list
+- Interval between queries: 40 to 44 seconds, median 42
+- Compromised machines: 3, all three from the same email
+- Data exfiltrated: none
+- Time from the finding to containment: 5 hours 10 minutes
+- Primary techniques: T1566.001, T1204.002, T1071.004, T1572
+
+<Warn />**Synthetic scenario.** The organisation, the machines and the logs were built
+for the exercise. IP addresses come from the ranges RFC 5737 reserves for
+documentation and the domains use the `.example` TLD from RFC 2606. The techniques and
+the detection logic are documented by MITRE.
+
+---
+
+## Context: why DNS
+
+A covert channel needs a protocol that always gets out. The candidate list is short,
+and DNS is first for a structural reason: **if DNS does not get out, nothing works**, so
+no organisation blocks it.
+
+The mechanism is simple to understand. The attacker controls a domain and its
+authoritative name server. The implant on the victim machine encodes what it wants to
+say inside the name it queries:
+
+```
+[encoded data].tunnel.malicious-example.example
+```
+
+That query does not go straight to the attacker: it is resolved by the organisation's
+internal resolver, which in turn asks upstream until it reaches the domain's
+authoritative server, which belongs to the attacker. That is where the message
+arrives. The answer comes back the same way, inside a TXT record or a made-up address.
+
+Three properties define the case, and they follow from that.
+
+**It is slow and loud in count.** Each query carries a few dozen bytes. Getting a
+document out over this channel takes thousands of queries, and that leaves an enormous
+footprint in count even while being tiny in volume.
+
+**It crosses almost any control.** There is no outbound connection from the machine to
+the attacker's server: there is a name query, which is exactly what is expected of any
+machine.
+
+**Content is no use for detecting it.** It is encoded and often encrypted. What works
+is the shape: how many distinct names, how long, with what regularity.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-010"
+  events={[
+    {
+      time: "5 May",
+      title: "Email with an attachment",
+      description: "Three people in the projects team receive a document from a real supplier's mailbox, which had been compromised.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "5 May",
+      title: "Execution and persistence",
+      description: "Two of the three open the document and enable content. A task that starts with the session is installed.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "6 May",
+      title: "Third machine",
+      description: "The third person opens the document the next day. No control detects it in any of the three cases.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "5 to 12 May",
+      title: "Command channel active",
+      description: "Queries every 40 to 44 seconds towards unique subdomains. Reconnaissance of the machine and of the accessible file shares.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "12 May 09:20",
+      title: "Weekly hunt",
+      description: "Scheduled query over seven days of name resolution telemetry: domains ordered by unique subdomains.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "12 May 09:35",
+      title: "The first result resembles nothing else",
+      description: "14,302 unique subdomains against 40 for the second. The difference in scale is the finding.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12 May 10:40",
+      title: "The resolver hides the origin",
+      description: "In the perimeter logs all 14,302 queries come from the internal resolver. There is a tunnel and no way to know from which machine.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "12 May 11:25",
+      title: "Machines identified",
+      description: "With the resolver's own query log, three machines appear, not one.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12 May 12:50",
+      title: "Scope closed",
+      description: "All three trace back to the same email of 5 May. No signs of lateral movement or bulk transfer.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "12 May 14:30",
+      title: "Simultaneous containment",
+      description: "The three machines isolated, the domain blocked at the resolver and credentials reset, all at once.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The query that found the case
+
+There was no alert. There was a scheduled query that runs every Tuesday and almost
+always returns nothing interesting.
+
+```sql
+-- Parent domains ordered by number of distinct subdomains, 7 days
+SELECT
+    parent_domain,
+    COUNT(DISTINCT queried_name) AS unique_subdomains,
+    COUNT(*)                     AS total_queries,
+    COUNT(DISTINCT client)       AS distinct_clients
+FROM dns_queries
+WHERE date >= CURRENT_DATE - 7
+GROUP BY parent_domain
+ORDER BY unique_subdomains DESC
+LIMIT 20;
+```
+
+The result:
+
+```
+parent_domain                     unique_subdomains  queries  clients
+─────────────────────────────────────────────────────────────────────
+tunnel.malicious-example.example         14,302      14,302        1
+cdn-images.supplier.example                  40       8,911      612
+telemetry.antivirus.example                  31      21,004      874
+...
+```
+
+The first three rows say everything needed, and they are worth reading together.
+
+**The first column separates row one from the rest by a factor of three hundred.** That
+is not a difference of degree, it is a difference of kind.
+
+**The ratio between subdomains and queries is exactly 1 to 1.** Every name was queried
+once. That does not happen to any legitimate service: a content delivery network has
+few names queried many times, because the purpose of a name is for people to come back
+to it. A name used once and never again is not a name, it is a message.
+
+**The last column confirms it.** The legitimate domains on the list are queried by
+hundreds of clients. This one, by a single client.
+
+One thing about the method is worth pausing on: **the query is not looking for anything
+bad.** It has no list of suspicious domains and no malware family signature. It orders
+by a structural property and looks at the extreme. That is the difference between
+looking for the known and looking for the odd, and only one of the two finds something
+nobody has seen before.
+
+---
+
+## 2. The shape of the traffic
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-010"
+  type="traffic"
+  title="Characteristics of the traffic towards the domain"
+  data={{
+    volume: {
+      "unique subdomains in 7 days": "14,302",
+      "total queries": "14,302",
+      "queries per name ratio": "1.00",
+      "internal clients querying it": "1 (the resolver)",
+      "verdict": "malicious"
+    },
+    shape: {
+      "label length": "between 31 and 46 characters",
+      "alphabet": "base32, no repeats between queries",
+      "record types": "TXT and A",
+      "proportion of NXDOMAIN responses": "1.8 per cent",
+      "verdict": "malicious"
+    },
+    rhythm: {
+      "interval between queries": "40 to 44 seconds",
+      "median": "42 seconds",
+      "expected in 7 days at that rate": "around 14,400 queries",
+      "hourly coverage": "all 24 hours, Saturday and Sunday included",
+      "verdict": "malicious"
+    },
+    "the domain itself": {
+      "registered": "3 weeks earlier",
+      "reputation in public sources": "Unclassified",
+      "presence on block lists": "None",
+      "verdict": "suspicious"
+    }
+  }}
+/>
+
+Each block in that table contributes something different, and it is worth knowing which
+one carries weight.
+
+**The rhythm is the strongest signal and the hardest to fake.** Forty-two seconds
+median, sustained for seven days, Saturday and Sunday included. No human activity has
+that regularity, and no machine switched off at night produces it. The arithmetic
+closes on its own: seven days are 604,800 seconds, and at forty-two per query that
+gives about 14,400. 14,302 were observed.
+
+**The low proportion of NXDOMAIN says there is somebody on the other side.** A domain
+generated at random by an algorithm produces a great many "does not exist" responses,
+because most of the names it tries are not registered. Here almost everything resolves:
+the authoritative server answers what it is asked, which is exactly what a command and
+control server does.
+
+**The domain's reputation contributed nothing, and this is the point most worth
+underlining.** Registered three weeks earlier, unclassified in every public source, on
+no block list. A threat intelligence feed would not have said a word about this domain.
+**What gave it away was its behaviour, not its identity.**
+
+---
+
+## 3. The resolver hides the origin
+
+Here is the practical obstacle that trips up a lot of DNS investigation, and that is
+worth knowing before meeting it.
+
+In the perimeter logs, all 14,302 queries come from `192.0.2[.]10`. That address does
+not belong to the compromised machine: **it is the organisation's internal resolver.**
+
+It is the system's normal behaviour. Machines do not query the internet directly: they
+ask the resolver, and the resolver asks upstream. From outside, the whole organisation
+has a single face.
+
+The consequence is uncomfortable: **with perimeter telemetry you can prove there is a
+tunnel and you cannot know which machine it comes from.** And without the machine,
+there is nothing to contain.
+
+What solves the problem is the resolver's own query log, which does hold the address of
+the client that asked. In this case it existed. When it does not, the investigation
+stalls at the worst possible moment, and the fix is not a new tool but a logging
+decision that had to have been made earlier.
+
+From that comes a rule that applies well beyond DNS:
+
+> **Every aggregation point erases the origin.** The name resolver, the web proxy, the
+> outbound mail server, address translation. At each of them, the log that matters is
+> the one from the aggregation point itself, not the one from what leaves afterwards.
+
+The resolver log also produced the fact that changed the scope: **it was not one
+machine, it was three.**
+
+---
+
+## 4. Deciding when to cut
+
+With the tunnel confirmed and three machines identified, at 11:25, the impulse is to
+block the domain immediately. The team did not do so until 14:30, and that interval
+deserves an explanation because it is where the case is played out.
+
+Blocking the domain first has three problems.
+
+**It does not remove the attacker.** The implant is still on the three machines. It
+loses the channel, not the presence. Many implants have a second channel planned for
+exactly this.
+
+**It warns.** A channel cut abruptly is an unmistakable signal to whoever is on the
+other side. If there is still something the operator wanted to do, they will try it now.
+
+**It closes the window of knowledge.** While the channel is alive you can see what it
+queries, how often, and whether new machines appear. Switched off, that information
+disappears.
+
+And yet waiting also has a cost, and it is not theoretical: every minute the channel
+stays open is a minute in which the operator can start taking data out.
+
+**The criterion that resolves the tension is not improvised. It is this:**
+
+> If there is bulk transfer under way, you cut now and investigate afterwards. If it is
+> a command channel with no bulk transfer, there is a bounded window to close the scope,
+> and that window is defined in advance and against a clock.
+
+In this case the numbers said command channel: 14,302 queries of a few dozen bytes over
+seven days are a few hundred kilobytes in total, almost all outbound-direction traffic.
+No document is leaving through that. With that fact, a three-hour window to close the
+scope was a defensible decision and not a delay.
+
+And when it was cut, it was cut **all at once**: the three machines isolated, the domain
+blocked at the resolver and the credentials reset, in the same manoeuvre. It is the same
+logic case 09 puts in writing: **with people on the other side, the partial action warns
+without taking away capability.**
+
+---
+
+## 5. What was done, in order
+
+1. **Isolation of the three machines** simultaneously, at the network level, keeping
+   them powered on for memory evidence.
+2. **Blocking the domain at the resolver**, not only at the perimeter, so a forgotten
+   machine cannot resolve it either.
+3. **Resetting the credentials** used on those machines and revoking their sessions.
+4. **Hunting for the same persistence** across the rest of the estate, by the task that
+   starts with the session rather than by the file hash.
+5. **Retroactive hunting for the same pattern** across ninety days of telemetry, to rule
+   out that the channel existed earlier under a different domain.
+6. **Reviewing which file shares** were accessible from those three machines, to know
+   what was within reach even if nothing was taken.
+
+Step five is the one most often missing. Finding a domain does not close the question:
+the question is since when, and only looking backwards with the pattern answers that —
+not with the indicator.
+
+And step six marks the difference between "they took nothing" and "we did not see them
+take anything". Here the scope of what was accessible was documented, even with no
+evidence of transfer.
+
+---
+
+## 6. The detection that remains
+
+The hunt becomes two rules, and the second is the one that counts.
+
+```sql
+-- Rule 1: subdomain cardinality per parent domain, daily
+SELECT parent_domain, COUNT(DISTINCT queried_name) AS unique_names
+FROM dns_queries
+WHERE date = CURRENT_DATE
+GROUP BY parent_domain
+HAVING COUNT(DISTINCT queried_name) > 500;
+
+-- Rule 2: interval regularity per client-domain pair
+-- A very low standard deviation of the interval between queries
+-- describes automation, not human behaviour.
+```
+
+Three warnings about those rules, so they do not read as a closed solution.
+
+**The first rule has legitimate and frequent false positives.** Content delivery
+networks, antivirus reputation services and cloud product telemetry use high-cardinality
+subdomains by design. The rule needs an exception list, **and that list needs periodic
+review**: every entry is a place where the detection stops looking.
+
+**The second rule is the one that ages well.** Cardinality is evaded by spreading the
+traffic across several domains. Interval regularity is more expensive to avoid, because
+the attacker has to introduce real variation, and variation costs them predictability.
+
+**A fixed threshold is calibrated against the environment itself.** Five hundred
+subdomains a day may be a lot or a little depending on the size of the organisation, and
+the right number comes from looking at the real distribution for a few weeks, not from
+copying it out of an article.
+
+---
+
+## 7. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-010"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.001"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1204.002"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1547.001"]
+    },
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1071.004", "T1572"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1566.001** | Phishing: Spearphishing Attachment | The document sent from the supplier's compromised mailbox |
+| **T1204.002** | User Execution: Malicious File | The three people who opened the document and enabled content |
+| **T1547.001** | Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder | The task that starts with the session |
+| **T1071.004** | Application Layer Protocol: DNS | The command and control channel over name queries |
+| **T1572** | Protocol Tunneling | Encapsulating the messages inside the protocol itself |
+
+And now the most important thing about this table, which is what is **not** in it.
+
+**There is no exfiltration technique.** No `T1041`, no `T1567`, no `T1030`. In cases 05,
+06, 07 and 08 those techniques appear, because the data left.
+
+That gap is the outcome of the case. The ATT&CK map of an incident contained in time
+**ends earlier**, and where it ends is exactly the measure of how well it went. It is
+worth reading as a performance indicator more honest than any mean time to respond: not
+how long you took, but how far across the columns the other side got.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. Each one opens in its own window.
+
+<KillChain
+  client:load
+  lang="en"
+  caseId="soc-010"
+  phases={[
+    { state: "reached", detail: "Selection of three people in the projects team, and of a real supplier's mailbox as a credible sender." },
+    { state: "reached", detail: "Document with active content and an implant that speaks over name queries, plus the domain and its authoritative server, registered three weeks earlier." },
+    { state: "reached", detail: "Email delivered on 5 May from a legitimate compromised mailbox. No control stopped it." },
+    { state: "reached", detail: "Two people open and enable content the same day; the third, the next day." },
+    { state: "reached", detail: "Persistence via a task that starts with the session, on all three machines." },
+    { state: "reached", detail: "Command channel active for seven days: reconnaissance of the machine and of the file shares within reach." },
+    { state: "blocked", detail: "Simultaneous containment on 12 May, before any data transfer. Not a single file left." }
+  ]}
+  note="This is the first case on the site since 02 with a link cut, and it is worth looking at which one. The seventh was cut, which is the last: six phases reached is nearly the whole route. And yet it was enough, because the seventh link is the only irreversible one. Everything before it — the email delivered, the document opened, the persistence installed, the channel running for seven days — is repairable with work. Exfiltration is repaired by nothing. The practical conclusion is less heroic and more useful than 'cut early': cutting early is better, but what decides whether the incident was serious is a single link, and it is the last one. Worth comparing with case 06, where the chain reached the end and so there are two incidents: one was resolved with backups and the other was never resolved at all."
+/>
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-010"
+  indicators={{
+    hashes: ["The attached document, undetected at the time"],
+    domains: ["tunnel.malicious-example[.]example, unclassified and with no reputation"],
+    artifacts: [
+      "A 1.00 ratio between queries and unique names",
+      "Labels of 31 to 46 characters in base32",
+      "A 42-second median interval, sustained for seven days",
+      "Early-hours and weekend activity on an office machine"
+    ],
+    tools: ["Implant that communicates over name queries"],
+    ttps: [
+      "Command channel over a protocol no organisation blocks",
+      "Domain registered weeks earlier, with no prior use to generate reputation",
+      "Legitimate compromised sender as the origin of the email"
+    ]
+  }}
+  note="The other cases on this site use the pyramid to explain why the bottom rungs failed. This one uses it the other way round, and that is what makes it worthwhile. Here the hash did not detect, the domain had no reputation and no list contained it: the bottom two rungs did not fail afterwards, they did not exist from the start. The detection was built directly at the artefacts and TTPs, on purpose, before there was an incident. That is the pyramid's thesis demonstrated forwards instead of backwards: not 'the cheap indicators failed us', but 'we never depended on them'. And it has a cost worth stating, because it is real: a hunt over behaviour returns results that have to be interpreted, not alerts that get closed. It costs more analyst time, and that is time that has to be allocated in advance."
+/>
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-010"
+  summary={{
+    incidentId: "INC-2026-0512-003",
+    title: "Command and control channel over DNS, contained before exfiltration",
+    status: "Resolved",
+    severity: "HIGH",
+    initialTriage: "No prior alert: a finding from a scheduled hunt",
+    rootCause: "Document with active content delivered from a supplier's compromised mailbox",
+    timeToContainment: "5 hours 10 minutes from the finding, 7 days from first access",
+    dataCompromised: "None. The scope of what was accessible from the three machines was documented",
+    resolutionCode: "Resolved (true positive, contained before impact)"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**A fourth way of discovering an incident: looking for it.** Alert, external tip-off,
+completed impact, and hunt. It is the only one of the four that depends on the team, and
+the only one that can find something nobody wrote a signature for.
+
+**The query that found the case was not looking for anything bad.** It ordered by a
+structural property and looked at the extreme. Looking for the known finds the known;
+looking for the odd finds what nobody has seen.
+
+**The domain's reputation contributed nothing.** Registered three weeks earlier,
+unclassified, on no lists. Behaviour gave it away, not identity.
+
+**Every aggregation point erases the origin.** The resolver showed a single address for
+the whole organisation. Without the resolver's own log there is a confirmed tunnel and
+no machine to contain.
+
+**When to cut is a decision with a prior criterion, not a hunch.** Transfer under way,
+cut now. Command channel with no volume, there is a bounded window to close the scope,
+defined in advance and against a clock.
+
+**You cut all at once.** Three machines, domain and credentials in the same manoeuvre.
+The partial action warns without taking away capability.
+
+**The ATT&CK map of a contained incident ends earlier, and that is where the measure
+is.** No exfiltration column. How far across the columns the other side got says more
+than any mean time to respond.
+
+**Cutting the last link was enough, and that does not contradict cutting early.** Six
+phases reached is a lot, and all of them were repairable. The seventh is not. Cutting
+early is better; cutting the last one is what decides the severity.
+
+---
+
+## Recommendations
+
+- Query logging at the internal resolver itself, with the client address, retained long
+  enough for a ninety-day retroactive search
+- Scheduled hunting by subdomain cardinality and by interval regularity, with analyst
+  time allocated in advance
+- An exception list for the cardinality rule, with periodic review and an owner: every
+  entry is a place where the detection stops looking
+- Thresholds calibrated against the environment's own real distribution, measured over
+  weeks
+- A written criterion for when to cut a command channel, with the volume condition
+  explicit and a maximum window
+- Retroactive hunting for the pattern, not the indicator, on any covert channel finding
+- Document the scope of what was accessible from the compromised machines, even with no
+  evidence of transfer
+- Domain blocking at the resolver as well as the perimeter
+
+---
+
+## References
+
+- [Phishing: Spearphishing Attachment (T1566.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1566/001/)
+- [User Execution: Malicious File (T1204.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1204/002/)
+- [Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder (T1547.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1547/001/)
+- [Application Layer Protocol: DNS (T1071.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1071/004/)
+- [Protocol Tunneling (T1572) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1572/)
+- [Behavioral Detection of DNS Tunneling and Application Layer Abuse (DET0400) - MITRE ATT&CK](https://attack.mitre.org/detectionstrategies/DET0400/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Up next
+
+Case 09 shows the other end of the same scale: there the chain reached the end and the
+work began when there was nothing left to contain. Read together, the two say the same
+thing from opposite sides — the difference between an incident and a catastrophe is
+decided at a single link, and the two preparations it takes are bought at different
+times.
