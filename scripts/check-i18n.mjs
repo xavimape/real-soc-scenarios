@@ -201,14 +201,47 @@ for (const archivo of await archivosHtml(DIST)) {
   }
 }
 
+/**
+ * Los avisos se agrupan por término, no se listan uno por uno.
+ *
+ * Antes se imprimían los primeros quince y el resto se resumía en "... y N más".
+ * Con cuatro casos nunca se llegaba a quince, así que el corte no existía en la
+ * práctica; con once empezó a esconder avisos que el propio mensaje pide
+ * revisar. Subir el número solo mueve la fecha en que vuelve a pasar.
+ *
+ * Agrupar resuelve las dos cosas a la vez: la lista queda corta porque los
+ * mismos términos se repiten entre casos, y no se oculta ninguno. Además es lo
+ * que uno quiere leer — importa qué palabra aparece y en cuántos casos, no cada
+ * aparición por separado.
+ */
 if (avisos.length > 0) {
-  console.error(`\nAviso: ${avisos.length} palabras sueltas del diccionario en el otro idioma.`);
+  const porTermino = new Map();
+  for (const a of avisos) {
+    const clave = `${a.palabra} ${a.deberia}`;
+    if (!porTermino.has(clave)) {
+      porTermino.set(clave, { palabra: a.palabra, deberia: a.deberia, casos: [] });
+    }
+    // El nombre completo del archivo es ruido: alcanza con el caso. Y el mismo
+    // caso puede aparecer dos veces para un mismo término, porque dos claves
+    // distintas del diccionario pueden traducirse a la misma palabra; para el
+    // informe eso es una sola cosa que mirar.
+    const caso = a.archivo.replace(/\/index\.html$/, '');
+    const grupo = porTermino.get(clave);
+    if (!grupo.casos.includes(caso)) grupo.casos.push(caso);
+  }
+
+  const grupos = [...porTermino.values()].sort((x, y) => y.casos.length - x.casos.length);
+
+  console.error(
+    `\nAviso: ${avisos.length} apariciones de ${grupos.length} términos sueltos del ` +
+      'diccionario en el otro idioma.'
+  );
   console.error('Puede ser un nombre de técnica MITRE o el título de un informe citado —');
   console.error('que no se traducen— o texto de verdad sin traducir. Hay que mirarlo.\n');
-  for (const a of avisos.slice(0, 15)) {
-    console.error(`  ${a.archivo}: "${a.palabra}" (en el otro idioma sería "${a.deberia}")`);
+  for (const g of grupos) {
+    console.error(`  "${g.palabra}" (sería "${g.deberia}") · ${g.casos.length}`);
+    console.error(`      ${g.casos.join(', ')}`);
   }
-  if (avisos.length > 15) console.error(`  ... y ${avisos.length - 15} más`);
   console.error('');
 }
 
