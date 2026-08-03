@@ -1,29 +1,54 @@
 # Real SOC Scenarios
 
-Casos reales de investigación en un SOC, documentados paso a paso: qué disparó la
+English version: [README.en.md](README.en.md)
+
+Casos de investigación en un SOC, documentados paso a paso: qué disparó la
 alerta, qué miró el analista, en qué orden, y por qué llegó a esa conclusión.
 
 Cada caso combina la narrativa con componentes interactivos — línea de tiempo del
-incidente, tabla de IOCs, mapeo a MITRE ATT&CK y la ficha de cierre — para que se
-pueda seguir el razonamiento y no solo el resultado.
+incidente, tabla de indicadores, mapeo a MITRE ATT&CK y la ficha de cierre — para
+que se pueda seguir el razonamiento y no solo el resultado.
 
-El sitio es bilingüe. Cada idioma tiene su propia ruta y su propio archivo de
-contenido.
+**Sitio en línea:** https://real-soc-scenarios.javiermapelli.workers.dev
 
-## Fuentes
+---
 
-Los casos se arman a partir de material público: avisos de CISA, reportes de
-Mandiant y Elastic Security Labs, publicaciones de vendors y writeups de la
-comunidad. Cada escenario indica su fuente en el frontmatter (`author`) y enlaza
-las técnicas al catálogo de MITRE ATT&CK.
+## Estado
 
-Los indicadores se publican defangueados (`hxxps://`) y no se incluye
-infraestructura de ningún entorno real. Los escenarios sintéticos usan los rangos
-y dominios que las RFC reservan para documentación, así que nada de lo que aparece
+Dieciséis casos, completos en español e inglés. Cada idioma tiene su propia ruta
+y su propio archivo de contenido.
+
+| | |
+| --- | --- |
+| Casos | 16, del `soc-001` al `soc-016` |
+| Idiomas | Español e inglés, con paridad verificada |
+| Páginas generadas | 35 |
+| Dificultad | De `beginner` a `expert` |
+| Marcos usados | ATT&CK Enterprise, ICS y Mobile; OWASP para API y para modelos de lenguaje |
+
+Ocho de los casos reconstruyen incidentes documentados públicamente. Los otros
+ocho son escenarios construidos para el ejercicio, y lo declaran en su primera
+pantalla.
+
+---
+
+## Fuentes y criterio
+
+Los casos reales se arman a partir de material público: avisos de agencias,
+informes de equipos de investigación, publicaciones de fabricantes y documentos
+oficiales. Cada escenario indica su fuente en el frontmatter y enlaza las
+técnicas al catálogo de MITRE ATT&CK.
+
+Los indicadores se publican defangueados y no se incluye infraestructura de
+ningún entorno real. Los escenarios sintéticos usan los rangos y dominios que las
+RFC 5737, 2606 y 5398 reservan para documentación, así que nada de lo que aparece
 puede resolverse.
 
 Cuando dos fuentes buenas discrepan sobre un dato, el caso anota la discrepancia
-en lugar de elegir en silencio.
+en lugar de elegir en silencio. Cuando un dato no está verificado contra fuente
+primaria, el caso lo dice.
+
+---
 
 ## Stack
 
@@ -32,15 +57,18 @@ en lugar de elegir en silencio.
 - Sistema de temas y tipografías por custom properties — ver [THEMES.md](THEMES.md)
 - Sitio estático, sin backend
 
+---
+
 ## Estructura
 
 ```text
 src/
 ├── components/
-│   ├── soc/               Componentes de caso (timeline, IOCs, ATT&CK, reporte, marcos)
+│   ├── soc/               Componentes de caso (timeline, indicadores, ATT&CK, reporte, marcos)
 │   ├── mdx/               Marcas en línea que se inyectan al contenido
 │   ├── SiteHeader.jsx     Encabezado: configuración, marca y volver
-│   ├── CaseDeck.jsx       Mazo de casos destacados del inicio
+│   ├── AboutModal.jsx     Acerca de, en ventana, desde el encabezado del inicio
+│   ├── CaseDeck.jsx       Mazo de casos del inicio
 │   ├── Globe.jsx          Globo con la geografía de los casos
 │   └── TableOfContents.jsx  Índice lateral con seguimiento del scroll
 ├── config/                Catálogo de temas, fuentes e idiomas
@@ -55,37 +83,39 @@ src/
 └── utils/                 Construcción de URL con base
 
 scripts/                   Verificaciones que corren sobre dist/
-tools/                     Auditorías y generadores que corren sobre el código
+tools/                     Verificaciones y generadores que corren sobre el código
 ```
+
+---
 
 ## Comandos
 
-| Comando              | Acción                                                     |
-| -------------------- | ---------------------------------------------------------- |
-| `npm install`        | Instala dependencias                                       |
-| `npm run dev`        | Servidor de desarrollo en `localhost:4321`                  |
-| `npm run build`      | Genera el sitio en `./dist/`                               |
-| `npm run preview`    | Sirve el build local antes de desplegar                    |
-| `npm run check`      | Defangueo, idioma y contraste del globo, sobre `./dist/`    |
-| `npm run audit:i18n` | Cobertura de traducción de la interfaz, sobre el código     |
+| Comando                 | Acción                                                          |
+| ----------------------- | --------------------------------------------------------------- |
+| `npm install`           | Instala dependencias                                            |
+| `npm run dev`           | Servidor de desarrollo en `localhost:4321`                       |
+| `npm run build`         | Genera el sitio en `./dist/`                                    |
+| `npm run preview`       | Sirve el build local antes de desplegar                         |
+| `npm run check`         | Catálogo, defangueo, idioma, contraste del globo e invariantes  |
+| `npm run check:catalogo`| Coherencia entre archivos de caso, sobre los `.mdx`             |
+| `npm run check:idioma`  | Secciones escritas en el idioma equivocado                      |
+| `npm run audit:i18n`    | Cobertura de traducción de la interfaz, sobre el código         |
 
-Dos auditorías más, que se corren a mano:
+**`npm run build` va siempre antes de `npm run check`.** Cuatro de los cinco
+verificadores de la cadena leen `dist/`, así que sin compilar primero verifican el
+contenido de la vez anterior y pasan en verde igual. `check:catalogo` es el único
+que lee los `.mdx`, y por eso corre primero.
 
-| Comando                                    | Acción                                              |
-| ------------------------------------------ | --------------------------------------------------- |
-| `node tools/auditar-idioma-casos.mjs`      | Busca secciones escritas en el idioma equivocado     |
-| `node tools/generar-mascara-tierra.mjs`    | Regenera el mapa del globo (solo al cambiar detalle) |
-
-`npm run check` verifica lo que se publica; `audit:i18n` verifica lo que se
-escribió. Ninguna de las dos alcanza sola.
+---
 
 ## Agregar un caso
 
 1. El archivo va en `src/content/scenarios/es/NN-nombre-del-caso.mdx`. El
    directorio define el idioma y el nombre define la URL.
-2. El frontmatter sigue el esquema de `src/content.config.ts` (`caseId`,
-   `caseNumber`, `severity`, `difficulty`, `pubDate`). El campo `locations` es
-   opcional y coloca marcadores en el globo del inicio.
+2. El frontmatter sigue el esquema de `src/content.config.ts`. El prefijo
+   numérico tiene que coincidir con `caseNumber`, y `caseId` se deriva de ese
+   número como `soc-0NN`. El campo `locations` es opcional y coloca marcadores en
+   el globo del inicio.
 3. Los componentes se importan desde `@/components/soc/`.
 4. La ruta se genera sola en `/es/scenarios/<nombre-del-archivo>/`.
 
@@ -93,12 +123,14 @@ Los componentes se renderizan estáticos por defecto. Para habilitar filtros,
 botones y demás interacción llevan `client:load`.
 
 **Cada componente interactivo recibe `lang` con el idioma de su archivo.** Sin ese
-atributo, la interfaz de ese componente sale en el idioma por defecto dentro de una
-página del otro.
+atributo, la interfaz de ese componente sale en el idioma por defecto dentro de
+una página del otro.
 
 La versión en inglés se escribe al final, cuando el caso en español está
 investigado, cargado y revisado en el navegador. Traducir sobre contenido que
 todavía puede cambiar obliga a corregir dos veces.
+
+---
 
 ## Marcos de análisis
 
@@ -107,7 +139,7 @@ aparte desde un botón. Son material de apoyo opcional: no todos los casos lleva
 uno, y varios no llevan ninguno.
 
 El criterio: **si no hay datos reales para llenarlo, no va.** Un marco a medio
-completar enseña menos que su ausencia.
+completar enseña menos que su ausencia, y la ausencia se explica dentro del caso.
 
 | Marco            | Se incluye cuando…                                                                                   |
 | ---------------- | ---------------------------------------------------------------------------------------------------- |
@@ -116,6 +148,12 @@ completar enseña menos que su ausencia.
 | `KillChain`      | Se puede señalar en qué eslabón se cortó la cadena, o por qué no se cortó en ninguno                  |
 
 Los tres requieren `client:load`: sin hidratar, el botón no abre nada.
+
+Tres casos no usan ninguno de los tres, y en cada uno el motivo está escrito: dos
+se describen mejor con las listas de OWASP, porque hay que hablarle a quien
+escribe la aplicación, y el otro no tuvo adversario.
+
+---
 
 ## Convenciones de contenido
 
@@ -131,6 +169,8 @@ Lo que un analista copiaría a una consola o a un buscador queda igual en los do
 idiomas: comandos, direcciones IP, hashes, identificadores de MITRE, nombres de
 familia de malware, reglas de detección y códigos de protocolo.
 
+---
+
 ## Despliegue
 
 El mismo commit sirve para dos destinos, y la diferencia son dos variables de
@@ -141,5 +181,52 @@ entorno que `astro.config.mjs` lee con valores por defecto para desarrollo local
 - **GitHub Pages**: sirve desde un subdirectorio, y el workflow de
   `.github/workflows/` inyecta `BASE_PATH` con el nombre del repositorio.
 
+`SITE_URL` define la URL absoluta que usan las etiquetas para compartir y los
+`hreflang`. Sin esa variable, la imagen de la tarjeta al compartir no se emite:
+es preferible que no haya imagen a que haya una que apunte a una dirección que no
+existe.
+
 Ningún enlace interno se escribe a mano: todos pasan por `withBase()`, que es lo
 que hace que las dos formas funcionen sin tocar el contenido.
+
+---
+
+## Uso responsable
+
+Este proyecto tiene fines educativos y defensivos. Los casos describen técnicas
+de ataque para explicar cómo se detecta cada una, no para reproducirlas.
+
+El material no incluye código explotable ni infraestructura utilizable. Las
+reconstrucciones de incidentes reales se basan en fuentes públicas ya divulgadas,
+y los escenarios construidos usan direcciones y dominios reservados por RFC que no
+pueden resolverse.
+
+Las técnicas descritas no deben aplicarse sobre infraestructura ajena, sistemas
+sin autorización ni entornos productivos.
+
+---
+
+## Contribuciones
+
+Ver [CONTRIBUTING.md](CONTRIBUTING.md) y [SECURITY.md](SECURITY.md).
+
+Lo que más valor tiene es una corrección de contenido: un dato mal citado, una
+fuente que no dice lo que el caso le atribuye, o un desacuerdo con alguna de las
+lecturas.
+
+---
+
+## Licencia
+
+El código está bajo licencia MIT — ver [LICENSE](LICENSE).
+
+El contenido de los casos está bajo Creative Commons Atribución 4.0 Internacional
+— ver [LICENSE-CONTENT](LICENSE-CONTENT).
+
+Son dos licencias porque el repositorio es dos cosas: software y material
+escrito, y no se licencian igual. El material citado de terceros conserva la
+licencia de su autor.
+
+---
+
+**Autor**: [@xavimape](https://github.com/xavimape)

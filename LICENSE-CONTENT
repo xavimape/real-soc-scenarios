@@ -1,0 +1,49 @@
+Creative Commons Atribucion 4.0 Internacional (CC BY 4.0)
+
+Copyright (c) 2026 Javier Mapelli
+
+QUE CUBRE
+
+El contenido educativo del proyecto: los archivos .mdx de
+src/content/scenarios/ en todos los idiomas, y el texto de la interfaz en
+src/i18n/.
+
+El codigo esta cubierto por la licencia MIT. Ver LICENSE.
+
+QUE PERMITE
+
+Compartir: copiar y redistribuir el material en cualquier medio o formato.
+Adaptar: remezclar, transformar y construir a partir del material, para
+cualquier proposito, incluso comercial.
+
+BAJO ESTA CONDICION
+
+Atribucion: hay que dar credito de manera adecuada, aportar un enlace a la
+licencia e indicar si se han realizado cambios. Puede hacerse de cualquier
+forma razonable, pero no de una que sugiera que el licenciante respalda el uso
+que se hace.
+
+Una atribucion suficiente seria:
+
+  Basado en "Real SOC Scenarios" de Javier Mapelli (CC BY 4.0)
+  https://real-soc-scenarios.javiermapelli.workers.dev
+
+TEXTO COMPLETO
+
+El texto legal completo de la licencia esta en:
+https://creativecommons.org/licenses/by/4.0/legalcode.es
+
+El resumen legible por humanos:
+https://creativecommons.org/licenses/by/4.0/deed.es
+
+Este archivo enlaza al texto canonico en lugar de copiarlo, que es lo que
+Creative Commons recomienda: una copia local puede quedar desactualizada
+respecto de la version oficial, y la que vale es la de creativecommons.org.
+
+SOBRE LAS FUENTES CITADAS
+
+Los casos reales citan y resumen material de terceros —avisos de agencias,
+informes de equipos de investigacion, publicaciones de fabricantes—. Esa
+licencia no se extiende a esos materiales: cada uno conserva la licencia de su
+autor. Lo que se licencia aca es el texto propio de los casos, el analisis y la
+seleccion.

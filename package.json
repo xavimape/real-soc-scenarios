@@ -1,7 +1,16 @@
 {
   "name": "real-soc-scenarios",
-  "type": "module",
+  "description": "Casos de investigación SOC documentados paso a paso, en español e inglés",
   "version": "0.0.1",
+  "license": "MIT",
+  "author": "Javier Mapelli (@xavimape)",
+  "homepage": "https://real-soc-scenarios.javiermapelli.workers.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xavimape/real-soc-scenarios.git"
+  },
+  "private": true,
+  "type": "module",
   "engines": {
     "node": ">=22"
   },
