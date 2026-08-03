@@ -1,0 +1,550 @@
+---
+title: "Ransomware precursors - Three alerts closed, and closed well"
+description: "Educational case: the signals that arrive in time are ambiguous and the unambiguous ones arrive late. Why indicator-based triage is not enough, and what replaces it"
+pubDate: 2026-03-10
+caseId: "soc-006"
+caseNumber: 6
+difficulty: "advanced"
+caseType: "educational_synthetic"
+severity: "CRITICAL"
+tags: ["ransomware", "precursors", "living-off-the-land", "baseline", "alert-triage", "change-management", "edr"]
+author: "Synthetic scenario - techniques documented by MITRE ATT&CK and CISA advisories"
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+At 02:08 on 7 March, six servers and one hundred and eighteen workstations were
+encrypted.
+
+The SOC had received three alerts before that, spread across three days and change.
+All three were closed. **And all three were closed defensibly**, because each one
+described something the company does routinely: installing a remote access tool,
+sending data to a cloud storage provider, running administrative tasks against
+several machines.
+
+The one alert that admitted no other reading arrived at 02:06 on 7 March: the
+deletion of the volume shadow copies. One hundred and eighteen seconds before the
+encryption.
+
+That gap is the subject of the case, and it is not bad luck. **The unambiguous
+signals of a ransomware attack belong to the impact phase, which is the end.
+Everything that arrives in time is ambiguous by definition.** The skill this case
+exercises is not recognising a malicious indicator: it is disambiguating legitimate
+activity.
+
+**Key metrics:**
+
+- Alerts raised before the encryption: 3, all closed as expected activity
+- Time from the first alert to the encryption: 3 days, 11 hours and 46 minutes
+- Time between the only unambiguous alert and the encryption: 118 seconds
+- Attacker tools that were not malicious: all of them
+- Malware samples detected before the encryption: none
+- Primary techniques: T1219.002, T1021.002, T1567.002, T1490
+
+<Warn />**Synthetic scenario.** The organisation, the machines and the alerts were
+built for the exercise. IP addresses come from the ranges RFC 5737 reserves for
+documentation and the domains use the `.example` TLD from RFC 2606. The techniques,
+the commands and the pattern of abusing legitimate tools are documented by MITRE and
+in CISA advisories — see the references at the end.
+
+<Warn />**What this case does not cover.** The scenario starts with the operator
+already inside the environment. How initial access was obtained is the subject of
+cases 01 and 03; what is exercised here is everything that happens afterwards, which
+is where the SOC had its opportunities and had them poorly served.
+
+---
+
+## Context: the organisation
+
+Ribera Alimentos distributes refrigerated food. Four hundred and fifty workstations,
+twenty-two servers, an IT team of four and no SOC of its own: the EDR is a managed
+service and its alerts land in a queue handled by a first-line analyst, among other
+duties.
+
+It is an ordinary profile, and it is worth keeping in mind when judging the decisions
+that follow. There is no negligence in this case. There is a procedure that allowed
+closing a ticket without an authoritative answer, and three chances to discover it.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-006"
+  events={[
+    {
+      time: "3 Mar 14:22",
+      title: "Alert 1 - Remote access installed",
+      description: "The EDR reports the installation of a remote desktop tool on ADM-FIN-07, an administration workstation.",
+      severity: "LOW",
+      actor: "System"
+    },
+    {
+      time: "3 Mar 15:40",
+      title: "Alert 1 closed",
+      description: "Closed as expected activity: the tool is on the approved software list and IT uses it for support.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "4 Mar 02:55",
+      title: "Session against the file server",
+      description: "The ADM-FIN-07 account authenticates to SRV-ARCH-02 outside business hours. No alert associated.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "4 Mar 03:14",
+      title: "Alert 2 - Outbound volume to the cloud",
+      description: "The proxy reports a sustained transfer from SRV-ARCH-02 to a storage provider. Category allowed.",
+      severity: "LOW",
+      actor: "System"
+    },
+    {
+      time: "4 Mar 07:24",
+      title: "Transfer ends",
+      description: "Four hours and ten minutes of sustained upload. 42 GB from the accounting and legal file share.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "4 Mar 09:12",
+      title: "Alert 2 closed",
+      description: "Closed as the nightly backup: the company uses that provider and the destination is listed as allowed.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "6 Mar 22:51",
+      title: "Alert 3 - Remote execution on six machines",
+      description: "An administration utility launched from ADM-FIN-07 against six servers in eleven minutes.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "6 Mar 23:36",
+      title: "Alert 3 closed",
+      description: "The analyst asks IT over chat. The answer is 'could be, we were doing updates'. Closed.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "7 Mar 02:06",
+      title: "Alert 4 - Shadow copies deleted",
+      description: "vssadmin delete shadows /all /quiet run on six servers simultaneously. High severity.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "7 Mar 02:08",
+      title: "Encryption",
+      description: "Six servers and one hundred and eighteen workstations. Alert 4 was still unassigned.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    }
+  ]}
+/>
+
+Two distances in that timeline are worth looking at. Between the first alert and the
+encryption there are more than three days: plenty of time. Between the alert that
+admitted no argument and the encryption there are under two minutes: none.
+
+---
+
+## 1. The three alerts, as they appeared
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-006"
+  type="alerts"
+  title="What each ticket said"
+  data={{
+    "alert 1": {
+      "rule": "Remote access software installation",
+      "severity": "Low",
+      "host": "ADM-FIN-07",
+      "software": "Commercial remote desktop tool",
+      "tool status": "On the approved software list",
+      "identical alerts in the previous 30 days": "11, all legitimate",
+      "verdict": "suspicious"
+    },
+    "alert 2": {
+      "rule": "Anomalous outbound volume",
+      "severity": "Low",
+      "host": "SRV-ARCH-02",
+      "destination": "Cloud storage provider",
+      "destination status": "Category allowed by policy",
+      "volume": "42 GB in 4 h 10 min",
+      "verdict": "suspicious"
+    },
+    "alert 3": {
+      "rule": "Remote execution of an administration utility",
+      "severity": "Medium",
+      "source": "ADM-FIN-07",
+      "targets": "Six servers in eleven minutes",
+      "tool": "Signed utility shipped with the operating system",
+      "verdict": "suspicious"
+    }
+  }}
+/>
+
+Read like that, one at a time, all three are reasonable. None of them contains a
+malicious file, a bad-reputation domain or an address from an unexpected country. The
+attacker brought nothing: **they used what was already there, or what the company
+already allowed.**
+
+It is what CISA advisories describe for several active ransomware families. The
+groups that operate with commercial remote access tools do so precisely because the
+software is legitimate, signed and, in many organisations, approved.
+
+---
+
+## 2. What each alert was missing
+
+Here is the method of the case. None of the three alerts can be resolved with what
+the alert carries. **That is not a limitation of the analyst: it is the finding.** And
+each one has a specific question, aimed at a specific person, that would have
+resolved it in minutes.
+
+| Alert | What it said | What was missing | Who to ask |
+|---|---|---|---|
+| 1 | An approved tool was installed | Who installed it, under which account, and whether a change was authorised | Change management |
+| 2 | Data went to an allowed destination | What the normal volume is from that server to that destination | Infrastructure |
+| 3 | Administrative tasks were executed | Whether a maintenance window was recorded that night | IT lead |
+
+And here is what each answer would have revealed:
+
+**Alert 1.** The tool is approved **on the machines IT administers, installed by the
+deployment account, during business hours, against a request.** This installation was
+on a finance administration workstation, under the user's local account, with no
+request behind it. Policy approved the software; it did not approve that
+installation.
+
+**Alert 2.** The nightly backup on `SRV-ARCH-02` runs at 01:00 and moves about
+2.8 GB. This transfer started at 03:14 and moved 42 GB. Same destination, same
+protocol, fifteen times the volume and three hours outside the window. **The allowed
+destination explained where the data was going, not why there was so much of it.**
+
+**Alert 3.** The change record held no maintenance window for the night of 6 March.
+The phrase "could be, we were doing updates" was a busy person's impression, not a
+fact. **The change system had the authoritative answer and nobody consulted it.**
+
+Three questions. None requires a tool the company did not have, or a skill the
+analyst did not have. What was missing was a procedure that did not allow closing
+without an answer.
+
+---
+
+## 3. The rule that comes out of this
+
+Worth stating in a way that is useful on Monday:
+
+**The output of triaging an ambiguous alert is not "true positive" or "false
+positive". It is a question aimed at whoever holds the authoritative answer.**
+
+A ticket closed with "expected activity" and no source behind it is not resolved: it
+is filed. The difference between those two things is the only thing separating this
+case from one where nothing happens.
+
+And the uncomfortable corollary, worth making explicit because it protects the
+analyst: **closing alert 1 was statistically correct.** Eleven out of eleven identical
+alerts the previous month had been legitimate. At that base rate, closing is the bet
+that wins nearly every time. The problem was not the person's judgement, it was that
+the system asked them to guess instead of giving them something to verify with.
+
+Fixing this by asking the analyst to "be more suspicious" does not work and makes
+things worse: it raises the cost of every ticket and changes none of the available
+information. What works is the alert arriving with the context attached — installing
+account, associated change ticket, host baseline — or the procedure forcing someone to
+go and fetch it.
+
+---
+
+## 4. The correlation nobody made
+
+The three alerts are in the same console. In the console they are three rows
+separated by days, from three different rules, with three different severities.
+Nothing joins them.
+
+But they share entities:
+
+```
+ADM-FIN-07 ─── alert 1 (3 Mar)  remote access installed
+     │
+     └───────── alert 3 (6 Mar)  remote execution against 6 servers
+
+ADM-FIN-07 account ─── authentication to SRV-ARCH-02 (4 Mar 02:55)
+                            │
+                            └── alert 2 (4 Mar)  42 GB outbound
+```
+
+The same machine appears in the first and the third. The account operating that
+machine appears authenticating against the server from the second, nineteen minutes
+before the transfer begins.
+
+**The unit of analysis is not the alert, it is the entity.** Three low-severity alerts
+on the same host in four days are a different fact from three low-severity alerts on
+three arbitrary hosts, and no console sorted by time and severity shows that
+difference.
+
+That translates into a concrete tooling request: being able to see every alert for a
+host or an account in one view, whatever rule produced it. Where that does not exist,
+it is covered by a step in the procedure: **before closing, look up the entity in the
+history.** It is slower and it works just the same.
+
+---
+
+## 5. The final two minutes
+
+At 02:06 on 7 March the following ran on six servers simultaneously:
+
+```
+vssadmin.exe delete shadows /all /quiet
+```
+
+MITRE documents that command verbatim under T1490, alongside `wbadmin.exe delete
+catalog -quiet` and the `bcdedit.exe` modifications that disable Windows automatic
+recovery. It is one of the least ambiguous signals there is: **the bulk, silent
+deletion of shadow copies has no reasonable administrative reading**, least of all on
+six servers at once at two in the morning.
+
+The alert was raised at high severity. Nobody saw it: at 02:08 the encryption began,
+and at that hour the queue had nobody in it.
+
+Worth drawing the right conclusion here, because there is a tempting wrong one. The
+wrong one is "night shift coverage was needed". With two minutes, a night shift does
+not make it either: while the analyst is opening the ticket, encryption is already
+under way.
+
+The right one is that **a detection that only fires in the impact phase is not a
+detection, it is a notification.** It is good for knowing what happened, not for
+preventing it. Its value is forensic. The preventive value was three days earlier,
+spread across three tickets that were closed well.
+
+That said: shadow copy deletion deserves an automated response, not an alert.
+Isolating the host first and asking afterwards is the only speed that beats that
+command.
+
+---
+
+## 6. Containment and recovery
+
+What was done, in order, and why.
+
+1. **Isolate the affected machines from the network**, cutting the route to the
+   backups as well. The first concern after encryption is that it does not reach what
+   is still healthy.
+2. **Disable the compromised account and revoke its sessions**, including the remote
+   access tool installed on `ADM-FIN-07`.
+3. **Hunt for that same tool across the rest of the estate.** It turned up on two more
+   workstations, installed on 5 March, with no alert associated because the rule had
+   already been muted for volume.
+4. **Verify the state of the offline backups** before touching anything else.
+5. **Only then restore**, prioritising by dependency rather than by declared
+   importance.
+
+Step three is the one most often skipped and the one that matters most: after an
+encryption, the question is not only what broke, but **where else the attacker's
+access is**. Restoring onto a network where a door is still open is repeating the
+incident with more work.
+
+And there is a consequence the encryption obscures: **the 42 GB left three days
+earlier.** Even if the restoration were perfect and everything came back in hours,
+that data is outside. The encryption incident is resolved with backups; the
+exfiltration one is not resolved.
+
+---
+
+## 7. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-006"
+  tactics={[
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1219.002"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1021.002"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1490", "T1486"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1219.002** | Remote Access Tools: Remote Desktop Software | The commercial tool installed on ADM-FIN-07 on 3 March |
+| **T1021.002** | Remote Services: SMB/Windows Admin Shares | The execution against six servers on 6 March |
+| **T1567.002** | Exfiltration Over Web Service: Exfiltration to Cloud Storage | The 42 GB on 4 March towards an allowed destination |
+| **T1490** | Inhibit System Recovery | The shadow copy deletion at 02:06 |
+| **T1486** | Data Encrypted for Impact | The encryption at 02:08 |
+
+Naming note: **T1219 was renamed *Remote Access Tools*** and now has sub-techniques;
+abusing a remote desktop tool maps to `T1219.002`. In older material the same
+technique appears as *Remote Access Software*, with no sub-techniques, under the same
+`T1219` identifier. If a rule or an old report says the latter, it is talking about
+the same thing.
+
+Worth noticing how that table splits. The first four rows are the tactics where the
+SOC had time; the last is where it did not. And **none of the five techniques required
+malicious software**: four use legitimate tools or operating system components, and
+only the last is an attacker binary.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. It opens in its own window.
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-006"
+  indicators={{
+    hashes: ["None useful: the attacker's tools are signed and legitimate"],
+    domains: ["The storage provider, which the company genuinely uses"],
+    artifacts: [
+      "Remote access installed by an account that is not the deployment one",
+      "Volume fifteen times above the server's baseline",
+      "Remote execution with no recorded maintenance window",
+      "Three low-severity alerts on the same entity across four days"
+    ],
+    tools: ["Commercial remote desktop tool", "Remote execution utility signed by the operating system"],
+    ttps: [
+      "Exclusive use of legitimate tools until the impact phase",
+      "Exfiltration to a cloud destination already allowed by policy",
+      "Shadow copy deletion immediately before encrypting"
+    ]
+  }}
+  note="This case is almost a demonstration of the pyramid's argument, which is why the bottom two rungs are filled in deliberately, so you can read what happens to them. There is no useful hash, because the attacker's tools are real signed software; blocking their fingerprint would mean blocking a tool IT uses every day. And the domain is worse than useless: blocking it breaks the company's backups. When the attacker brings nothing of their own, the bottom two rungs do not degrade, they simply vanish. What remains are the artefacts, and notice that none of the four describes a thing: all four describe a difference from normal. That is where the work of this case lives."
+/>
+
+I am not including the Kill Chain or the Diamond Model. The first would show seven
+phases reached and none cut, which is the same thing case 05 already shows and which
+adds nothing to the timeline here. The second needs an identified adversary, and in a
+synthetic scenario there is none: two of the four vertices would be empty.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-006"
+  summary={{
+    incidentId: "INC-2026-0307-001",
+    title: "Server and workstation encryption with prior exfiltration",
+    status: "Resolved",
+    severity: "CRITICAL",
+    initialTriage: "Three low and medium severity alerts, closed as expected activity",
+    rootCause: "Use of legitimate, permitted tools, with no context in the alert to tell it apart from normal operations",
+    timeToContainment: "After impact",
+    dataCompromised: "42 GB from the accounting and legal file share, exfiltrated three days before the encryption",
+    resolutionCode: "Resolved (true positive, detected late)"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**What arrives in time is ambiguous; what is unambiguous arrives late.** It is not bad
+luck, it is the shape of the intrusion: the signals with no second reading live in the
+impact phase. A SOC that only acts on the unambiguous always acts afterwards.
+
+**The output of triaging an ambiguous alert is a question, not a verdict.** Aimed at
+whoever holds the authoritative answer: change management, infrastructure, the owner
+of the host. Closing without that answer is filing, not resolving.
+
+**A tool being approved does not approve every installation.** Policy approved the
+software; it did not approve a finance user's account installing it on a Tuesday
+afternoon with no request. The right question is not what was installed but who, where
+and against what authorisation.
+
+**An allowed destination explains the direction, not the volume.** The 42 GB went to
+the same provider the backups use. Without a baseline for the server, the alert had
+nothing to compare against and there was nothing to decide.
+
+**The unit of analysis is the entity, not the alert.** Three low-severity alerts on the
+same host in four days are a different fact from three loose alerts, and a console
+sorted by time does not show the difference.
+
+**The analyst who closed the first alert was right by the base rate.** Eleven out of
+eleven identical cases had been legitimate. Demanding more suspicion fixes nothing:
+what has to change is the information that arrives with the alert.
+
+**Encryption and exfiltration are two incidents.** Backups resolve one. The other
+already happened three days earlier and there is no going back.
+
+---
+
+## Recommendations
+
+- Enrich software installation alerts with the account that performed the install and
+  the associated change ticket, so verification does not depend on somebody going to
+  look for it
+- Baseline outbound volume per server and per destination, and alert on deviation from
+  that baseline rather than on a fixed threshold
+- An entity view in the console: every alert for a host or an account, whatever the
+  rule. Without it, a mandatory history lookup step before closing
+- Forbid closing a ticket as "expected activity" without recording the source that
+  confirms it
+- Automated isolation in response to shadow copy deletion or bulk execution of
+  `vssadmin`, `wbadmin` or `bcdedit`, without waiting for an analyst
+- Application control limiting remote access tools to IT machines, rather than
+  approving them across the whole estate
+- Review which rules are muted for volume and why: a noisy rule that gets switched off
+  stops existing as a detection
+- Offline backups, verified with test restorations rather than with the backup job's
+  status
+
+---
+
+## References
+
+- [Remote Access Tools (T1219) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1219/)
+- [Remote Access Tools: Remote Desktop Software (T1219.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1219/002/)
+- [Remote Services: SMB/Windows Admin Shares (T1021.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1021/002/)
+- [Exfiltration to Cloud Storage (T1567.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1567/002/)
+- [Inhibit System Recovery (T1490) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1490/)
+- [Data Encrypted for Impact (T1486) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1486/)
+- [AA25-071A: #StopRansomware: Medusa Ransomware - CISA](https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-071a)
+- [The five-day job: A BlackByte ransomware intrusion case study - Microsoft Security Blog](https://www.microsoft.com/en-us/security/blog/2023/07/06/the-five-day-job-a-blackbyte-ransomware-intrusion-case-study/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Up next
+
+Case 04 also ends with alerts that existed and were not acted on, but for a different
+reason: there the problem was volume and the absence of ownership over the alert. Here
+the three alerts were read, thought about and closed with judgement. Worth comparing
+the two to see that "the alert was there" describes two very different failures, and
+that only one of them is fixed with more attention.
