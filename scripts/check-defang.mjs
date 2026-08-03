@@ -34,12 +34,29 @@ const PERMITIDOS = [
   'thehackernews.com',
   'nttsecurity.com',
   'jfrog.com',
+  'google.com',
+  'progress.com',
   // Reservado por RFC 2606 para documentación: no puede ser infraestructura real.
   'example.com',
   // Herramientas públicas citadas por nombre, no infraestructura del atacante.
   'obfuscator.io',
   'socket.io',
 ];
+
+/**
+ * Nombres de tecnología que el patrón de dominio confunde con un dominio.
+ *
+ * No van en PERMITIDOS a propósito: esa lista significa "dominio real que debe
+ * quedar clicleable", y esto es otra cosa — cadenas de texto que terminan en
+ * algo que parece un TLD. El caso testigo es `ASP.NET`, que apareció al cargar
+ * soc-005 describiendo en qué está escrito un webshell.
+ *
+ * El patrón captura solo los dos últimos niveles, así que `ASP.NET` en prosa y
+ * `contoso.asp.net` producen la misma coincidencia. Para no perder el segundo,
+ * la exclusión mira además el carácter anterior: si es un punto, hay un
+ * subdominio delante y la coincidencia sí se informa.
+ */
+const NO_SON_DOMINIOS = ['asp.net', 'vb.net', 'ado.net'];
 
 /** Patrones de indicador que nunca deberían aparecer sin defanguear. */
 const PATRONES = [
@@ -72,6 +89,8 @@ for (const archivo of await archivosHtml(DIST)) {
     for (const coincidencia of html.matchAll(regex)) {
       const valor = coincidencia[0];
       if (PERMITIDOS.some((p) => valor.toLowerCase().endsWith(p))) continue;
+      const anterior = html[coincidencia.index - 1];
+      if (NO_SON_DOMINIOS.includes(valor.toLowerCase()) && anterior !== '.') continue;
 
       // Las versiones de dependencias y los números sueltos no son IPs.
       if (nombre.startsWith('IPv4')) {
