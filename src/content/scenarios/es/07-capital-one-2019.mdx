@@ -1,0 +1,551 @@
+---
+title: "Capital One 2019 - El cortafuegos que podía leer los datos"
+description: "Caso real: un pedido web mal filtrado llegó al servicio de metadatos, se llevó una identidad prestada y esa identidad tenía permiso. Lo descubrió un correo de un desconocido, cuatro meses después"
+pubDate: 2019-07-29
+caseId: "soc-007"
+caseNumber: 7
+difficulty: "advanced"
+caseType: "real_case_cloud_misconfiguration"
+severity: "CRITICAL"
+tags: ["cloud", "ssrf", "imds", "iam", "least-privilege", "cloudtrail", "data-exfiltration", "regulatory"]
+author: "Denuncia penal del Departamento de Justicia de EE.UU. (julio de 2019) y órdenes de la OCC del 6 de agosto de 2020"
+discoveryDate: "2019-07-17"
+locations:
+  - { lat: 38.9339, lng: -77.1773, label: "McLean, Virginia, casa central de Capital One" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Resumen ejecutivo
+
+En 2019, una persona obtuvo las solicitudes de tarjeta de crédito que Capital One
+guardaba en la nube. El comunicado del Departamento de Justicia describe la vía en
+una sola oración: **"La intrusión ocurrió a través de un cortafuegos de aplicaciones
+web mal configurado que habilitó el acceso a los datos."**
+
+Esa frase esconde el paso que hace interesante el caso. El cortafuegos no entregó
+los datos: entregó **credenciales**. Un pedido web manipulado lo hizo consultar el
+servicio de metadatos de la instancia donde corría, y ese servicio devolvió las
+credenciales temporales del rol asociado a la máquina. Con esa identidad prestada se
+listó y se copió el almacenamiento.
+
+Y ahí está la pregunta que ordena todo el caso: **¿por qué un cortafuegos, cuyo
+trabajo es inspeccionar tráfico HTTP, tenía permiso para leer las solicitudes de
+crédito de cien millones de personas?**
+
+La intrusión no la detectó Capital One. La detectó un desconocido que vio una
+publicación en GitHub y escribió un correo, el 17 de julio de 2019.
+
+**Métricas clave:**
+
+- Descubrimiento: por aviso externo, el 17 de julio de 2019
+- Confirmación de la intrusión por parte del banco: 19 de julio de 2019
+- Sanción civil de la OCC: 80 millones de dólares, 6 de agosto de 2020
+- Fallas que el regulador consignó por escrito: controles de red, prevención de
+  fuga de datos y **disposición efectiva de las alertas**
+- Malware involucrado: ninguno
+- Técnicas principales: T1190, T1552.005, T1078.004, T1530
+
+<Warn />**Caso real.** Todo lo técnico y lo cronológico que aparece acá sale de las
+fuentes citadas al final: la denuncia penal y el comunicado del Departamento de
+Justicia, y las órdenes de la OCC del 6 de agosto de 2020. Donde una afirmación viene
+de análisis técnicos posteriores y no de una fuente oficial, está dicho en el texto.
+
+<Warn />**Sobre las cifras.** Las que circularon en su momento hablan de alrededor de
+cien millones de personas en Estados Unidos y unos seis millones en Canadá. El
+comunicado del Departamento de Justicia que cito no las consigna, y las órdenes de la
+OCC tampoco. Las menciono porque son públicas, no porque las haya verificado contra
+una fuente oficial.
+
+---
+
+## Contexto: qué es el servicio de metadatos de instancia
+
+Esta es la pieza que hay que entender antes que nada, porque el resto del caso se
+deduce de ella.
+
+Toda máquina virtual en una nube pública puede consultar un servicio local que le
+cuenta cosas sobre sí misma: su identificador, su región, su configuración de red. En
+AWS ese servicio vive en una dirección de enlace local, `169.254.169.254`, y solo
+responde desde adentro de la instancia.
+
+Entre lo que devuelve hay algo mucho más valioso que la región: **si la máquina tiene
+un rol de identidad asociado, el servicio de metadatos entrega credenciales temporales
+de ese rol.**
+
+Eso es una buena idea, y conviene decir por qué antes de criticarla. Sin ese
+mecanismo, una aplicación que necesita hablar con el almacenamiento tendría que
+llevar una clave escrita en un archivo de configuración, que alguien copia, que
+termina en un repositorio, que no rota nunca. El servicio de metadatos reemplaza esa
+clave permanente por credenciales que caducan solas y que nadie escribe en ningún
+lado.
+
+El precio es esta consecuencia:
+
+**Cualquier componente que pueda ser inducido a emitir un pedido HTTP en nombre de la
+máquina puede pedir esas credenciales.**
+
+Y eso es exactamente lo que hace un SSRF —*server-side request forgery*, falsificación
+de pedidos del lado del servidor—: convencer a una aplicación de que emita un pedido
+hacia donde el atacante quiera. En una máquina física un SSRF suele ser una molestia
+de alcance limitado. En una máquina con rol asociado, **un SSRF es un robo de
+identidad.**
+
+La distinción que vale llevarse: el atacante no se llevó datos usando una falla del
+almacenamiento. Se llevó datos usando una identidad legítima que el almacenamiento
+tenía todo el derecho de atender.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-007"
+  events={[
+    {
+      time: "2015",
+      title: "Migración a la nube",
+      description: "El banco traslada operaciones de tecnología al entorno de nube pública. La OCC señalará después que no hubo evaluación de riesgos previa efectiva.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "mar 2019",
+      title: "Acceso a los datos",
+      description: "Un cortafuegos de aplicaciones web mal configurado permite alcanzar el servicio de metadatos y obtener credenciales del rol de la instancia.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "abr 2019",
+      title: "Publicación en GitHub",
+      description: "La persona responsable publica sobre el robo de información en un sitio de intercambio de código.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "17 jul 2019",
+      title: "Aviso externo",
+      description: "Un usuario de GitHub que ve la publicación alerta a Capital One sobre la posibilidad de un robo de datos.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "19 jul 2019",
+      title: "Intrusión confirmada",
+      description: "El banco determina que hubo una intrusión en sus datos y contacta al FBI.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "29 jul 2019",
+      title: "Denuncia penal y detención",
+      description: "El Departamento de Justicia anuncia la denuncia por fraude y abuso informático, y la ejecución de una orden de allanamiento.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "nov 2019",
+      title: "AWS publica IMDSv2",
+      description: "Nueva versión del servicio de metadatos, orientada a sesión y con límite de saltos, pensada contra este tipo de acceso indirecto.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "6 ago 2020",
+      title: "Sanción del regulador",
+      description: "La OCC impone 80 millones de dólares de sanción civil y emite una orden de cese, con hallazgos escritos sobre controles y alertas.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+La distancia que importa: entre el acceso a los datos y el aviso externo pasaron
+alrededor de cuatro meses. En todo ese tiempo, ningún control propio del banco levantó
+la mano.
+
+---
+
+## 1. La cadena, en cuatro pasos
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-007"
+  type="cadena"
+  title="De un pedido web a cien millones de registros"
+  data={{
+    "paso 1 - el pedido": {
+      "qué": "Un pedido manipulado llega al cortafuegos de aplicaciones web",
+      "efecto": "El cortafuegos lo emite hacia donde indica el atacante, no hacia el destino previsto",
+      "nombre técnico": "SSRF - falsificación de pedidos del lado del servidor",
+      "verdict": "malicious"
+    },
+    "paso 2 - la identidad": {
+      "destino del pedido": "169.254.169.254, servicio de metadatos de la instancia",
+      "respuesta": "Credenciales temporales del rol asociado a la máquina",
+      "por qué funciona": "El pedido sale desde adentro de la instancia, que es exactamente lo que el servicio exige",
+      "verdict": "malicious"
+    },
+    "paso 3 - el permiso": {
+      "qué permitía el rol": "Listar y leer los repositorios de almacenamiento de objetos",
+      "qué necesitaba un cortafuegos": "Inspeccionar tráfico HTTP. Nada más",
+      "nombre del problema": "Privilegio excesivo. Este es el paso que convierte una falla web en una brecha",
+      "verdict": "malicious"
+    },
+    "paso 4 - la copia": {
+      "operaciones": "Listado de repositorios y copia de su contenido",
+      "aspecto en los registros": "Llamadas de API perfectamente válidas, autenticadas con credenciales válidas",
+      "malware": "Ninguno",
+      "verdict": "malicious"
+    }
+  }}
+/>
+
+Vale detenerse en el paso cuatro. Desde el punto de vista del registro de auditoría
+de la nube, lo que se ve son llamadas correctas, firmadas con credenciales vigentes,
+emitidas por un rol que existe y que tiene permiso. **No hay ninguna operación
+inválida que rechazar.** Todo el ataque, desde el paso dos en adelante, transcurre
+dentro de lo que el sistema considera comportamiento autorizado.
+
+---
+
+## 2. La pregunta que define el caso
+
+Los tres primeros pasos son una falla técnica y son reparables con un parche o una
+configuración. El tercero es distinto: es una decisión de diseño, y es el único que
+explica la magnitud.
+
+**Un cortafuegos de aplicaciones web inspecciona tráfico HTTP.** Mira encabezados,
+cuerpos, parámetros; decide si un pedido pasa o se bloquea. Para hacer ese trabajo no
+necesita leer un solo registro de cliente.
+
+Si el rol de esa instancia hubiera tenido únicamente lo que el cortafuegos necesita,
+el SSRF habría entregado credenciales de algo que no sirve para nada. El incidente
+existiría igual —hay que arreglar el SSRF— pero sería un hallazgo de auditoría, no
+una brecha de cien millones de personas.
+
+De ahí la formulación que conviene llevarse: **el privilegio mínimo no reduce la
+probabilidad de un incidente, reduce su radio.** No evita que entren; decide cuánto
+alcanzan una vez adentro. Y por eso es el control que más rinde en la nube, donde casi
+todo lo que hace un atacante después del primer paso son llamadas de API autenticadas.
+
+Dicho al revés, que es como se ve en el trabajo diario: **cada permiso de más en un
+rol es una decisión sobre qué tan grande va a ser el próximo incidente.**
+
+---
+
+## 3. Cómo se detectó
+
+Acá está el dato incómodo, y está en el comunicado oficial sin adornos: el 17 de
+julio de 2019, **un usuario de GitHub que vio la publicación alertó a Capital One**
+sobre la posibilidad de un robo de datos. El 19 de julio el banco determinó que había
+habido una intrusión, y contactó al FBI.
+
+Cuatro meses de acceso, y el canal que funcionó fue una casilla de correo.
+
+De eso salen dos cosas para un SOC, y ninguna es "hay que tener suerte".
+
+**La casilla de contacto de seguridad es un canal de detección, no un formalismo.** Si
+existe, necesita dueño, tiempo de respuesta comprometido y un camino directo hacia
+quien puede abrir un incidente. Una organización sin esa casilla, o con una que nadie
+lee, pierde el aviso que en este caso fue el único que llegó.
+
+**Una detección externa siempre es tardía.** Depende de que el atacante hable, de que
+alguien lo lea y de que ese alguien se tome el trabajo de avisar. No es un control:
+es un golpe de suerte con buena voluntad de por medio.
+
+---
+
+## 4. Lo que escribió el regulador
+
+Esta es la parte del caso que más le sirve a un analista, y es poco frecuente:
+existe un documento oficial que dice, en lenguaje de supervisión bancaria, qué le
+faltó al SOC.
+
+La orden de cese de la OCC, del 6 de agosto de 2020, consigna en sus hallazgos:
+
+> Alrededor de 2015, el Banco no logró establecer procesos efectivos de evaluación de
+> riesgos antes de migrar sus operaciones de tecnología de la información al entorno
+> de nube. El Banco tampoco logró establecer una gestión de riesgos apropiada para el
+> entorno de nube, incluyendo el diseño e implementación apropiados de ciertos
+> controles de seguridad de red, controles adecuados de prevención de pérdida de
+> datos, y **la disposición efectiva de las alertas**.
+
+Y agrega dos hallazgos más:
+
+> La auditoría interna del Banco no logró identificar numerosas debilidades y brechas
+> de control en el entorno de nube. La auditoría interna tampoco informó ni destacó
+> efectivamente las debilidades y brechas identificadas ante el Comité de Auditoría.
+
+> Respecto de ciertas preocupaciones planteadas por la auditoría interna, el Directorio
+> no logró tomar acciones efectivas para responsabilizar a la gerencia.
+
+Tres frases que vale leer despacio.
+
+**"La disposición efectiva de las alertas."** Es la única de las tres fallas técnicas
+que describe el trabajo cotidiano de un analista. Y el verbo importa: no dice que
+faltaran alertas, dice que faltó disponer de ellas efectivamente. En el vocabulario de
+este sitio es la misma falla que el caso 004 y el caso 006 muestran desde adentro,
+acá escrita desde afuera por un regulador.
+
+**La auditoría interna encontró cosas y no llegaron arriba.** El problema no fue la
+falta de hallazgos sino su transporte. Un hallazgo que no se comunica de manera que se
+entienda su materialidad es, a los fines prácticos, un hallazgo que no existe.
+
+**El directorio no responsabilizó a la gerencia.** Es decir: parte del material sí
+había subido, y no pasó nada. Esa es la falla más cara de las tres y la que ningún
+control técnico repara.
+
+La orden pide después, entre las acciones correctivas, desarrollar "procesos
+comprensivos para prevenir y detectar la divulgación no autorizada de información
+sensible enviada fuera del entorno tecnológico del Banco". Traducido: **no había
+detección de salida de datos.** El paso cuatro de la cadena podía copiar todo sin que
+nada mirara el volumen que se iba.
+
+---
+
+## 5. Qué cambió después
+
+En noviembre de 2019 AWS publicó una segunda versión del servicio de metadatos,
+IMDSv2, orientada precisamente contra esta forma de acceso indirecto. Dos cambios
+importan acá:
+
+**Sesión con token.** Ya no alcanza con un `GET` a la dirección del servicio: hay que
+pedir primero un token con un `PUT` y después presentarlo en un encabezado. La mayoría
+de los SSRF solo consiguen que la aplicación emita un `GET` simple, así que el escalón
+sube bastante.
+
+**Límite de saltos.** La respuesta del servicio sale con un límite de saltos a nivel
+IP que por defecto es 1. La documentación de AWS lo describe justamente por sus
+consecuencias en contenedores: con el límite en 1, un pedido que viene desde un
+contenedor no recibe respuesta, porque llegar al contenedor cuenta como un salto
+adicional. Ese efecto colateral es la defensa: **corta a los intermediarios**, que es
+la posición desde donde un proxy o un cortafuegos haría el pedido.
+
+Vale la advertencia práctica, porque es donde esto falla en la vida real: IMDSv2
+protege solo si se **exige**. Una instancia configurada en modo opcional acepta las
+dos versiones, y un atacante que puede elegir va a usar la primera. La verificación no
+es "¿tenemos IMDSv2 disponible?" sino "¿cuántas instancias lo tienen en modo
+requerido?".
+
+Y conviene no perder de vista lo que IMDSv2 **no** arregla: si el rol sigue teniendo
+permisos de más, cualquier otra vía hacia esas credenciales vuelve a producir el mismo
+resultado. El servicio de metadatos era el camino; el permiso era el problema.
+
+---
+
+## 6. Qué detección corresponde
+
+Del caso salen tres detecciones concretas, y las tres viven en el registro de
+auditoría de la nube, no en un antivirus.
+
+**Credenciales de rol de instancia usadas desde fuera de la nube.** Es la más fuerte
+de las tres y merece explicación. Las credenciales que entrega el servicio de
+metadatos están pensadas para que las use la instancia. Si aparecen llamadas firmadas
+con esas credenciales desde una dirección que no es la de la infraestructura, algo las
+sacó de ahí. No es un indicador: es una contradicción con el diseño, y por eso no
+envejece.
+
+**Acceso al servicio de metadatos desde un componente que no debería necesitarlo.** Un
+cortafuegos o un proxy pidiendo credenciales de rol es anómalo por definición de su
+función.
+
+**Listado y lectura masiva de almacenamiento de objetos por un rol que nunca lo hace.**
+Requiere línea base por rol, igual que el caso 006 la requería por servidor. Sin línea
+base, un listado completo de repositorios es una llamada válida más.
+
+---
+
+## 7. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-007"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1552.005"]
+    },
+    {
+      id: "TA0004",
+      name: "Privilege Escalation",
+      techniques: ["T1078.004"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1530"]
+    }
+  ]}
+/>
+
+### Desglose
+
+| MITRE ID | Técnica | En este caso |
+|---|---|---|
+| **T1190** | Exploit Public-Facing Application | El cortafuegos de aplicaciones web mal configurado |
+| **T1552.005** | Unsecured Credentials: Cloud Instance Metadata API | El pedido a `169.254.169.254` y las credenciales temporales que devolvió |
+| **T1078.004** | Valid Accounts: Cloud Accounts | Operar con la identidad del rol, dentro de lo que el sistema autoriza |
+| **T1530** | Data from Cloud Storage | El listado y la copia del almacenamiento de objetos |
+
+Dos observaciones sobre esa tabla.
+
+La primera: **T1078.004 aparece como escalada de privilegios, no como acceso
+inicial.** Es el mismo identificador que en los casos 02 y 05, usado con otra táctica.
+Una técnica de ATT&CK no pertenece a una sola táctica: describe una acción, y la
+táctica dice para qué sirvió esa acción en ese momento. Acá el rol prestado da más
+permiso del que tenía quien llegó por la web, así que la lectura correcta es escalada.
+
+La segunda: **ninguna de las cuatro técnicas involucra software malicioso.** No hay
+implante, no hay canal de mando y control, no hay hash que buscar. Es el mismo rasgo
+del caso 006 desde otro ángulo, y explica por qué la defensa que corresponde acá es de
+identidad y de permisos, no de endpoint.
+
+---
+
+## Marcos de análisis
+
+Material de apoyo, fuera del informe. Se abre en ventana aparte.
+
+<PyramidOfPain
+  client:load
+  lang="es"
+  caseId="soc-007"
+  indicators={{
+    artifacts: [
+      "Pedidos hacia 169.254.169.254 desde un componente de red",
+      "Credenciales de rol de instancia presentadas desde fuera de la nube",
+      "Listado completo de repositorios de almacenamiento por un rol que no lo hace nunca",
+      "Volumen de lectura de objetos muy por encima de la línea base del rol"
+    ],
+    tools: ["Utilitario de línea de comandos del propio proveedor de nube"],
+    ttps: [
+      "SSRF contra un componente con rol de identidad asociado",
+      "Uso de credenciales temporales legítimas en lugar de credenciales robadas permanentes",
+      "Recolección desde el almacenamiento con llamadas de API válidas"
+    ]
+  }}
+  note="Los tres escalones de abajo están vacíos y no por olvido: no hubo malware que hashear, ni dominio de mando y control, ni infraestructura del atacante que bloquear. Un caso así deja sin trabajo a media pirámide. Lo que queda arriba tiene una propiedad que conviene notar: el mejor artefacto de la lista, credenciales de rol de instancia usadas desde fuera de la nube, no describe algo malo sino algo imposible. Esas credenciales existen para que las use la máquina; verlas en otro lado contradice el diseño del mecanismo. Una detección construida sobre una contradicción no envejece cuando el atacante cambia de herramienta, porque no depende de la herramienta."
+/>
+
+No incluyo la Cadena de Ataque ni el Diamond Model. La primera daría casi todas las
+fases alcanzadas, que es lo mismo que ya muestran los casos 05 y 06. El segundo tiene
+adversario identificado y víctima documentada, pero el vértice de infraestructura solo
+puedo llenarlo con detalles que no están en las fuentes oficiales que cito, y un
+diamante con un vértice débil enseña menos que su ausencia.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-007"
+  summary={{
+    incidentId: "OCC AA-EC-20-49",
+    title: "Acceso a datos en la nube mediante SSRF contra el servicio de metadatos",
+    status: "Documentado públicamente",
+    severity: "CRITICAL",
+    triageInicial: "Aviso externo por correo, no alerta propia",
+    causaRaiz: "Cortafuegos de aplicaciones web mal configurado, sobre una instancia con un rol de permisos excesivos",
+    tiempoDeContencion: "Dos días desde el aviso externo. Alrededor de cuatro meses desde el acceso",
+    datosComprometidos: "Solicitudes de tarjeta de crédito almacenadas en la nube",
+    resolutionCode: "Caso de estudio"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**Un SSRF en la nube es un robo de identidad.** El pedido no se lleva datos: se lleva
+las credenciales del rol de la máquina. Cambia por completo cómo hay que evaluar la
+gravedad de esa clase de hallazgo en una revisión de aplicación.
+
+**El privilegio mínimo no evita el incidente, decide su tamaño.** El SSRF existía de
+todos modos. Lo que convirtió una falla web en una brecha masiva fue que el rol del
+cortafuegos podía leer el almacenamiento. Cada permiso de más es una decisión
+anticipada sobre el radio del próximo incidente.
+
+**Después del primer paso, todo el ataque son llamadas válidas.** Credenciales
+vigentes, rol existente, permisos concedidos. No hay operación que rechazar, así que la
+detección tiene que apoyarse en contradicciones de diseño y en líneas base, no en
+errores.
+
+**La casilla de seguridad es un canal de detección.** Acá fue el único que funcionó.
+Necesita dueño, tiempo de respuesta y camino directo al SOC; sin eso, el aviso llega y
+se pierde.
+
+**Un control opcional no es un control.** IMDSv2 protege cuando está en modo requerido.
+La pregunta de auditoría no es si está disponible, sino cuántas instancias lo exigen.
+
+**El regulador dejó escrito lo que le faltó al SOC.** Controles de red, prevención de
+fuga de datos y disposición efectiva de las alertas. Vale leer esa lista como lo que
+es: una descripción externa de fallas que desde adentro se ven como tickets cerrados y
+reglas que nadie escribió.
+
+**Los hallazgos existían y no viajaron.** La auditoría interna encontró debilidades y
+no logró comunicarlas de modo que se entendiera su materialidad, y sobre lo que sí
+subió no hubo consecuencia. Detectar y no lograr que importe es una falla de las
+caras.
+
+---
+
+## Recomendaciones
+
+- Exigir IMDSv2 en todas las instancias, y auditar el modo requerido en vez de la
+  disponibilidad
+- Revisar los roles asociados a componentes de red y de seguridad: un cortafuegos, un
+  proxy o un balanceador no necesitan leer almacenamiento de datos
+- Alertar sobre credenciales de rol de instancia usadas desde direcciones que no son de
+  la propia infraestructura
+- Línea base de operaciones por rol, y alerta por desvío: listados completos y lecturas
+  masivas que ese rol nunca hace
+- Detección de salida de datos por volumen, que es la falla que el regulador pidió
+  corregir de forma explícita
+- Casilla de contacto de seguridad con dueño, tiempo de respuesta comprometido y camino
+  directo hacia quien puede abrir un incidente
+- Evaluación de riesgos previa a mover operaciones a la nube, con inventario de
+  controles que se pierden y de los que hay que construir de nuevo
+- Tratar los hallazgos de auditoría interna sobre la nube como material de seguimiento
+  con vencimiento, no como observaciones
+
+---
+
+## Referencias
+
+- [Seattle Tech Worker Arrested for Data Theft Involving Large Financial Services Company - Departamento de Justicia de EE.UU.](https://www.justice.gov/usao-wdwa/pr/seattle-tech-worker-arrested-data-theft-involving-large-financial-services-company)
+- [OCC Assesses $80 Million Civil Money Penalty Against Capital One - OCC](https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html)
+- [Consent Order AA-EC-20-49, orden de cese - OCC](https://www.occ.gov/static/enforcement-actions/ea2020-037.pdf)
+- [Use the Instance Metadata Service to access instance metadata - Documentación de AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)
+- [Configure the Instance Metadata Service options - Documentación de AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html)
+- [Exploit Public-Facing Application (T1190) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1190/)
+- [Unsecured Credentials: Cloud Instance Metadata API (T1552.005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1552/005/)
+- [Valid Accounts: Cloud Accounts (T1078.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1078/004/)
+- [Data from Cloud Storage (T1530) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1530/)
+
+---
+
+## Próximas lecturas
+
+El caso 06 termina en una lección parecida desde el otro extremo: allí el atacante usó
+herramientas legítimas y acá usó credenciales legítimas, y en los dos el resultado es
+que no hay nada inválido que rechazar. Comparar los dos ayuda a ver que la defensa
+contra actividad autorizada no se construye con listas de lo malo, sino con
+descripciones de lo normal.
