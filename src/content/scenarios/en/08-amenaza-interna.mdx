@@ -1,0 +1,579 @@
+---
+title: "Insider threat - When the SOC investigates an activity, not a person"
+description: "Educational case: no exploitation, no foreign tool and every access authorised. The signal is volume, timing and destination, and how far the analyst may go is part of the case"
+pubDate: 2026-04-21
+caseId: "soc-008"
+caseNumber: 8
+difficulty: "advanced"
+caseType: "educational_synthetic"
+severity: "HIGH"
+tags: ["insider-threat", "dlp", "baseline", "peer-group", "data-exfiltration", "evidence-handling", "ethics"]
+author: "Synthetic scenario - techniques documented by MITRE ATT&CK"
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+
+## Executive summary
+
+Every previous case on this site begins the same way: somebody who should not be
+inside gets in. This one does not.
+
+Here there is no exploitation, no stolen credential, no tool that is not part of the
+job. A person with legitimate access read records they have permission to read,
+exported them with a feature the application offers, and copied them to a destination
+policy does not block. **No individual action is a violation.** The combination is.
+
+That changes the nature of the work. There is nothing bad to recognise: what has to
+be measured is a difference from normal, and normal has to have been defined
+beforehand.
+
+And it changes something else, which is half the case. This is the only scenario where
+the output of the analysis **is not a technical action but a file that goes to Human
+Resources and Legal**, about an identifiable person, with consequences for their job
+and potentially their liberty. An analyst who gets it wrong here does not produce a
+false positive: they produce harm.
+
+Which is why one rule organises the case: **the SOC investigates an activity, it does
+not investigate a person.**
+
+**Key metrics:**
+
+- Observed actions that violate a policy on their own: none
+- Deviation from the individual baseline: around 140 times
+- Deviation from the peer group in the same role: 4.6 times
+- Time from the alert to handover to HR and Legal: 6 hours
+- Data the SOC looked up about the person's life: none
+- Primary techniques: T1213, T1074.001, T1567.002
+
+<Warn />**Synthetic scenario.** The organisation, the accounts and the logs were built
+for the exercise. IP addresses come from the ranges RFC 5737 reserves for
+documentation and the domains use the `.example` TLD from RFC 2606.
+
+<Warn />**On the legal framing.** What follows describes working criteria, not legal
+advice. What may be monitored, what may be retained and what has to be notified varies
+a great deal by country, collective agreement and contract. The one recommendation that
+holds everywhere is that those questions get answered **before** there is a case, and
+they are answered by Legal, not by the SOC.
+
+---
+
+## Context: why this case is different
+
+In an intrusion, the attacker has to obtain something they do not have: a credential,
+a session, a permission. Each of those steps leaves an anomalous trace, and detections
+are built on those traces.
+
+An insider does not need to obtain anything. They already have it, and they use it the
+way they do every day. The practical consequence:
+
+**The left half of the detection work disappears.** No initial access, no escalation,
+no lateral movement, no persistence. The case starts directly at collection and
+exfiltration.
+
+And a second, more uncomfortable consequence: since there is nothing forbidden to point
+at, the only evidence available is **statistical**. Volume against a baseline. Timing
+against a history. Destination against a habit. None of the three, alone, proves
+anything. It is a kind of evidence that has to be presented without overstating it.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-008"
+  events={[
+    {
+      time: "1 Apr",
+      title: "Role change",
+      description: "The m.ibarra account moves from account executive to portfolio lead. The new role requires bulk access to the client register.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "16 Apr 23:10",
+      title: "First out-of-hours reading",
+      description: "640 client records queried between 23:10 and 01:05. No alert: the volume is within what the new role permits.",
+      severity: "LOW",
+      actor: "User"
+    },
+    {
+      time: "17 Apr 22:52",
+      title: "Second night",
+      description: "918 more records, in the same window. The volume rule accumulates per day, not per period.",
+      severity: "LOW",
+      actor: "User"
+    },
+    {
+      time: "18 Apr 23:40",
+      title: "Export",
+      description: "Three comma-separated value files, 41 MB in total, generated with the application's own export feature.",
+      severity: "MEDIUM",
+      actor: "User"
+    },
+    {
+      time: "19 Apr 00:18",
+      title: "Data loss prevention alert",
+      description: "The three files uploaded to a personal cloud storage account. The category is permitted by policy.",
+      severity: "MEDIUM",
+      actor: "System"
+    },
+    {
+      time: "19 Apr 09:05",
+      title: "The analyst picks up the ticket",
+      description: "Triage begins from the account's activity, without opening any enquiry about the person.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "19 Apr 10:30",
+      title: "Individual baseline discarded",
+      description: "The deviation from the account's history is useless, however large: the role changed three weeks ago.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "19 Apr 11:45",
+      title: "Peer group comparison",
+      description: "Four other accounts in the same role read between 480 and 700 records in three days. This one read 2,412.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "19 Apr 13:20",
+      title: "Evidence preservation",
+      description: "Access, export and proxy logs secured, with chain of custody. The machine and the mailbox are not touched.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "19 Apr 15:10",
+      title: "Handover to HR and Legal",
+      description: "A chronology of technical facts is delivered, with no conclusion about intent or about the person.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The alert, and what it does not say
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-008"
+  type="activity"
+  title="Observed activity of the m.ibarra account"
+  data={{
+    reads: {
+      "period": "16 to 18 April",
+      "client records queried": "2,412",
+      "time window": "22:40 to 01:15",
+      "permission to read them": "Yes, granted on 1 April with the role change",
+      "verdict": "suspicious"
+    },
+    export: {
+      "mechanism": "The application's own export feature",
+      "files": "3 comma-separated value files, 41 MB",
+      "permission to export": "Yes, included in the role profile",
+      "verdict": "suspicious"
+    },
+    destination: {
+      "service": "Personal cloud storage",
+      "policy status": "Category permitted, no blocking",
+      "account": "Personal, not corporate",
+      "verdict": "suspicious"
+    },
+    "what is absent": {
+      "malware": "None",
+      "stolen credential": "None",
+      "privilege escalation": "None",
+      "action forbidden by policy": "None"
+    }
+  }}
+/>
+
+The last row is worth pausing on. **Every action, looked at alone, is part of the
+job.** Reading the client register is the role. Exporting it is a capability the
+profile includes. Uploading a file to cloud storage is something policy permits.
+
+A triage that looks for the forbidden action will not find one, and will close the
+ticket.
+
+---
+
+## 2. The individual baseline, and why it does not work here
+
+The first instinct is right: compare against what this account normally does.
+
+```
+Account history, 12 months:   ~40 records per week  →  ~17 in three days
+Observed, 16 to 18 April:     2,412 records in three days
+Deviation:                    around 140 times
+```
+
+Note the intermediate step, which is easy to skip and changes the result by more than
+double: the baseline is expressed per week and the observation per three days.
+Comparing 2,412 against 40 gives sixty times and is a botched calculation. **Every
+number with its denominator, including when the number favours the hypothesis.**
+
+A hundred and forty times the baseline is an impressive figure, and it is **useless**.
+
+On 1 April this person changed role. They moved from handling individual accounts to
+leading a portfolio, and that role requires precisely what the baseline marks as
+impossible: bulk access to the register.
+
+There is a lesson here that gets paid for dearly in any behavioural detection
+programme:
+
+**A baseline built on a person expires when their role changes, and nothing in the
+system says so.** The history is still there, still being computed, still producing
+enormous deviations, and all of them are false. Worse still: they produce convincing
+deviations, the kind that look decisive in a report.
+
+From that comes a concrete requirement, and it is the most useful part of the case for
+building detections: **the baseline has to be tied to the role, not to the personnel
+record, and the detection system has to learn about role changes.** If HR moves
+somebody and the behavioural engine does not know, that engine will generate false
+positives about every person who changes post — which tend to be the people growing
+inside the organisation.
+
+---
+
+## 3. The peer group
+
+With the comparison against itself discarded, what remains is the one that applies:
+against other people doing the same thing today.
+
+```
+Four other accounts in the portfolio lead role,
+same three-day period:
+
+  account A    512 records
+  account B    480 records
+  account C    697 records
+  account D    534 records
+  ──────────────────────────
+  median       523 records
+
+  m.ibarra   2,412 records   →  4.6 times the group median
+```
+
+Four and a half times the peer median. It is a real anomaly, and it is worth saying
+precisely how strong it is: **it is far weaker than a hundred and forty times, and it
+is the only one of the two that means anything.**
+
+It is worth resisting the temptation to use the big number because it is more
+persuasive. In a file that goes to Legal, a badly computed deviation that the other
+side takes apart is worse than presenting nothing: it burns the credibility of the rest
+of the evidence.
+
+And even so, four times the median proves nothing on its own. Somebody can read four
+times more than their peers because they were assigned a migration, because they are
+covering for a colleague, or because they work differently. **The anomaly opens the
+question; it does not answer it.**
+
+---
+
+## 4. The other two signals
+
+What turns a volume anomaly into a case are the two that accompany it, and neither is
+stronger than the first: what matters is that they point the same way.
+
+**The timing.** Eighteen months of history for this account show activity between 08:30
+and 18:00, with isolated exceptions. These three nights' readings happened between
+22:40 and 01:15, three nights running. A role change does not explain a change of
+working hours.
+
+**The destination.** The exported files went to a personal cloud storage account, not
+to an organisation resource. Policy does not block it, and that is a control failure
+the case leaves on record. But the relevant point for the analysis is another: **no
+task in the portfolio lead role requires taking the register outside the company's
+systems.**
+
+The three signals together — volume against peers, timing against history, destination
+outside the perimeter — form a coherent picture. None is conclusive. All three pointing
+the same way is the most technical evidence can contribute, and it is enough to
+escalate.
+
+It is not enough to conclude.
+
+---
+
+## 5. The limit: what the SOC does not do
+
+Here is the part of the case that appears in no indicator and that determines whether
+the analyst did their job.
+
+With three signals pointing the same way, the temptation is to close the circle: read
+the person's email, go through their messages, look at what sites they visited, check
+whether they resigned. All of that is technically possible and in many environments the
+SOC has the permissions to do it.
+
+**It is not appropriate, and not mainly for abstract ethical reasons: for three
+operational ones.**
+
+**One, it destroys the evidence already held.** An investigation of a person conducted
+without prior legal framing can render the entire file unusable, and turn the analyst
+and the company into the defendant. Order matters: Legal authorises the scope first,
+collection happens after.
+
+**Two, it confuses the object.** What is being investigated is an activity on company
+data. The moment the object becomes the person, the analysis starts looking for
+confirmation instead of explanation, and finds it: any working life examined with
+suspicion offers material.
+
+**Three, the SOC does not have the context and should not have it.** The obvious
+question — is this person about to leave? — has an authoritative answer, and Human
+Resources holds it. The SOC does not read personnel files. It delivers the technical
+fact and **HR contributes the context that belongs to it**, which in this scenario
+turned out to be a resignation submitted four days before the first night.
+
+That fact changes the reading entirely, and it is right that it arrived by that route
+and not because an analyst went digging for it.
+
+The formulation worth taking away: **the SOC produces facts; the conclusion about
+intent is produced by somebody else, with more context and with the mandate to do it.**
+
+---
+
+## 6. How the report is written
+
+In this kind of case the language of the ticket is part of the technical work, because
+the ticket will be read by someone in Legal and possibly by a third party.
+
+| Not like this | Like this |
+|---|---|
+| "Ibarra stole the client portfolio" | "The m.ibarra account queried 2,412 records between 16 and 18 April" |
+| "She took the data before resigning" | "The queries happened between 22:40 and 01:15, outside the account's usual hours according to 18 months of history" |
+| "Clearly she was planning to join a competitor" | "The exported files were uploaded to a personal cloud storage account" |
+| "Plainly malicious activity" | "The activity deviates 4.6 times from the median of the peer group in the same role" |
+
+Three rules behind that table:
+
+**The subject is the account, not the person.** Who operates an account is a reasonable
+inference and not an observed fact. Writing "the account" is not a euphemism: it is
+precision.
+
+**Verbs of observation, not of intent.** "Queried", "exported", "was uploaded". Never
+"stole", "planned", "concealed".
+
+**Every number with its denominator.** "2,412 records" says nothing; "2,412 against a
+median of 523 in the same period and the same role" says everything. And if the
+deviation was computed against a baseline that no longer applies, it does not go in.
+
+---
+
+## 7. The innocent version of the same case
+
+The exercise is worth running in reverse, because it protects against the worst
+possible failure.
+
+The same three signals — volume four times over peers, night-time hours, export to
+personal storage — are exactly what is produced by a person who was asked to migrate
+the register to a new tool, who works at night because during the day the system is
+loaded, and who uses their personal storage because nobody gave them a corporate one
+with enough space.
+
+**The technical data are identical in both scenarios.** There is no query, no tool and
+no correlation that separates them, because the difference is not in the activity but
+in the authorisation, and the authorisation lives outside the SOC.
+
+This is the same structure as case 06: the ambiguous alert is not resolved by looking
+at it more closely, it is resolved by asking whoever holds the authoritative answer.
+The difference is the cost of skipping that step. There, an incident that keeps
+running. Here, an accusation against somebody who may have done nothing.
+
+Which is why the handover to HR and Legal is neither bureaucracy nor passing the
+problem along. **It is the only step in the procedure that can tell the two scenarios
+apart.**
+
+---
+
+## 8. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-008"
+  tactics={[
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1213", "T1074.001"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1213** | Data from Information Repositories | The 2,412 queries against the client register |
+| **T1074.001** | Data Staged: Local Data Staging | The three exported files gathered before uploading |
+| **T1567.002** | Exfiltration Over Web Service: Exfiltration to Cloud Storage | The upload to personal storage |
+
+And something is worth saying about the map this case leaves behind, because **the
+absence is the data**.
+
+Two tactics. The previous cases on this site use between three and five, and always
+include something from the left half of the matrix: initial access, execution,
+persistence, escalation, lateral movement. Here there is none, and not because the
+investigation fell short: **they did not happen.** Whoever holds the credential does
+not need to obtain it, and whoever is already where the data is does not need to move.
+
+ATT&CK models the behaviour of an adversary who has to work their way in. An insider
+threat case begins past that road, so the framework has little to say about the part
+that matters — volume, timing, destination, authorisation — and that is not a defect of
+the framework but a limit of its scope.
+
+The practical reading: **an ATT&CK map that only touches collection and exfiltration
+is, in itself, a signal that you are facing an actor who was already inside with
+permission.** It works as a triage question.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. It opens in its own window.
+
+<DiamondModel
+  client:load
+  lang="en"
+  caseId="soc-008"
+  campaign="Synthetic insider threat scenario"
+  confidence="Not applicable - scenario built for the exercise"
+  adversary={{
+    value: "A person with current legitimate access",
+    detail: "In a real case, identification is established by HR and Legal with the complete file, not by the SOC with access logs."
+  }}
+  capability={{
+    value: "The permission granted by their own role",
+    detail: "Reading the register and exporting to file, both included in the profile since the role change on 1 April."
+  }}
+  infrastructure={{
+    value: "A personal cloud storage account",
+    detail: "A widely used commercial service, in a category policy permits. It is not infrastructure set up for the act."
+  }}
+  victim={{
+    value: "The employer's own client register",
+    detail: "2,412 records queried and 41 MB exported across three nights."
+  }}
+  note="The diamond is normally used for pivoting: you start from the vertex you know — nearly always infrastructure or capability — and work towards the adversary, which is the expensive one. Here the route is inverted, and that is why the model reads differently. The adversary vertex is the first one known, because the activity comes signed with a credential that has an owner. And the other three, which in an intrusion are findings, here are ordinary parts of the company: the capability is a permission granted on purpose, the infrastructure is a commercial service allowed by policy, and the victim is an internal system. A diamond where three vertices describe legitimate operations is exactly the portrait of why this case is not detected with lists of what is bad."
+/>
+
+I am not including the Pyramid of Pain or the Kill Chain. The first would have its
+bottom three rungs empty, which is what cases 06 and 07 already show and with less to
+add. The second describes an intrusion advancing from outside: reconnaissance,
+weaponisation, delivery, exploitation, installation. None of those phases exist here,
+and forcing the model to fit would teach the model wrongly.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-008"
+  summary={{
+    incidentId: "INC-2026-0419-002",
+    title: "Bulk query and export of the client register from an authorised account",
+    status: "Escalated",
+    severity: "HIGH",
+    initialTriage: "Data loss prevention alert, medium severity",
+    rootCause: "Use of current permissions outside the purpose of the role, with no technical control preventing it",
+    timeToContainment: "6 hours from the alert to handover to HR and Legal",
+    dataCompromised: "2,412 client records, 41 MB exported to personal storage",
+    resolutionCode: "Escalated - the determination about intent belongs to HR and Legal"
+  }}
+/>
+
+The status of the report is worth noting. **It does not say "Resolved".** The SOC's work
+is finished and the incident is not closed: it stays open in another area, with another
+mandate. Closing it as resolved would assert a conclusion the SOC neither reached nor is
+entitled to reach.
+
+---
+
+## Lessons learned
+
+**The SOC investigates an activity, not a person.** It is the rule that orders
+everything else. It protects whoever is innocent, it protects the validity of the file
+when they are not, and it protects the analyst.
+
+**An individual baseline expires with a role change, and nobody says so.** The
+deviation from history was enormous, convincing and false. The baseline has to be tied
+to the current role, and the detection engine has to learn when that role changes.
+
+**The peer group is the comparison that applies.** Four and a half times the median of
+those doing the same job today is a smaller number and the only one that means
+anything.
+
+**Three weak signals pointing the same way is everything technical evidence can give.**
+Volume, timing and destination. None concludes. Together they are enough to escalate,
+not to accuse.
+
+**The language of the report is technical work.** Subject is the account, verbs of
+observation, every number with its denominator. A badly computed deviation that the
+other side takes apart burns the credibility of all the evidence.
+
+**The same data describe somebody guilty and somebody doing their job.** The difference
+is in the authorisation, and the authorisation lives outside the SOC. The handover is
+not bureaucracy: it is the only step that separates the two scenarios.
+
+**An ATT&CK map that only touches collection and exfiltration is a signal in itself.**
+The empty left half indicates an actor who was already inside with permission.
+
+---
+
+## Recommendations
+
+- Baseline by current role, fed by post changes, rather than by individual history from
+  the personnel record
+- Automatic peer group comparison as part of the alert, so the analyst does not have to
+  build it by hand
+- A written handover procedure to HR and Legal, with the scope of what the SOC may
+  collect before that authorisation explicitly bounded
+- Review the personal cloud storage policy: in this case it allowed the data out with no
+  friction, and it is the most concrete control failure in the incident
+- A dedicated alert for bulk export from business applications, separate from the read
+  volume alert
+- Permission review on role change, including removal of the previous ones, which this
+  case does not exercise but which the same mechanics make obvious
+- Define with Legal, before a case exists, what may be monitored, how long it is
+  retained and what has to be notified
+- Specific team training on writing reports that go to other departments
+
+---
+
+## References
+
+- [Data from Information Repositories (T1213) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1213/)
+- [Data Staged: Local Data Staging (T1074.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1074/001/)
+- [Exfiltration to Cloud Storage (T1567.002) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1567/002/)
+- [Collection, tactic TA0009 - MITRE ATT&CK](https://attack.mitre.org/tactics/TA0009/)
+- [Exfiltration, tactic TA0010 - MITRE ATT&CK](https://attack.mitre.org/tactics/TA0010/)
+- [RFC 5737 - IPv4 Address Blocks Reserved for Documentation](https://www.rfc-editor.org/rfc/rfc5737.html)
+- [RFC 2606 - Reserved Top Level DNS Names](https://www.rfc-editor.org/rfc/rfc2606.html)
+
+---
+
+## Up next
+
+Case 06 shares the structure of the problem: alerts that describe permitted activity and
+that are only resolved with an authoritative answer from outside the SOC. The difference
+is the cost of skipping that step. There, an incident that keeps running. Here, an
+accusation against somebody who may have been doing their job.
