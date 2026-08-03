@@ -81,23 +81,14 @@ export default defineConfig({
      * Solo afecta al desarrollo: el build usa la integración de Preact, que sí
      * aplica la transformación correcta, y por eso compilaba sin quejarse.
      *
-     * **Va declarado en los dos lugares, y no es redundancia.** `esbuild`
-     * gobierna la transformación de los módulos del proyecto;
-     * `optimizeDeps.esbuildOptions` gobierna el escaneo previo de dependencias,
-     * que es un paso aparte con su propia configuración. Hasta Vite 7 el primero
-     * alcanzaba porque el segundo heredaba de él. Vite 8 dejó de heredar y el
-     * error volvió con el mismo texto (E-025).
+     * Si el error del runtime de React vuelve a aparecer en `npm run dev`, ver
+     * E-025 antes de tocar nada: la respuesta que circula —declararlo también en
+     * `optimizeDeps.esbuildOptions`— está deprecada en esta versión, no hace
+     * nada y agrega una advertencia por cada entrada del build.
      */
     esbuild: {
       jsx: 'automatic',
       jsxImportSource: 'preact',
-    },
-
-    optimizeDeps: {
-      esbuildOptions: {
-        jsx: 'automatic',
-        jsxImportSource: 'preact',
-      },
     },
   },
 });
