@@ -1,0 +1,548 @@
+---
+title: "Ukraine 2015 - They moved the operator's mouse"
+description: "Real case: no malware opened the breakers. People did, by hand, from the operator's own screen, using help desk software. And then they attacked the recovery"
+pubDate: 2015-12-23
+caseId: "soc-013"
+caseNumber: 13
+difficulty: "expert"
+caseType: "real_case_ot"
+severity: "CRITICAL"
+tags: ["ot", "ics", "scada", "hmi", "sandworm", "blackenergy", "critical-infrastructure", "it-ot-boundary"]
+author: "Joint E-ISAC and SANS ICS report (18 March 2016) and campaign C0028 in MITRE ATT&CK"
+discoveryDate: "2015-12-23"
+locations:
+  - { lat: 48.9226, lng: 24.7111, label: "Ivano-Frankivsk, one of the regions left without power" }
+  - { lat: 50.4501, lng: 30.5234, label: "Kyiv, affected region" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+
+## Executive summary
+
+On 23 December 2015, three Ukrainian electricity distribution companies lost control of
+their grid. Breakers were opened at around thirty substations and some 225,000 people
+were left without power for close to six hours.
+
+It is the first power outage caused by a cyber attack to be documented in detail, and
+the joint E-ISAC and SANS report is probably the best public material that exists on an
+operational technology incident.
+
+It is here for three things, and none of them is the malware.
+
+**The first.** No program opened the breakers. MITRE records it under technique
+`T0823`: the attackers **used the SCADA system's own graphical interfaces** to open
+them. And `T0886` adds the detail that makes the case unforgettable: they used **IT
+help desk software to move the mouse** on the control machines. Operators watched the
+cursor move across their own screens and could not stop it.
+
+**The second.** They did not only attack the process: **they attacked the recovery**.
+They overwrote the firmware of the serial-to-Ethernet converters so no command could be
+sent remotely. They wiped workstations. They scheduled the uninterruptible power
+supplies to shut down the servers. And they flooded the customer call centre so
+customers could not even report the outage.
+
+**The third.** Everything a SOC could have detected happened **months earlier and on
+the corporate network**, not the industrial one.
+
+**Key metrics:**
+
+- Date: 23 December 2015
+- People without supply: around 225,000
+- Substations with breakers opened: about 30
+- Duration of the outage: close to six hours
+- Restoration: largely **manual**
+- Malware that operated the breakers: none
+- Primary techniques: T1566.001 and T1078 in the enterprise matrix, T0823 and T0886 in ICS
+
+<Warn />**Real case.** The technical material comes from the joint E-ISAC and SANS ICS
+report of 18 March 2016, and from campaign `C0028` in MITRE ATT&CK, which attributes it
+to Sandworm Team (`G0034`). Figures for duration and reach vary somewhat between
+sources and between affected companies; I use the ones MITRE records.
+
+---
+
+## Context: what changes when the target is a physical process
+
+The twelve previous cases on this site are about data: stealing it, encrypting it,
+exposing it. This one is about **electricity**, and that difference reorders everything.
+
+**The impact is not informational, it is physical.** Nobody lost a file. Homes, traffic
+lights, boilers and water pumps went dark, in December, in Ukraine.
+
+**No backup restores this.** A backup returns data. It does not return a breaker to its
+position: a person does that, at the substation.
+
+**And there is a striking asymmetry of time**, worth keeping in mind while reading the
+rest: the campaign had been on the corporate network for months, and the impact lasted
+six hours.
+
+One clarification is also worth making for anyone who does not work in industry, because
+this case gets cited a lot and understood little. **There was no industrial malware.** No
+controller was exploited, no automation logic was modified, and no deep knowledge of
+industrial protocols was required for the moment of the outage. What was required was
+reaching the operator's computer and using it.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-013"
+  events={[
+    {
+      time: "Months earlier",
+      title: "Email with an Office document",
+      description: "Attachments with macros reach people on the distributors' administrative network. Whoever enables content runs the implant.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "Months earlier",
+      title: "Credential theft and reconnaissance",
+      description: "A keylogger module and a network sniffer capture credentials travelling between the local network and the industrial systems.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "Months earlier",
+      title: "Privileged domain accounts",
+      description: "Privileged domain accounts are created for further movement and persistence on the corporate network.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "Weeks earlier",
+      title: "Crossing into the industrial network",
+      description: "With valid accounts taken from the domain controller, the control network is reached through the very VPN the operators use.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "Weeks earlier",
+      title: "Preparing the attack on recovery",
+      description: "Custom firmware for the serial-to-Ethernet converters, and access to the management of the power supply systems.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "23 Dec",
+      title: "Breakers opened",
+      description: "From the SCADA graphical interfaces, breakers are opened at around 30 substations. Operators watch the cursor move.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "23 Dec",
+      title: "Response blocked",
+      description: "Firmware overwritten, workstations wiped, power supply systems scheduled to shut down servers, and the call centre flooded.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "23 Dec",
+      title: "Manual restoration",
+      description: "Company staff travel to the substations to close breakers by hand. Supply returns in around six hours.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "18 Mar 2016",
+      title: "Public report",
+      description: "E-ISAC and SANS ICS publish the joint analysis that turns the incident into study material.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+The two durations in that timeline are the structural lesson of the case. **The part a
+SOC could see lasted months. The part that hurt lasted six hours.**
+
+---
+
+## 1. People opened the breakers
+
+This is worth pausing on because it corrects the most widely circulated version of the
+case.
+
+MITRE records two ICS matrix techniques that describe the moment of the outage:
+
+**`T0823`, Graphical User Interface.** Sandworm Team used the operator workstations'
+graphical interfaces in the SCADA environment to open the breakers.
+
+**`T0886`, Remote Services.** They used IT help desk software **to move the mouse** on
+the control machines, and thereby release the breakers.
+
+In other words: the same kind of tool a support technician uses to connect to a
+colleague's computer and help them. The same class of program that appears in case 006
+being installed on a finance workstation.
+
+The consequences for defence are concrete and uncomfortable:
+
+**No signature detects this.** The SCADA application did exactly what it knows how to
+do, invoked by a valid session from an authorised workstation. There is no odd file, no
+unknown process, no anomalous traffic towards the controller: there is a legitimate
+command issued by the legitimate client.
+
+**The industrial system's log does not distinguish it either.** From the system's point
+of view, an operator opened a breaker. That is their job.
+
+**And no industrial knowledge was needed for the final step.** All the specialist
+knowledge came earlier: understanding the topology, knowing which breakers to open and
+in what order. The act itself was point and click.
+
+It is the same thesis that runs through half this site — the attacker uses what is
+already there — taken to its most extreme form: **here what was already there was the
+operator's screen.**
+
+---
+
+## 2. They attacked the recovery
+
+This is the part that sets this incident apart from almost any other, and the one most
+worth copying as a way of thinking.
+
+Opening breakers is reversible: you close them. An attacker who only did that would
+cause an outage of minutes. What turned this into six hours was a parallel campaign,
+prepared in advance, against **the ability to respond**.
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-013"
+  type="anti-response"
+  title="Each action against a means of recovery"
+  data={{
+    "firmware overwrite": {
+      "MITRE technique": "T1693.001, Modify Firmware: System Firmware",
+      "target": "Serial-to-Ethernet converters",
+      "what it removes": "The ability to send commands to field equipment remotely",
+      "reversible": "Not without replacing or reprogramming the physical device",
+      "verdict": "malicious"
+    },
+    "workstation wiping": {
+      "MITRE technique": "T0813, Denial of Control",
+      "tool": "KillDisk",
+      "what it removes": "The workstations used to operate, and at least one remote terminal unit",
+      "verdict": "malicious"
+    },
+    "scheduled server shutdown": {
+      "MITRE technique": "T0816, Device Restart/Shutdown",
+      "means": "The management interface of the uninterruptible power supplies",
+      "what it removes": "The data and telephony servers of the control centres",
+      "verdict": "malicious"
+    },
+    "telephone flooding": {
+      "MITRE technique": "T0814, Denial of Service",
+      "target": "The customer call centre",
+      "what it removes": "The route by which the company learns where the power is out",
+      "verdict": "malicious"
+    }
+  }}
+/>
+
+The last row is worth reading carefully, because it is the least technical and the most
+revealing. **Flooding the telephone switchboard does nothing to the electrical grid.**
+It does something to the process by which the company discovers the extent of its own
+problem. It is an attack on the map, not the territory.
+
+From here comes the statement this case contributes to the site:
+
+> **Your response plan is a target.** If it is written down, somebody can read it. If it
+> depends on a medium, that medium can be degraded beforehand. A prepared adversary does
+> not only attack the process: they attack what you would use to recover it.
+
+And the corresponding question, to be asked in the cold: **what does our response depend
+on, and what happens if that is not there?** Case 009 reaches the same conclusion from a
+ransomware that changes passwords; here it is done deliberately and against four
+different means at once.
+
+---
+
+## 3. The IT to OT crossing was no feat
+
+Another important correction. The step from the corporate network to the industrial one
+was not a sophisticated breach. MITRE describes it with three techniques that, together,
+are almost anticlimactic:
+
+| Technique | What the record says |
+|---|---|
+| `T1018` Remote System Discovery | The OT systems **were visible from the IT network** |
+| `T1040` Network Sniffing | Credentials travelling between the local network and the industrial systems were captured |
+| `T0822` External Remote Services | Valid accounts taken from the domain controller were used to enter through **the control VPN the operators use** |
+
+There is no exploitation of a vulnerability at the boundary between the two networks.
+There is **visibility**, **credentials** and **legitimate remote access**.
+
+For an analyst, that turns a vague question — "are we separated from OT?" — into three
+verifiable ones:
+
+1. From any workstation on the corporate network, what OT can be *seen*?
+2. Are there OT credentials travelling over the corporate network, or working on both?
+3. Who can use the control VPN, from where, and with what second factor?
+
+All three are answered with inventory and packet captures, not with a diagram. And the
+diagram almost always says the networks are separated.
+
+---
+
+## 4. Where a SOC's window was
+
+This is the part that serves whoever has never seen an industrial system, and it is why
+the case is worth it for everybody.
+
+**Everything detectable happened on the IT side**, using techniques the rest of the site
+has already covered:
+
+| Moment | Technique | Where it is detected |
+|---|---|---|
+| Entry | `T1566.001` Spearphishing Attachment | Email, as in case 001 |
+| Execution | `T1204.002` and `T1059.005` Office macro | Endpoint, as in case 010 |
+| Command and control | `T1071.001` over HTTP, port 443 | Outbound traffic, as in case 010 |
+| Credentials | `T1056.001` keylogger | Endpoint |
+| Persistence | `T1136.002` new privileged domain accounts | Directory, and it is an extremely high-value alert |
+| Movement | `T1570` tool transfer between IT and OT | Internal network |
+
+None of those six requires a specialist in industrial protocols. They are ordinary SOC
+detections, on an ordinary corporate network.
+
+**The practical conclusion is encouraging and worth stating:** cutting this campaign did
+not require understanding substations. It required detecting a macro, a command channel,
+and **privileged domain accounts created outside an employee onboarding** — which is,
+incidentally, the same alert that would have helped in case 002 and in case 011.
+
+The window was months. That is the number that matters, not the six hours.
+
+---
+
+## 5. The restoration was manual
+
+MITRE records it under `T0827`: operators were locked out of their equipment, and **much
+of the power was restored manually.** Staff from the distributors travelled to the
+substations to close breakers by hand.
+
+That this was possible is no minor detail: it is why the outage lasted six hours and not
+six days.
+
+And it carries a warning about modernisation, worth stating without nostalgia. These
+substations could be operated by hand because **there was something to operate with and
+somebody who knew how**. An installation designed to be inoperable without software, or
+where nobody remembers how, does not have that way out. It is the same question as case
+009 — what part of the operation works without the systems that assist it — with an
+answer that here saved the situation.
+
+---
+
+## 6. MITRE ATT&CK mapping, enterprise matrix
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-013"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.001"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1204.002", "T1059.005"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1136.002", "T1133"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1056.001", "T1040"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1570"]
+    },
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1071.001", "T1105"]
+    }
+  ]}
+/>
+
+### The ICS matrix, which is where the damage happens
+
+| MITRE ICS | Technique | In this case |
+|---|---|---|
+| **T0822** | External Remote Services | Domain controller accounts used on the control VPN |
+| **T0859** | Valid Accounts | Interaction with client applications and HMI workstations |
+| **T0846** | Remote System Discovery | Discovery of operational assets once inside the OT network |
+| **T0823** | Graphical User Interface | **The SCADA interfaces used to open the breakers** |
+| **T0886** | Remote Services | **Help desk software to move the mouse on the control machines** |
+| **T0831** | Manipulation of Control | Live breakers opened by remote commands to the HMI |
+| **T1692.001** | Unauthorized Message: Command Message | Unauthorised commands to substation breakers |
+| **T1693.001** | Modify Firmware: System Firmware | Custom firmware on the serial-to-Ethernet converters |
+| **T1695.001** | Block Communications: Serial COM | Communication with serial devices cut off or made harder |
+| **T1691.001** and **.002** | Block OT Message: Command and Reporting | Neither commands downstream nor reports upstream |
+| **T0813** | Denial of Control | Equipment needed for remote recovery rendered unusable |
+| **T0814** | Denial of Service | Telephone flooding of the call centre |
+| **T0816** | Device Restart/Shutdown | Power supply systems scheduled to shut down servers |
+| **T0826** | Loss of Availability | Around six hours without supply |
+| **T0827** | Loss of Control | Restoration largely manual |
+| **T0828** | Loss of Productivity and Revenue | Inability to deliver power |
+
+It is worth looking at the shape of the two tables together, because it says something
+neither says alone. **The enterprise matrix covers the whole route and no damage. The ICS
+matrix covers all the damage and no route.** A mapping done with only the first describes
+one more intrusion; with only the second, a disaster with no cause. The incident needs
+both, which is why industrial organisations need analysts who can read both.
+
+It is the second case on the site to use the ICS matrix — the other is 09 — and the first
+where it is the main map.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. It opens in its own window.
+
+<DiamondModel
+  client:load
+  lang="en"
+  caseId="soc-013"
+  campaign="2015 Ukraine Electric Power Attack (C0028)"
+  confidence="High - campaign catalogued by MITRE and formal US Department of Justice indictment in October 2020"
+  adversary={{
+    value: "Sandworm Team (G0034)",
+    detail: "MITRE attributes it to military unit 74455 of the Russian General Staff's intelligence directorate. In October 2020 six officers were formally indicted in the United States over these and other operations."
+  }}
+  capability={{
+    value: "BlackEnergy3 and KillDisk for the route, the HMI itself for the damage",
+    detail: "The implant and the disk wiper are the attacker's tools. Opening the breakers was done with the operator's applications and with help desk software."
+  }}
+  infrastructure={{
+    value: "Command servers over HTTP on port 443",
+    detail: "With an internal proxy established before installing the backdoors, so outbound traffic did not originate from the compromised machines."
+  }}
+  victim={{
+    value: "Three regional electricity distributors",
+    detail: "Prykarpattyaoblenergo, Chernivtsioblenergo and Kyivoblenergo, and through them some 225,000 people in Ivano-Frankivsk, Chernivtsi and Kyiv."
+  }}
+  note="The capability vertex is the one to read slowly, because it is split in two and that split is the whole case. To get in they used their own tools, with hashes, with domains, with everything a security team knows how to look for. To do the damage they used the operator's application and a remote support program, which have nothing to look for. The consequence for pivoting is uncomfortable: starting from the infrastructure or the malware you reach the months-long campaign on the corporate network, and you never reach the final act, because the final act left no trace of its own. It is the best illustration of why indicator-based threat intelligence describes well how an adversary gets in and badly what they do once inside. And note the victim vertex: it is three companies, and at the same time 225,000 people who chose none of the three."
+/>
+
+I am not including the Kill Chain or the Pyramid of Pain. The first would show seven
+phases reached, and it is also worth saying that the E-ISAC and SANS report uses its own
+version for industrial environments, with two chained stages — one to reach the IT
+network and another to act on the process — which represents this incident better than
+the classic seven phases. The second would split into two incomparable halves, for the
+reason the diamond's note explains.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-013"
+  summary={{
+    incidentId: "MITRE ATT&CK C0028",
+    title: "Power outage caused by remote operation of breakers from the SCADA",
+    status: "Publicly documented",
+    severity: "CRITICAL",
+    initialTriage: "Not applicable: the incident is known because the lights went out",
+    rootCause: "Email with an Office document, followed by months on the corporate network and a crossing into the industrial one with valid accounts",
+    timeToContainment: "Around six hours to restoration, largely manual",
+    dataCompromised: "The documented impact is on the availability of an essential service",
+    resolutionCode: "Case study"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**There was no industrial malware at the moment of the damage.** The breakers were opened
+from the SCADA's own interfaces, and partly by moving the operator's mouse with help desk
+software. There is no signature for that, and the industrial system's log only sees an
+operator doing their job.
+
+**The response plan is a target.** Firmware overwritten, workstations wiped, servers shut
+down from the power supply systems, and the call centre flooded. Four means of recovery
+deliberately degraded in advance.
+
+**Flooding the phones does not touch the grid: it touches the map.** It stops the company
+knowing where the power is out. A reminder that the ability to find out is also an asset.
+
+**The IT to OT crossing was visibility, credentials and a legitimate VPN.** There was no
+exploitation at the boundary. That turns "are we separated?" into three verifiable
+questions about what can be seen, which credentials travel, and who can use remote access.
+
+**The detection window was entirely on the IT side, and it lasted months.** Macro, command
+channel over 443, keylogger, privileged domain accounts created outside onboarding. None
+requires a specialist in industrial protocols.
+
+**Manual operation was the recovery.** It worked because there was something to work with
+and somebody who knew how. An installation that cannot be operated without software has
+no such way out.
+
+**An industrial incident needs both matrices.** The enterprise one has the whole route and
+no damage; the ICS one has all the damage and no route.
+
+---
+
+## Recommendations
+
+- Inventory which OT assets are visible from the corporate network, measured with packet
+  captures rather than with the network diagram
+- Separate credentials between IT and OT, with no accounts that work on both, and no OT
+  credentials travelling over the corporate network
+- Remote access to the control network with a resistant second factor, restricted origins
+  and session recording
+- High-priority alert for the creation of privileged domain accounts outside employee
+  onboarding
+- Logging of the commands issued from operator workstations, with time and session, so a
+  legitimate command can later be told apart from an imposed one
+- Detection of remote access software on control network machines, where it has no reason
+  to be
+- Means of recovery that do not depend on the affected system: spare firmware, replacement
+  equipment, and a customer communication channel other than the telephone
+- Manual operating procedures written down, accessible offline, and staff trained to
+  execute them
+- Response exercises that include the deliberate degradation of the response means
+  themselves
+
+---
+
+## References
+
+- [Analysis of the Cyber Attack on the Ukrainian Power Grid: Defense Use Case - E-ISAC and SANS ICS](https://nsarchive.gwu.edu/sites/default/files/documents/3891751/SANS-and-Electricity-Information-Sharing-and.pdf)
+- [2015 Ukraine Electric Power Attack (C0028) - MITRE ATT&CK](https://attack.mitre.org/campaigns/C0028/)
+- [Sandworm Team (G0034) - MITRE ATT&CK](https://attack.mitre.org/groups/G0034/)
+- [BlackEnergy (S0089) - MITRE ATT&CK](https://attack.mitre.org/software/S0089/)
+- [KillDisk (S0607) - MITRE ATT&CK](https://attack.mitre.org/software/S0607/)
+- [Graphical User Interface (T0823) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0823/)
+- [Remote Services (T0886) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0886/)
+- [Denial of Control (T0813) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0813/)
+- [Device Restart/Shutdown (T0816) - MITRE ATT&CK ICS](https://attack.mitre.org/techniques/T0816/)
+- [ICS Matrix - MITRE ATT&CK](https://attack.mitre.org/matrices/ics/)
+
+---
+
+## Up next
+
+Case 09 is the natural companion: there too a plant stops without anybody touching a
+controller, but as a side effect of ransomware that was after something else. Here the
+physical process was the target from the start. Reading them together separates two ideas
+that often get confused: production stopping does not mean the attacker meant to stop it,
+and the two situations call for different preparations.
