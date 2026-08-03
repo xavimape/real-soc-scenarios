@@ -37,6 +37,7 @@ const PERMITIDOS = [
   'google.com',
   'progress.com',
   'amazon.com',
+  'hydro.com',
   // Reservado por RFC 2606 para documentación: no puede ser infraestructura real.
   'example.com',
   // Herramientas públicas citadas por nombre, no infraestructura del atacante.
