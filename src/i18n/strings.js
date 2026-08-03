@@ -187,6 +187,28 @@ export const strings = {
    * separadas para que `check-i18n` pueda contrastarlos uno por uno; un bloque
    * único sería una sola frase gigante y el verificador no diría nada útil.
    */
+  /**
+   * Aviso de cookies. La analítica no se carga hasta que alguien acepta acá.
+   *
+   * El texto nombra las dos normas que aplican: la Ley 25.326 porque el sitio se
+   * publica desde Argentina, y el RGPD porque se lee desde Europa. Decir cuál
+   * ampara el rechazo es más útil que un "usamos cookies" a secas.
+   */
+  cookies: {
+    aria: { es: 'Aviso de cookies', en: 'Cookie notice' },
+    text: {
+      es: 'Este sitio usa Google Analytics para medir la audiencia. No se almacenan datos personales. Conforme a la Ley 25.326 (Argentina) y al RGPD podés rechazar.',
+      en: 'This site uses Google Analytics to measure audience. No personal data is stored. Under Argentine Law 25,326 and the GDPR you may decline.',
+    },
+    policy: { es: 'Política de privacidad', en: 'Privacy policy' },
+    policyHref: {
+      es: 'https://policies.google.com/privacy?hl=es',
+      en: 'https://policies.google.com/privacy',
+    },
+    accept: { es: 'Aceptar', en: 'Accept' },
+    reject: { es: 'Rechazar', en: 'Decline' },
+  },
+
   acerca: {
     label: { es: 'Acerca de', en: 'About' },
     title: { es: 'Acerca de este sitio', en: 'About this site' },

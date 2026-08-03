@@ -3,6 +3,7 @@ import { Font } from 'astro:assets';
 import { ClientRouter } from 'astro:transitions';
 import SiteHeader from '@/components/SiteHeader.jsx';
 import BackToTop from '@/components/BackToTop.jsx';
+import CookieConsent from '@/components/CookieConsent.jsx';
 import { withBase } from '@/utils/url.js';
 import { t, DEFAULT_LANG } from '@/i18n/strings.js';
 import { rutaIndice } from '@/i18n/rutas.js';
@@ -212,6 +213,10 @@ const alternativasConBase = Object.fromEntries(
       backLabel={t('common.back', lang)}
     />
     <BackToTop client:load lang={lang} />
+
+    {/* Aviso de cookies y puerta de la analítica. Va último a propósito: es lo
+        último que tiene que aparecer y lo último que debería importar. */}
+    <CookieConsent client:load lang={lang} />
   </body>
 </html>
 

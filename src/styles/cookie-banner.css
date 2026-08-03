@@ -1,0 +1,102 @@
+/* Aviso de cookies: tarjeta chica abajo a la izquierda, no bloqueante.
+
+   No tapa el contenido ni exige una respuesta para seguir leyendo. Va del lado
+   opuesto al botón de volver arriba, que vive abajo a la derecha, y por debajo
+   del encabezado en el orden de apilado. */
+
+.cookie-banner {
+  position: fixed;
+  left: 1.25rem;
+  bottom: 1.5rem;
+  z-index: 840;
+
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+
+  color: var(--text);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.cookie-banner.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cookie-banner__text {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted, var(--text));
+}
+
+.cookie-banner__text a {
+  color: var(--accent, currentColor);
+}
+
+.cookie-banner__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.cookie-banner__btn {
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  font-size: 0.82rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.cookie-banner__btn--sec {
+  color: var(--text-muted, var(--text));
+  background: transparent;
+}
+
+.cookie-banner__btn--sec:hover,
+.cookie-banner__btn--sec:focus-visible {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+/* Aceptar y rechazar tienen el mismo tamaño y la misma área de click a
+   propósito. Un rechazo escondido en texto chico es un consentimiento
+   arrancado, no dado. */
+.cookie-banner__btn--pri {
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+.cookie-banner__btn--pri:hover,
+.cookie-banner__btn--pri:focus-visible {
+  background: var(--glass-bg);
+}
+
+@media (max-width: 560px) {
+  .cookie-banner {
+    left: 0.9rem;
+    right: 0.9rem;
+    bottom: 1rem;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cookie-banner {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+}
