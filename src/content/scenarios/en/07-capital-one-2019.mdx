@@ -1,0 +1,544 @@
+---
+title: "Capital One 2019 - The firewall that could read the data"
+description: "Real case: a badly filtered web request reached the metadata service, walked off with a borrowed identity, and that identity had permission. It was found by a stranger's email, four months later"
+pubDate: 2019-07-29
+caseId: "soc-007"
+caseNumber: 7
+difficulty: "advanced"
+caseType: "real_case_cloud_misconfiguration"
+severity: "CRITICAL"
+tags: ["cloud", "ssrf", "imds", "iam", "least-privilege", "cloudtrail", "data-exfiltration", "regulatory"]
+author: "US Department of Justice criminal complaint (July 2019) and OCC orders of 6 August 2020"
+discoveryDate: "2019-07-17"
+locations:
+  - { lat: 38.9339, lng: -77.1773, label: "McLean, Virginia, Capital One headquarters" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+In 2019, someone obtained the credit card applications Capital One held in the cloud.
+The Department of Justice press release describes the route in a single sentence:
+**"The intrusion occurred through a misconfigured web application firewall that
+enabled access to the data."**
+
+That sentence hides the step that makes the case interesting. The firewall did not
+hand over the data: it handed over **credentials**. A manipulated web request made it
+query the metadata service of the instance it was running on, and that service
+returned the temporary credentials of the role attached to the machine. With that
+borrowed identity, the storage was listed and copied.
+
+And there is the question that organises the whole case: **why did a firewall, whose
+job is to inspect HTTP traffic, have permission to read the credit applications of a
+hundred million people?**
+
+The intrusion was not detected by Capital One. It was detected by a stranger who saw
+a post on GitHub and sent an email, on 17 July 2019.
+
+**Key metrics:**
+
+- Discovery: by external tip-off, on 17 July 2019
+- Bank's confirmation of the intrusion: 19 July 2019
+- OCC civil money penalty: 80 million dollars, 6 August 2020
+- Failures the regulator put in writing: network controls, data loss prevention and
+  **effective dispositioning of alerts**
+- Malware involved: none
+- Primary techniques: T1190, T1552.005, T1078.004, T1530
+
+<Warn />**Real case.** Everything technical and chronological here comes from the
+sources cited at the end: the Department of Justice criminal complaint and press
+release, and the OCC orders of 6 August 2020. Where a statement comes from later
+technical analysis rather than an official source, the text says so.
+
+<Warn />**On the figures.** The numbers that circulated at the time speak of around a
+hundred million people in the United States and some six million in Canada. The
+Department of Justice press release I cite does not state them, and neither do the OCC
+orders. I mention them because they are public, not because I verified them against an
+official source.
+
+---
+
+## Context: what the instance metadata service is
+
+This is the piece to understand before anything else, because the rest of the case
+follows from it.
+
+Every virtual machine in a public cloud can query a local service that tells it about
+itself: its identifier, its region, its network configuration. In AWS that service
+lives at a link-local address, `169.254.169.254`, and only answers from inside the
+instance.
+
+Among the things it returns there is something far more valuable than the region: **if
+the machine has an identity role attached, the metadata service hands over temporary
+credentials for that role.**
+
+That is a good idea, and it is worth saying why before criticising it. Without that
+mechanism, an application that needs to talk to storage would have to carry a key
+written into a config file, which somebody copies, which ends up in a repository,
+which never rotates. The metadata service replaces that permanent key with credentials
+that expire on their own and that nobody writes down anywhere.
+
+The price is this consequence:
+
+**Any component that can be induced to issue an HTTP request on the machine's behalf
+can ask for those credentials.**
+
+And that is exactly what an SSRF — server-side request forgery — does: convince an
+application to issue a request wherever the attacker wants. On a physical machine an
+SSRF is usually a nuisance of limited reach. On a machine with a role attached, **an
+SSRF is identity theft.**
+
+The distinction worth taking away: the attacker did not take data using a flaw in the
+storage. They took data using a legitimate identity that the storage had every right
+to serve.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-007"
+  events={[
+    {
+      time: "2015",
+      title: "Migration to the cloud",
+      description: "The bank moves IT operations to the public cloud environment. The OCC will later find there was no effective prior risk assessment.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "Mar 2019",
+      title: "Access to the data",
+      description: "A misconfigured web application firewall allows reaching the metadata service and obtaining credentials for the instance role.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "Apr 2019",
+      title: "GitHub post",
+      description: "The responsible party posts about the theft of information on a code sharing site.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "17 Jul 2019",
+      title: "External tip-off",
+      description: "A GitHub user who sees the post alerts Capital One to the possibility of a data theft.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "19 Jul 2019",
+      title: "Intrusion confirmed",
+      description: "The bank determines there had been an intrusion into its data, and contacts the FBI.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "29 Jul 2019",
+      title: "Criminal complaint and arrest",
+      description: "The Department of Justice announces the computer fraud and abuse complaint, and the execution of a search warrant.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "Nov 2019",
+      title: "AWS releases IMDSv2",
+      description: "A new version of the metadata service, session-oriented and with a hop limit, aimed at this kind of indirect access.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "6 Aug 2020",
+      title: "Regulatory penalty",
+      description: "The OCC assesses an 80 million dollar civil penalty and issues a cease and desist order, with written findings on controls and alerts.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+The distance that matters: around four months passed between the access to the data
+and the external tip-off. In all that time, not one of the bank's own controls raised
+its hand.
+
+---
+
+## 1. The chain, in four steps
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-007"
+  type="chain"
+  title="From a web request to a hundred million records"
+  data={{
+    "step 1 - the request": {
+      "what": "A manipulated request reaches the web application firewall",
+      "effect": "The firewall issues it wherever the attacker says, not to the intended destination",
+      "technical name": "SSRF - server-side request forgery",
+      "verdict": "malicious"
+    },
+    "step 2 - the identity": {
+      "request destination": "169.254.169.254, the instance metadata service",
+      "response": "Temporary credentials for the role attached to the machine",
+      "why it works": "The request comes from inside the instance, which is exactly what the service requires",
+      "verdict": "malicious"
+    },
+    "step 3 - the permission": {
+      "what the role allowed": "Listing and reading the object storage repositories",
+      "what a firewall needed": "Inspecting HTTP traffic. Nothing else",
+      "name of the problem": "Excessive privilege. This is the step that turns a web flaw into a breach",
+      "verdict": "malicious"
+    },
+    "step 4 - the copy": {
+      "operations": "Listing repositories and copying their contents",
+      "how it looks in the logs": "Perfectly valid API calls, authenticated with valid credentials",
+      "malware": "None",
+      "verdict": "malicious"
+    }
+  }}
+/>
+
+Step four is worth pausing on. From the point of view of the cloud audit log, what you
+see are correct calls, signed with valid credentials, issued by a role that exists and
+that has permission. **There is no invalid operation to reject.** The entire attack,
+from step two onwards, takes place inside what the system considers authorised
+behaviour.
+
+---
+
+## 2. The question that defines the case
+
+The first three steps are a technical flaw and are fixable with a patch or a
+configuration. The third is different: it is a design decision, and it is the only one
+that explains the magnitude.
+
+**A web application firewall inspects HTTP traffic.** It looks at headers, bodies,
+parameters; it decides whether a request passes or is blocked. To do that job it does
+not need to read a single customer record.
+
+If that instance's role had held only what the firewall needs, the SSRF would have
+handed over credentials for something useless. The incident would exist all the same —
+the SSRF still has to be fixed — but it would be an audit finding, not a breach
+affecting a hundred million people.
+
+Hence the formulation worth taking away: **least privilege does not reduce the
+probability of an incident, it reduces its radius.** It does not stop them getting in;
+it decides how far they reach once inside. And that is why it is the control that pays
+most in the cloud, where nearly everything an attacker does after the first step is
+authenticated API calls.
+
+Put the other way round, which is how it looks in daily work: **every extra permission
+on a role is a decision about how big the next incident will be.**
+
+---
+
+## 3. How it was detected
+
+Here is the uncomfortable fact, and it is in the official release without decoration:
+on 17 July 2019, **a GitHub user who saw the post alerted Capital One** to the
+possibility of a data theft. On 19 July the bank determined there had been an
+intrusion, and contacted the FBI.
+
+Four months of access, and the channel that worked was an email inbox.
+
+Two things follow for a SOC, and neither of them is "you need luck".
+
+**The security contact inbox is a detection channel, not a formality.** If it exists,
+it needs an owner, a committed response time and a direct route to somebody who can
+open an incident. An organisation without that inbox, or with one nobody reads, loses
+the tip-off that in this case was the only one that arrived.
+
+**An external detection is always late.** It depends on the attacker talking, on
+somebody reading it and on that somebody bothering to get in touch. It is not a
+control: it is a stroke of luck with goodwill attached.
+
+---
+
+## 4. What the regulator wrote
+
+This is the part of the case most useful to an analyst, and it is uncommon: there is
+an official document that states, in banking supervision language, what the SOC was
+missing.
+
+The OCC cease and desist order, dated 6 August 2020, records in its findings:
+
+> In or around 2015, the Bank failed to establish effective risk assessment processes
+> prior to migrating its information technology operations to the cloud operating
+> environment. The Bank also failed to establish appropriate risk management for the
+> cloud operating environment, including appropriate design and implementation of
+> certain network security controls, adequate data loss prevention controls, and
+> **effective dispositioning of alerts**.
+
+And it adds two more findings:
+
+> The Bank's internal audit failed to identify numerous control weaknesses and gaps in
+> the cloud operating environment. Internal audit also did not effectively report on
+> and highlight identified weaknesses and gaps to the Audit Committee.
+
+> For certain concerns raised by internal audit, the Board failed to take effective
+> actions to hold management accountable.
+
+Three sentences worth reading slowly.
+
+**"Effective dispositioning of alerts."** It is the only one of the three technical
+failures that describes an analyst's daily work. And the verb matters: it does not say
+alerts were missing, it says they were not effectively dispositioned. In this site's
+vocabulary it is the same failure cases 004 and 006 show from the inside, written here
+from the outside by a regulator.
+
+**Internal audit found things and they did not make it upstairs.** The problem was not
+a lack of findings but their transport. A finding not communicated in a way that
+conveys its materiality is, for practical purposes, a finding that does not exist.
+
+**The Board did not hold management accountable.** That is to say: some of the material
+did make it up, and nothing happened. That is the most expensive of the three failures
+and the one no technical control repairs.
+
+The order goes on to require, among the corrective actions, developing "comprehensive
+processes to prevent and detect unauthorized disclosure of sensitive information sent
+outside the Bank's technology environment". Translated: **there was no egress
+detection.** Step four of the chain could copy everything with nothing watching the
+volume going out.
+
+---
+
+## 5. What changed afterwards
+
+In November 2019 AWS released a second version of the metadata service, IMDSv2, aimed
+precisely at this form of indirect access. Two changes matter here:
+
+**Session with a token.** A `GET` to the service address is no longer enough: you first
+have to request a token with a `PUT` and then present it in a header. Most SSRFs only
+manage to make the application issue a simple `GET`, so the bar goes up considerably.
+
+**Hop limit.** The service's response goes out with an IP-level hop limit that defaults
+to 1. The AWS documentation describes it precisely by its consequences in containers:
+with the limit at 1, a request coming from a container gets no response, because
+reaching the container counts as an additional hop. That side effect is the defence:
+**it cuts out intermediaries**, which is the position from which a proxy or a firewall
+would make the request.
+
+The practical caveat is worth stating, because it is where this fails in real life:
+IMDSv2 only protects if it is **required**. An instance configured in optional mode
+accepts both versions, and an attacker who can choose will use the first. The check is
+not "do we have IMDSv2 available?" but "how many instances have it in required mode?".
+
+And it is worth keeping in view what IMDSv2 does **not** fix: if the role still holds
+excessive permissions, any other route to those credentials produces the same result
+again. The metadata service was the path; the permission was the problem.
+
+---
+
+## 6. What detection this calls for
+
+Three concrete detections come out of the case, and all three live in the cloud audit
+log, not in an antivirus.
+
+**Instance role credentials used from outside the cloud.** This is the strongest of the
+three and deserves an explanation. The credentials the metadata service hands over are
+meant to be used by the instance. If calls signed with those credentials show up from
+an address that is not the infrastructure's, something took them out of there. It is
+not an indicator: it is a contradiction with the design, and that is why it does not
+age.
+
+**Access to the metadata service from a component that should not need it.** A firewall
+or a proxy asking for role credentials is anomalous by the definition of its function.
+
+**Bulk listing and reading of object storage by a role that never does it.** This
+requires a per-role baseline, just as case 006 required one per server. Without a
+baseline, a full listing of repositories is one more valid call.
+
+---
+
+## 7. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-007"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1552.005"]
+    },
+    {
+      id: "TA0004",
+      name: "Privilege Escalation",
+      techniques: ["T1078.004"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1530"]
+    }
+  ]}
+/>
+
+### Breakdown
+
+| MITRE ID | Technique | In this case |
+|---|---|---|
+| **T1190** | Exploit Public-Facing Application | The misconfigured web application firewall |
+| **T1552.005** | Unsecured Credentials: Cloud Instance Metadata API | The request to `169.254.169.254` and the temporary credentials it returned |
+| **T1078.004** | Valid Accounts: Cloud Accounts | Operating with the role's identity, inside what the system authorises |
+| **T1530** | Data from Cloud Storage | The listing and copying of object storage |
+
+Two observations about that table.
+
+The first: **T1078.004 appears under privilege escalation, not initial access.** It is
+the same identifier as in cases 02 and 05, used with a different tactic. An ATT&CK
+technique does not belong to a single tactic: it describes an action, and the tactic
+says what that action was for at that moment. Here the borrowed role grants more
+permission than whoever arrived over the web had, so the correct reading is escalation.
+
+The second: **none of the four techniques involves malicious software.** No implant, no
+command and control channel, no hash to look for. It is the same trait as case 006 from
+another angle, and it explains why the defence that applies here is about identity and
+permissions, not about endpoints.
+
+---
+
+## Analysis frameworks
+
+Supporting material, outside the report. It opens in its own window.
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-007"
+  indicators={{
+    artifacts: [
+      "Requests to 169.254.169.254 from a network component",
+      "Instance role credentials presented from outside the cloud",
+      "Full listing of storage repositories by a role that never does it",
+      "Object read volume far above the role's baseline"
+    ],
+    tools: ["Command line utility from the cloud provider itself"],
+    ttps: [
+      "SSRF against a component with an identity role attached",
+      "Use of legitimate temporary credentials rather than stolen permanent ones",
+      "Collection from storage using valid API calls"
+    ]
+  }}
+  note="The bottom three rungs are empty, and not by oversight: there was no malware to hash, no command and control domain, no attacker infrastructure to block. A case like this puts half the pyramid out of work. What remains at the top has a property worth noticing: the best artefact on the list, instance role credentials used from outside the cloud, does not describe something bad but something impossible. Those credentials exist for the machine to use; seeing them elsewhere contradicts the design of the mechanism. A detection built on a contradiction does not age when the attacker changes tools, because it does not depend on the tool."
+/>
+
+I am not including the Kill Chain or the Diamond Model. The first would show nearly
+every phase reached, which is what cases 05 and 06 already show. The second has an
+identified adversary and a documented victim, but the infrastructure vertex can only be
+filled with details that are not in the official sources I cite, and a diamond with a
+weak vertex teaches less than its absence.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-007"
+  summary={{
+    incidentId: "OCC AA-EC-20-49",
+    title: "Cloud data access via SSRF against the metadata service",
+    status: "Publicly documented",
+    severity: "CRITICAL",
+    initialTriage: "External tip-off by email, not an internal alert",
+    rootCause: "Misconfigured web application firewall on an instance with an over-permissioned role",
+    timeToContainment: "Two days from the external tip-off. Around four months from the access",
+    dataCompromised: "Credit card applications stored in the cloud",
+    resolutionCode: "Case study"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**An SSRF in the cloud is identity theft.** The request does not take data: it takes
+the credentials of the machine's role. That changes entirely how the severity of that
+class of finding should be assessed in an application review.
+
+**Least privilege does not prevent the incident, it decides its size.** The SSRF existed
+regardless. What turned a web flaw into a mass breach was that the firewall's role could
+read the storage. Every extra permission is a decision made in advance about the radius
+of the next incident.
+
+**After the first step, the whole attack is valid calls.** Valid credentials, existing
+role, granted permissions. There is no operation to reject, so detection has to lean on
+design contradictions and on baselines, not on errors.
+
+**The security inbox is a detection channel.** Here it was the only one that worked. It
+needs an owner, a response time and a direct route to the SOC; without that, the tip-off
+arrives and gets lost.
+
+**An optional control is not a control.** IMDSv2 protects when it is in required mode.
+The audit question is not whether it is available, but how many instances enforce it.
+
+**The regulator put in writing what the SOC was missing.** Network controls, data loss
+prevention and effective dispositioning of alerts. That list is worth reading for what
+it is: an external description of failures that from the inside look like closed tickets
+and rules nobody wrote.
+
+**The findings existed and did not travel.** Internal audit found weaknesses and did not
+manage to communicate them so that their materiality landed, and on what did make it up,
+nothing followed. Detecting and failing to make it matter is one of the expensive
+failures.
+
+---
+
+## Recommendations
+
+- Require IMDSv2 on every instance, and audit required mode rather than availability
+- Review the roles attached to network and security components: a firewall, a proxy or a
+  load balancer do not need to read data storage
+- Alert on instance role credentials used from addresses that are not the
+  infrastructure's own
+- Baseline operations per role, and alert on deviation: full listings and bulk reads
+  that role never performs
+- Egress detection by volume, which is the failure the regulator explicitly required
+  fixing
+- A security contact inbox with an owner, a committed response time and a direct route
+  to somebody who can open an incident
+- Risk assessment before moving operations to the cloud, with an inventory of the
+  controls that are lost and the ones that have to be rebuilt
+- Treat internal audit findings about the cloud as tracked items with due dates, not as
+  observations
+
+---
+
+## References
+
+- [Seattle Tech Worker Arrested for Data Theft Involving Large Financial Services Company - US Department of Justice](https://www.justice.gov/usao-wdwa/pr/seattle-tech-worker-arrested-data-theft-involving-large-financial-services-company)
+- [OCC Assesses $80 Million Civil Money Penalty Against Capital One - OCC](https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html)
+- [Consent Order AA-EC-20-49, cease and desist order - OCC](https://www.occ.gov/static/enforcement-actions/ea2020-037.pdf)
+- [Use the Instance Metadata Service to access instance metadata - AWS documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)
+- [Configure the Instance Metadata Service options - AWS documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html)
+- [Exploit Public-Facing Application (T1190) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1190/)
+- [Unsecured Credentials: Cloud Instance Metadata API (T1552.005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1552/005/)
+- [Valid Accounts: Cloud Accounts (T1078.004) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1078/004/)
+- [Data from Cloud Storage (T1530) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1530/)
+
+---
+
+## Up next
+
+Case 06 ends on a similar lesson from the other end: there the attacker used legitimate
+tools and here they used legitimate credentials, and in both the result is that there is
+nothing invalid to reject. Comparing the two helps show that defending against
+authorised activity is not built from lists of what is bad, but from descriptions of
+what is normal.
