@@ -1,0 +1,501 @@
+---
+title: "El ticket que no era nada - Cómo se cierra bien un falso positivo"
+description: "Caso educativo: la alerta era legítima, la conducta también, y el trabajo consistió en demostrarlo. La habilidad que ocupa el ochenta por ciento de la jornada y que no aparece en ningún informe"
+pubDate: 2026-07-15
+caseId: "soc-014"
+caseNumber: 14
+difficulty: "beginner"
+caseType: "educational_synthetic"
+severity: "LOW"
+tags: ["triage", "false-positive", "detection-tuning", "evidence", "ticket-writing", "baseline", "powershell"]
+author: "Escenario sintético - continuación del caso 006"
+duration_minutes: 38
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+
+## Resumen ejecutivo
+
+Los trece casos anteriores de este sitio tienen algo en común que conviene decir en voz
+alta: **en todos pasó algo.** Alguien entró, alguien se llevó datos, alguien cifró
+servidores.
+
+Ese no es el trabajo de un analista de primer nivel. El trabajo de un analista de
+primer nivel es, en su enorme mayoría, **demostrar que no pasó nada** — y hacerlo de
+una manera que resista que alguien lo revise después.
+
+Este caso es un ticket que no era nada. Una alerta de severidad alta, a las 03:12, por
+un comando de PowerShell codificado ejecutado desde una tarea programada en un
+servidor. Se parece exactamente a los precursores del caso 006.
+
+No lo era. Era la verificación de los respaldos, corriendo como todas las noches desde
+hacía catorce meses.
+
+Lo que hace que valga un caso entero no es el desenlace: es **qué hace falta para
+poder afirmarlo**. Porque "es el backup" no es una conclusión, es una hipótesis, y la
+diferencia entre las dos cosas es la que separa a este caso del 006, donde el mismo
+equipo cerró tres tickets con hipótesis razonables y perdió ciento dieciocho equipos.
+
+**Métricas clave:**
+
+- Severidad de la alerta: alta
+- Tiempo dedicado al cierre: 38 minutos
+- Tiempo que habría llevado cerrarlo sin verificar: unos 3 minutos
+- Ejecuciones previas de la misma tarea: 421, en 14 meses
+- Fuentes autorizadas consultadas: 3
+- Técnicas MITRE ATT&CK involucradas: ninguna, y eso es el punto
+
+<Warn />**Escenario sintético.** La organización, los equipos y los registros son
+construidos para el ejercicio. Este caso ocurre en la misma empresa del caso 006,
+cuatro meses después del cifrado, y usa el procedimiento de triage que se escribió como
+consecuencia de aquel incidente.
+
+---
+
+## Contexto: por qué un falso positivo merece un caso
+
+Un SOC pequeño atiende unos cincuenta y cinco tickets por día. La abrumadora mayoría se
+cierra sin que pase nada, y de esa mayoría depende todo lo demás: **el criterio con que
+se cierran los tickets que no son nada es el mismo criterio con el que, algún día, se
+va a cerrar uno que sí era algo.**
+
+El caso 006 lo muestra por el lado del desastre. Tres alertas, tres cierres
+defendibles, ciento dieciocho equipos cifrados. Y la conclusión de aquel caso fue
+precisa: el problema no fue el criterio de las personas, fue que **el procedimiento
+permitía cerrar sin una respuesta autorizada.**
+
+Este caso muestra el otro lado: el mismo equipo, cuatro meses después, con el
+procedimiento corregido, cerrando algo que efectivamente no era nada. Y el punto es que
+**el trabajo se ve casi igual.** La rigurosidad no se nota en el resultado; se nota en
+el expediente.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-014"
+  events={[
+    {
+      time: "14 jul",
+      title: "Se despliega una regla nueva",
+      description: "Ingeniería de detecciones publica una regla por PowerShell codificado ejecutado desde tareas programadas, aprendida del incidente de marzo.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul 03:12",
+      title: "La alerta se dispara",
+      description: "SRV-APP-04 ejecuta powershell.exe con argumento codificado desde una tarea programada. Severidad alta.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "15 jul 08:40",
+      title: "El analista toma el ticket",
+      description: "Primera lectura. La conducta coincide con el patrón que precedió al cifrado de marzo.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul 08:47",
+      title: "Se decodifica el comando",
+      description: "El contenido es un script de verificación de respaldos. Es información, no es prueba.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul 08:58",
+      title: "Procedencia de la tarea",
+      description: "La tarea existe desde hace 14 meses, la creó la cuenta de despliegue, y figura en el repositorio de configuración.",
+      severity: "LOW",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul 09:06",
+      title: "Línea base de ejecución",
+      description: "421 ejecuciones previas, todas a las 03:12, todas con el mismo hash de script.",
+      severity: "LOW",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul 09:11",
+      title: "El hallazgo real",
+      description: "La conducta no es nueva: la regla es nueva. La alerta describe un cambio en la detección, no un cambio en el servidor.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul 09:18",
+      title: "Cierre y ajuste acotado",
+      description: "Se cierra como falso positivo con evidencia, y se crea una excepción estrecha con dueño y fecha de revisión.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. La alerta, y por qué asusta
+
+```
+Regla:        PowerShell con argumento codificado desde tarea programada
+Severidad:    Alta
+Equipo:       SRV-APP-04
+Hora:         03:12
+Proceso padre: taskeng.exe
+Línea de comandos:
+  powershell.exe -NoProfile -NonInteractive -EncodedCommand JABy...
+Cuenta:       svc-mantenimiento
+```
+
+Todo en ese bloque coincide con lo que precedió al cifrado de marzo: un servidor,
+horario de madrugada, ejecución automática, contenido ofuscado y una cuenta de
+servicio.
+
+Y esa coincidencia es exactamente por lo que la regla existe. **La regla está bien.**
+Que dispare sobre algo legítimo no la convierte en una mala regla; la convierte en una
+regla que necesita contexto que la alerta no trae, que es la conclusión del caso 006
+aplicada.
+
+---
+
+## 2. Decodificar no es verificar
+
+El primer movimiento es obvio y hay que hacerlo. El argumento codificado, decodificado,
+dice esto:
+
+```powershell
+$puntos = Get-ChildItem -Path 'E:\Respaldos' -Filter '*.bak'
+foreach ($p in $puntos) {
+  $hash = (Get-FileHash $p.FullName -Algorithm SHA256).Hash
+  Add-Content -Path 'E:\Respaldos\verificacion.log' -Value "$($p.Name) $hash"
+}
+```
+
+Lee los archivos de respaldo, calcula su hash y lo anota. No hay red, no hay descarga,
+no hay borrado, no hay nada que pueda hacer daño.
+
+Acá está la primera trampa del caso, y es sutil: **eso responde qué hizo el comando, y
+no responde quién pidió que se ejecutara.**
+
+Un atacante con acceso a un servidor también puede programar un script inofensivo. De
+hecho es una técnica conocida: se instala una tarea benigna, se comprueba que nadie
+reacciona, y recién después se cambia el contenido. Un script limpio hoy no dice nada
+sobre quién controla la tarea que lo ejecuta.
+
+Y hay una segunda razón, más práctica, para no cerrar acá: **el contenido decodificado
+es un dato que produjo el mismo sistema que estoy investigando.** Si el servidor
+estuviera comprometido, lo que me muestra no es una fuente independiente.
+
+Por eso la pregunta útil no es "¿qué hace este script?" sino **"¿de dónde salió esta
+tarea y quién puede probármelo?"**
+
+---
+
+## 3. Las tres fuentes autorizadas
+
+El procedimiento que la empresa escribió después de marzo exige que un cierre de
+severidad alta se apoye en al menos una fuente **fuera del equipo investigado**. Acá se
+consultaron tres.
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-014"
+  type="verificacion"
+  title="Qué se preguntó, a quién, y qué contestó"
+  data={{
+    "1. repositorio de configuración": {
+      "pregunta": "¿Esta tarea programada está declarada?",
+      "fuente": "Repositorio de gestión de configuración, fuera del servidor",
+      "respuesta": "Sí. Declarada hace 14 meses, con el script versionado",
+      "hash del script en el repositorio": "Coincide con el que se ejecutó",
+      "verdict": "clean"
+    },
+    "2. registro de cambios": {
+      "pregunta": "¿Hubo un cambio autorizado que la creara?",
+      "fuente": "Sistema de gestión de cambios",
+      "respuesta": "Sí. Cambio aprobado, con solicitante y aprobador identificados",
+      "verdict": "clean"
+    },
+    "3. responsable de infraestructura": {
+      "pregunta": "¿Esta verificación de respaldos es suya y sigue vigente?",
+      "fuente": "La persona a cargo, por escrito en el ticket",
+      "respuesta": "Sí, y explicó para qué sirve el archivo de verificación",
+      "verdict": "clean"
+    },
+    "lo que NO se usó como prueba": {
+      "el contenido del script": "Lo produce el equipo investigado",
+      "la antigüedad del archivo en disco": "Una fecha se puede modificar",
+      "que el nombre suene a respaldo": "Un nombre lo elige quien crea la tarea"
+    }
+  }}
+/>
+
+La última fila es la más importante de la tabla, y merece decirse sin vueltas:
+**tres cosas que parecen evidencia y no lo son.**
+
+El contenido del script viene del sistema bajo sospecha. La fecha de un archivo se
+cambia con una línea. Y que una tarea se llame `VerificacionRespaldos` solo prueba que
+alguien eligió ese nombre — el caso 005 tiene un webshell llamado `human2.aspx`
+justamente por eso.
+
+La evidencia que sirve tiene una propiedad: **viene de un lugar donde el atacante
+tendría que haber entrado también.** El repositorio de configuración y el sistema de
+cambios son ese lugar.
+
+---
+
+## 4. El hallazgo que nadie esperaba
+
+Con las tres respuestas, el ticket ya se podía cerrar. La consulta que faltaba es la que
+convirtió un cierre en un hallazgo.
+
+**¿Cuántas veces corrió esto antes?**
+
+```
+Ejecuciones de la tarea en los últimos 14 meses:  421
+Horario:                                          03:12, todas
+Hash del script:                                  el mismo en las 421
+Alertas generadas por esas 421 ejecuciones:       0
+```
+
+Cuatrocientas veintiuna ejecuciones sin una sola alerta, y hoy una alerta de severidad
+alta. La explicación no está en el servidor:
+
+**La regla se desplegó ayer.**
+
+Eso reordena el ticket entero. La alerta no dice "algo cambió en SRV-APP-04". Dice
+**"empezamos a mirar una cosa que ya estaba pasando"**, que es una afirmación sobre el
+SOC y no sobre el servidor.
+
+Y tiene una consecuencia operativa concreta que conviene anticipar: si la regla lleva
+un día viva, **no es la única alerta de este tipo que va a aparecer.** Toda regla nueva
+saca a la superficie el pasado. El analista lo anotó en el ticket y avisó a ingeniería
+de detecciones, que revisó qué otros equipos tenían tareas parecidas: había once. Once
+alertas futuras evitadas por una consulta de dos minutos.
+
+**Una regla nueva no genera alertas sobre lo que pasa: genera alertas sobre lo que ya
+pasaba.** Los primeros días de una detección son un inventario, no una emergencia.
+
+---
+
+## 5. Qué me haría cambiar de opinión
+
+Este es el punto que distingue un cierre profesional de uno correcto por casualidad, y
+casi nunca se enseña.
+
+Un cierre bien hecho registra **qué evidencia habría cambiado la conclusión**. No como
+formalismo: como control de calidad del propio razonamiento. Si no se puede nombrar qué
+hallazgo daría vuelta el veredicto, probablemente no se investigó, se confirmó una
+corazonada.
+
+En este ticket quedó escrito así:
+
+> Esta conclusión sería incorrecta si apareciera cualquiera de estas cosas:
+>
+> - El hash del script ejecutado difiere del versionado en el repositorio
+> - La tarea fue modificada después de su creación, por una cuenta que no es la de
+>   despliegue
+> - El archivo de verificación crece o cambia de formato respecto de las noches
+>   anteriores
+> - Hay tráfico saliente desde SRV-APP-04 en la ventana de ejecución
+> - La misma tarea aparece en equipos que no están en el repositorio de configuración
+
+Las cinco se verificaron y las cinco dieron negativo. Pero incluso si no se hubieran
+verificado todas, **escribirlas tiene valor**: quien revise el ticket dentro de seis
+meses sabe exactamente qué se miró y qué no, y no tiene que reconstruirlo.
+
+Es lo contrario de "cerrado, actividad esperada", que no le dice nada a nadie y obliga
+a rehacer el trabajo entero la próxima vez.
+
+---
+
+## 6. El ajuste, que es la parte peligrosa
+
+Con el ticket cerrado queda una decisión, y es donde este tipo de caso se arruina más
+seguido.
+
+La tentación es silenciar la regla. Es lo que hace que la próxima madrugada nadie
+moleste.
+
+Lo que se hizo fue una excepción **acotada en cuatro dimensiones**:
+
+| Dimensión | Alcance de la excepción |
+|---|---|
+| Equipo | Solo `SRV-APP-04`, no todos los servidores |
+| Tarea | Solo el nombre de tarea declarado en el repositorio |
+| Script | Solo el hash exacto versionado |
+| Horario | Solo la ventana 03:00 a 03:30 |
+
+Y con dos cosas que la acompañan y que suelen faltar: **un dueño** y una **fecha de
+revisión** a los seis meses.
+
+El motivo de tanto detalle está escrito en el propio ticket, y es la lección que este
+caso comparte con el 010 y el 012:
+
+> Cada excepción es un lugar donde la detección deja de mirar. Si el hash cambia, la
+> excepción no aplica y la alerta vuelve — que es exactamente lo que se quiere si
+> alguien reemplaza el contenido de esta tarea.
+
+Silenciar la regla entera habría producido un SOC más tranquilo y ciego a la técnica
+que causó el incidente de marzo.
+
+---
+
+## 7. Lo que esto cuesta, y cuándo vale pagarlo
+
+Treinta y ocho minutos. Cerrarlo con "es el backup" habrían sido tres.
+
+Con cincuenta y cinco tickets diarios, treinta y ocho minutos por ticket es imposible, y
+un caso que pretendiera que todos se cierran así sería mentira. La pregunta correcta no
+es cuánto tiempo dedicarle a un ticket, sino **de qué depende ese tiempo**.
+
+El criterio que la empresa adoptó, y que es defendible en cualquier lado:
+
+> **La profundidad del cierre se mide por lo que significaría la alerta si fuera
+> cierta**, no por cuán probable parece que lo sea.
+
+Aplicado acá: una ejecución codificada en un servidor, de madrugada, con cuenta de
+servicio, **si fuera cierta sería el principio de otro marzo**. Ese costo justifica los
+treinta y ocho minutos aunque la probabilidad sea baja.
+
+Y al revés: una alerta informativa sobre un puesto de trabajo, aunque sea igual de
+improbable, no justifica el mismo esfuerzo, porque su peor caso es mucho más chico.
+
+Vale además notar el rendimiento real de esos treinta y ocho minutos, porque no fueron
+solo un cierre:
+
+- Un ticket cerrado con evidencia que nadie va a tener que rehacer
+- Once alertas futuras identificadas y resueltas por adelantado
+- Una excepción precisa en lugar de una regla apagada
+- Un criterio de falsación escrito, que sirve de plantilla para el próximo
+
+---
+
+## 8. El ticket, tal como quedó
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-014"
+  summary={{
+    incidentId: "INC-2026-0715-018",
+    title: "PowerShell codificado desde tarea programada en SRV-APP-04",
+    status: "Closed",
+    severity: "LOW",
+    triageInicial: "Severidad alta por coincidencia con el patrón del incidente de marzo",
+    causaRaiz: "Tarea de verificación de respaldos declarada, vigente desde hace 14 meses. La alerta la produjo una regla desplegada el 14 de julio",
+    tiempoDeContencion: "No aplica: no hubo actividad maliciosa que contener",
+    datosComprometidos: "Ninguno",
+    resolutionCode: "Cerrado (falso positivo verificado contra 3 fuentes autorizadas)"
+  }}
+/>
+
+Vale mirar el campo de causa raíz. **No dice "es el backup".** Dice qué es, desde
+cuándo, y por qué apareció hoy. Un supervisor que lea eso no necesita preguntar nada
+más, y quien encuentre este ticket dentro de un año entiende el episodio completo sin
+reconstruirlo.
+
+---
+
+## Sin mapeo MITRE ATT&CK, y por qué
+
+Este es el único caso del sitio sin mapa de técnicas, y la ausencia es deliberada.
+
+ATT&CK describe el comportamiento de un adversario. Acá no hubo adversario: hubo una
+tarea programada legítima y una regla nueva. **Mapear esto a `T1059.001` porque se
+ejecutó PowerShell sería describir una amenaza que no existió**, y ensuciaría cualquier
+estadística construida sobre esos mapeos.
+
+Y de eso sale una advertencia práctica sobre las métricas de un SOC. Un equipo que mapea
+técnicas en los tickets cerrados como falso positivo termina con un panel que muestra
+mucha actividad adversaria imaginaria. **Los falsos positivos no se mapean.** Se
+cuentan aparte, y ese conteo aparte es lo que después permite medir la calidad de las
+reglas.
+
+Tampoco hay marcos de análisis: la Cadena de Ataque, el Diamond Model y la Pirámide del
+Dolor describen intrusiones, y no hubo ninguna. Es el mismo criterio del caso 012, por
+un motivo distinto: allá el marco correcto era otro, acá directamente no hace falta
+ninguno.
+
+---
+
+## Lecciones aprendidas
+
+**Demostrar que no pasó nada es el trabajo, no la pausa entre trabajos.** Es la
+actividad que ocupa la mayor parte de la jornada y la que fija el criterio con el que
+algún día se va a cerrar un ticket que sí importaba.
+
+**Decodificar responde qué hizo el comando, no quién lo pidió.** Un atacante también
+puede programar un script inofensivo, y el contenido lo produce el sistema que estoy
+investigando.
+
+**La evidencia que sirve viene de un lugar donde el atacante tendría que haber entrado
+también.** Repositorio de configuración, sistema de cambios, la persona responsable.
+No el nombre de la tarea, no la fecha del archivo, no el propio script.
+
+**Una regla nueva no alerta sobre lo que pasa: alerta sobre lo que ya pasaba.** Los
+primeros días de una detección son un inventario. Preguntar "¿cuántas veces corrió esto
+antes?" convierte un ticket en once tickets evitados.
+
+**Un cierre profesional dice qué lo habría refutado.** Si no se puede nombrar el
+hallazgo que daría vuelta el veredicto, no se investigó: se confirmó una corazonada.
+
+**Una excepción es un lugar donde la detección deja de mirar.** Por eso va acotada en
+equipo, tarea, hash y horario, con dueño y fecha de revisión. Silenciar la regla entera
+es más rápido y deja ciego al SOC frente a la técnica que ya lo lastimó una vez.
+
+**La profundidad del cierre se mide por lo que significaría la alerta si fuera cierta**,
+no por cuán probable parece. Es lo que permite ser riguroso sin pretender que se puede
+serlo con los cincuenta y cinco tickets del día.
+
+**Los falsos positivos no se mapean a ATT&CK.** Mapearlos infla las estadísticas de
+actividad adversaria con episodios que no ocurrieron.
+
+---
+
+## Recomendaciones
+
+- Exigir, para cerrar un ticket de severidad alta, al menos una fuente autorizada fuera
+  del sistema investigado, y registrar cuál fue
+- Incluir en la plantilla de cierre un campo de criterio de falsación: qué evidencia
+  habría cambiado la conclusión
+- Consultar siempre el histórico de la conducta antes de cerrar, y anotar cuántas veces
+  ocurrió antes
+- Tratar los primeros días de toda regla nueva como un inventario planificado, con
+  tiempo asignado y con revisión de qué otros equipos la van a disparar
+- Excepciones acotadas en equipo, identificador, hash y ventana horaria, con dueño y
+  fecha de revisión obligatoria
+- Revisión periódica del listado de excepciones vigentes, entendiendo cada una como
+  cobertura de detección apagada
+- Registrar los falsos positivos fuera del mapeo de técnicas, y usar ese conteo para
+  medir la calidad de las reglas
+- Un criterio escrito de profundidad de cierre según el peor caso de la alerta, para que
+  la rigurosidad no dependa de quién esté de turno
+
+---
+
+## Referencias
+
+- [Encoded Command (T1027.010) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1027/010/)
+- [Command and Scripting Interpreter: PowerShell (T1059.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1059/001/)
+- [Scheduled Task/Job: Scheduled Task (T1053.005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1053/005/)
+
+Las tres referencias describen las técnicas que **la regla busca**, no lo que ocurrió en
+este caso. Están para entender por qué la detección existe.
+
+---
+
+## Próximas lecturas
+
+El caso 006 es el mismo equipo, cuatro meses antes, cerrando tres tickets sin fuente
+autorizada. Leerlos seguidos es la forma más clara de ver que el trabajo se parece
+mucho en los dos, y que la diferencia está en una sola pregunta: **¿quién me lo
+confirma, y cómo lo dejo escrito?**

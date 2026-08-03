@@ -1,0 +1,492 @@
+---
+title: "The ticket that was nothing - How a false positive gets closed well"
+description: "Educational case: the alert was legitimate, so was the behaviour, and the work was proving it. The skill that fills eighty per cent of the shift and appears in no report"
+pubDate: 2026-07-15
+caseId: "soc-014"
+caseNumber: 14
+difficulty: "beginner"
+caseType: "educational_synthetic"
+severity: "LOW"
+tags: ["triage", "false-positive", "detection-tuning", "evidence", "ticket-writing", "baseline", "powershell"]
+author: "Synthetic scenario - a continuation of case 006"
+duration_minutes: 38
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+
+## Executive summary
+
+The thirteen previous cases on this site share something worth saying out loud: **in all
+of them, something happened.** Somebody got in, somebody took data, somebody encrypted
+servers.
+
+That is not a first-line analyst's job. A first-line analyst's job is, overwhelmingly,
+**to demonstrate that nothing happened** — and to do it in a way that holds up when
+somebody reviews it later.
+
+This case is a ticket that was nothing. A high severity alert, at 03:12, for an encoded
+PowerShell command run from a scheduled task on a server. It looks exactly like the
+precursors in case 006.
+
+It was not. It was the backup verification, running as it had every night for fourteen
+months.
+
+What makes it worth a whole case is not the outcome: it is **what it takes to be able to
+state it**. Because "it's the backup" is not a conclusion, it is a hypothesis, and the
+difference between the two is what separates this case from 006, where the same team
+closed three tickets on reasonable hypotheses and lost a hundred and eighteen machines.
+
+**Key metrics:**
+
+- Alert severity: high
+- Time spent on the closure: 38 minutes
+- Time it would have taken to close without verifying: about 3 minutes
+- Previous executions of the same task: 421, over 14 months
+- Authoritative sources consulted: 3
+- MITRE ATT&CK techniques involved: none, and that is the point
+
+<Warn />**Synthetic scenario.** The organisation, the machines and the logs were built
+for the exercise. This case takes place at the same company as case 006, four months
+after the encryption, and uses the triage procedure that was written as a consequence of
+that incident.
+
+---
+
+## Context: why a false positive deserves a case
+
+A small SOC handles around fifty-five tickets a day. The overwhelming majority close with
+nothing happening, and everything else depends on that majority: **the standard by which
+tickets that are nothing get closed is the same standard by which, one day, one that was
+something will get closed.**
+
+Case 006 shows this from the disaster side. Three alerts, three defensible closures, a
+hundred and eighteen machines encrypted. And the conclusion of that case was precise:
+the problem was not the people's judgement, it was that **the procedure allowed closing
+without an authoritative answer.**
+
+This case shows the other side: the same team, four months later, with the procedure
+fixed, closing something that really was nothing. And the point is that **the work looks
+almost identical.** Rigour does not show in the outcome; it shows in the record.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-014"
+  events={[
+    {
+      time: "14 Jul",
+      title: "A new rule is deployed",
+      description: "Detection engineering publishes a rule for encoded PowerShell run from scheduled tasks, learned from the March incident.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul 03:12",
+      title: "The alert fires",
+      description: "SRV-APP-04 runs powershell.exe with an encoded argument from a scheduled task. High severity.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "15 Jul 08:40",
+      title: "The analyst picks up the ticket",
+      description: "First reading. The behaviour matches the pattern that preceded the March encryption.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul 08:47",
+      title: "The command is decoded",
+      description: "The content is a backup verification script. That is information, not proof.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul 08:58",
+      title: "Provenance of the task",
+      description: "The task has existed for 14 months, was created by the deployment account, and appears in the configuration repository.",
+      severity: "LOW",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul 09:06",
+      title: "Execution baseline",
+      description: "421 previous executions, all at 03:12, all with the same script hash.",
+      severity: "LOW",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul 09:11",
+      title: "The real finding",
+      description: "The behaviour is not new: the rule is new. The alert describes a change in detection, not a change on the server.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul 09:18",
+      title: "Closure and narrow tuning",
+      description: "Closed as a false positive with evidence, and a narrow exception created with an owner and a review date.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The alert, and why it is frightening
+
+```
+Rule:          Encoded PowerShell from a scheduled task
+Severity:      High
+Host:          SRV-APP-04
+Time:          03:12
+Parent process: taskeng.exe
+Command line:
+  powershell.exe -NoProfile -NonInteractive -EncodedCommand JABy...
+Account:       svc-maintenance
+```
+
+Everything in that block matches what preceded the March encryption: a server,
+early-hours timing, automated execution, obfuscated content and a service account.
+
+And that match is exactly why the rule exists. **The rule is good.** That it fires on
+something legitimate does not make it a bad rule; it makes it a rule that needs context
+the alert does not carry, which is case 006's conclusion put into practice.
+
+---
+
+## 2. Decoding is not verifying
+
+The first move is obvious and it has to be made. The encoded argument, decoded, says
+this:
+
+```powershell
+$points = Get-ChildItem -Path 'E:\Backups' -Filter '*.bak'
+foreach ($p in $points) {
+  $hash = (Get-FileHash $p.FullName -Algorithm SHA256).Hash
+  Add-Content -Path 'E:\Backups\verification.log' -Value "$($p.Name) $hash"
+}
+```
+
+It reads the backup files, computes their hash and writes it down. No network, no
+download, no deletion, nothing that could do harm.
+
+Here is the case's first trap, and it is subtle: **that answers what the command did, and
+does not answer who asked for it to run.**
+
+An attacker with access to a server can also schedule a harmless script. It is in fact a
+known technique: install a benign task, check that nobody reacts, and only then change
+the content. A clean script today says nothing about who controls the task that runs it.
+
+And there is a second, more practical reason not to close here: **the decoded content is
+data produced by the very system I am investigating.** If the server were compromised,
+what it shows me is not an independent source.
+
+So the useful question is not "what does this script do?" but **"where did this task come
+from and who can prove it to me?"**
+
+---
+
+## 3. The three authoritative sources
+
+The procedure the company wrote after March requires that a high severity closure rest on
+at least one source **outside the machine under investigation**. Three were consulted
+here.
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-014"
+  type="verification"
+  title="What was asked, of whom, and what came back"
+  data={{
+    "1. configuration repository": {
+      "question": "Is this scheduled task declared?",
+      "source": "Configuration management repository, outside the server",
+      "answer": "Yes. Declared 14 months ago, with the script under version control",
+      "script hash in the repository": "Matches the one that ran",
+      "verdict": "clean"
+    },
+    "2. change record": {
+      "question": "Was there an authorised change that created it?",
+      "source": "Change management system",
+      "answer": "Yes. Approved change, with requester and approver identified",
+      "verdict": "clean"
+    },
+    "3. infrastructure owner": {
+      "question": "Is this backup verification yours, and is it still current?",
+      "source": "The person responsible, in writing on the ticket",
+      "answer": "Yes, and she explained what the verification file is for",
+      "verdict": "clean"
+    },
+    "what was NOT used as proof": {
+      "the script's content": "It is produced by the machine under investigation",
+      "the file's age on disk": "A date can be modified",
+      "that the name sounds like a backup": "The name is chosen by whoever creates the task"
+    }
+  }}
+/>
+
+The last row is the most important in the table, and deserves saying plainly: **three
+things that look like evidence and are not.**
+
+The script's content comes from the system under suspicion. A file's date is changed with
+one line. And a task being called `BackupVerification` only proves somebody chose that
+name — case 005 has a web shell called `human2.aspx` for precisely that reason.
+
+Evidence that works has one property: **it comes from somewhere the attacker would have
+had to break into as well.** The configuration repository and the change system are that
+somewhere.
+
+---
+
+## 4. The finding nobody expected
+
+With those three answers the ticket could already be closed. The query that was missing
+is the one that turned a closure into a finding.
+
+**How many times has this run before?**
+
+```
+Executions of the task over the last 14 months:  421
+Time of day:                                     03:12, all of them
+Script hash:                                     the same across all 421
+Alerts raised across those 421 executions:       0
+```
+
+Four hundred and twenty-one executions without a single alert, and today a high severity
+alert. The explanation is not on the server:
+
+**The rule was deployed yesterday.**
+
+That reorders the whole ticket. The alert does not say "something changed on
+SRV-APP-04". It says **"we started looking at something that was already happening"**,
+which is a statement about the SOC and not about the server.
+
+And it has a concrete operational consequence worth anticipating: if the rule has been
+live for a day, **this is not the only alert of its kind that is going to appear.** Every
+new rule surfaces the past. The analyst noted it on the ticket and told detection
+engineering, who checked which other machines had similar tasks: there were eleven.
+Eleven future alerts avoided by a two-minute query.
+
+**A new rule does not generate alerts about what is happening: it generates alerts about
+what was already happening.** The first days of a detection are an inventory, not an
+emergency.
+
+---
+
+## 5. What would change my mind
+
+This is the point that separates a professional closure from one that is right by luck,
+and it is almost never taught.
+
+A well-made closure records **what evidence would have changed the conclusion**. Not as a
+formality: as quality control on your own reasoning. If you cannot name the finding that
+would overturn the verdict, you probably did not investigate — you confirmed a hunch.
+
+On this ticket it was written like this:
+
+> This conclusion would be wrong if any of the following appeared:
+>
+> - The hash of the executed script differs from the one under version control
+> - The task was modified after creation, by an account other than the deployment one
+> - The verification file grows or changes format compared with previous nights
+> - There is outbound traffic from SRV-APP-04 during the execution window
+> - The same task appears on machines that are not in the configuration repository
+
+All five were checked and all five came back negative. But even if they had not all been
+checked, **writing them down has value**: whoever reviews the ticket in six months knows
+exactly what was looked at and what was not, and does not have to reconstruct it.
+
+It is the opposite of "closed, expected activity", which tells nobody anything and forces
+the whole job to be redone next time.
+
+---
+
+## 6. The tuning, which is the dangerous part
+
+With the ticket closed, one decision remains, and it is where this kind of case most
+often gets ruined.
+
+The temptation is to silence the rule. That is what stops anybody being bothered next
+night.
+
+What was done was an exception **bounded in four dimensions**:
+
+| Dimension | Scope of the exception |
+|---|---|
+| Host | Only `SRV-APP-04`, not all servers |
+| Task | Only the task name declared in the repository |
+| Script | Only the exact hash under version control |
+| Time | Only the 03:00 to 03:30 window |
+
+And with two things alongside it that are usually missing: **an owner** and a **review
+date** at six months.
+
+The reason for that much detail is written on the ticket itself, and it is the lesson
+this case shares with 010 and 012:
+
+> Every exception is a place where detection stops looking. If the hash changes, the
+> exception does not apply and the alert comes back — which is exactly what you want if
+> somebody replaces the content of this task.
+
+Silencing the whole rule would have produced a calmer SOC, blind to the technique that
+caused the March incident.
+
+---
+
+## 7. What this costs, and when it is worth paying
+
+Thirty-eight minutes. Closing it with "it's the backup" would have been three.
+
+At fifty-five tickets a day, thirty-eight minutes per ticket is impossible, and a case
+pretending they all close that way would be a lie. The right question is not how much
+time to give a ticket, but **what that time depends on**.
+
+The criterion the company adopted, and one that is defensible anywhere:
+
+> **The depth of the closure is measured by what the alert would mean if it were true**,
+> not by how likely it seems that it is.
+
+Applied here: an encoded execution on a server, in the early hours, under a service
+account, **if it were true would be the start of another March**. That cost justifies the
+thirty-eight minutes even at low probability.
+
+And conversely: an informational alert on a workstation, however unlikely, does not
+justify the same effort, because its worst case is far smaller.
+
+It is also worth noting the actual return on those thirty-eight minutes, because they
+were not only a closure:
+
+- A ticket closed with evidence that nobody will have to redo
+- Eleven future alerts identified and resolved in advance
+- A precise exception instead of a switched-off rule
+- A written falsification criterion, which serves as a template for the next one
+
+---
+
+## 8. The ticket, as it was left
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-014"
+  summary={{
+    incidentId: "INC-2026-0715-018",
+    title: "Encoded PowerShell from a scheduled task on SRV-APP-04",
+    status: "Closed",
+    severity: "LOW",
+    initialTriage: "High severity due to a match with the March incident pattern",
+    rootCause: "Declared backup verification task, in place for 14 months. The alert was produced by a rule deployed on 14 July",
+    timeToContainment: "Not applicable: there was no malicious activity to contain",
+    dataCompromised: "None",
+    resolutionCode: "Closed (false positive verified against 3 authoritative sources)"
+  }}
+/>
+
+The root cause field is worth looking at. **It does not say "it's the backup".** It says
+what it is, since when, and why it appeared today. A supervisor reading that needs to ask
+nothing further, and whoever finds this ticket a year from now understands the whole
+episode without reconstructing it.
+
+---
+
+## No MITRE ATT&CK mapping, and why
+
+This is the only case on the site with no technique map, and the absence is deliberate.
+
+ATT&CK describes adversary behaviour. There was no adversary here: there was a legitimate
+scheduled task and a new rule. **Mapping this to `T1059.001` because PowerShell ran would
+be describing a threat that did not exist**, and it would pollute any statistics built on
+those mappings.
+
+And from that comes a practical warning about SOC metrics. A team that maps techniques on
+tickets closed as false positives ends up with a dashboard showing a great deal of
+imaginary adversary activity. **False positives do not get mapped.** They are counted
+separately, and that separate count is what later allows rule quality to be measured.
+
+There are no analysis frameworks either: the Kill Chain, the Diamond Model and the
+Pyramid of Pain describe intrusions, and there was none. It is the same criterion as case
+012, for a different reason: there the right framework was another one, here none is
+needed at all.
+
+---
+
+## Lessons learned
+
+**Demonstrating that nothing happened is the job, not the gap between jobs.** It is the
+activity that fills most of the shift and it sets the standard by which, one day, a
+ticket that mattered will be closed.
+
+**Decoding answers what the command did, not who asked for it.** An attacker can schedule
+a harmless script too, and the content is produced by the system under investigation.
+
+**Evidence that works comes from somewhere the attacker would have had to break into as
+well.** Configuration repository, change system, the responsible person. Not the task
+name, not the file date, not the script itself.
+
+**A new rule does not alert on what is happening: it alerts on what was already
+happening.** The first days of a detection are an inventory. Asking "how many times has
+this run before?" turned one ticket into eleven avoided ones.
+
+**A professional closure says what would have refuted it.** If you cannot name the finding
+that would overturn the verdict, you did not investigate: you confirmed a hunch.
+
+**An exception is a place where detection stops looking.** That is why it is bounded by
+host, task, hash and time window, with an owner and a review date. Silencing the whole
+rule is faster and leaves the SOC blind to the technique that already hurt it once.
+
+**The depth of the closure is measured by what the alert would mean if it were true**, not
+by how likely it seems. That is what allows rigour without pretending it can be applied to
+all fifty-five tickets of the day.
+
+**False positives do not get mapped to ATT&CK.** Mapping them inflates adversary activity
+statistics with episodes that never occurred.
+
+---
+
+## Recommendations
+
+- Require, to close a high severity ticket, at least one authoritative source outside the
+  system under investigation, and record which one it was
+- Include a falsification criterion field in the closure template: what evidence would
+  have changed the conclusion
+- Always consult the history of the behaviour before closing, and note how many times it
+  happened before
+- Treat the first days of every new rule as a planned inventory, with time allocated and a
+  review of which other machines will trigger it
+- Exceptions bounded by host, identifier, hash and time window, with an owner and a
+  mandatory review date
+- Periodic review of the list of live exceptions, understanding each one as detection
+  coverage switched off
+- Record false positives outside the technique mapping, and use that count to measure rule
+  quality
+- A written criterion for closure depth based on the alert's worst case, so that rigour
+  does not depend on who is on shift
+
+---
+
+## References
+
+- [Encoded Command (T1027.010) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1027/010/)
+- [Command and Scripting Interpreter: PowerShell (T1059.001) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1059/001/)
+- [Scheduled Task/Job: Scheduled Task (T1053.005) - MITRE ATT&CK](https://attack.mitre.org/techniques/T1053/005/)
+
+The three references describe the techniques **the rule looks for**, not what happened in
+this case. They are here to explain why the detection exists.
+
+---
+
+## Up next
+
+Case 006 is the same team, four months earlier, closing three tickets with no
+authoritative source. Reading them back to back is the clearest way to see that the work
+looks very similar in both, and that the difference is a single question: **who confirms
+it to me, and how do I leave it written down?**
