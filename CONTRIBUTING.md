@@ -49,14 +49,15 @@ dependen de que alguien las respete.
 ```bash
 npm install
 npm run build          # SIEMPRE antes de check
-npm run check          # catálogo, defangueo, i18n, contraste, invariantes
+npm run check          # catálogo, defangueo, i18n, contraste, estilo
 npm run check:idioma   # informa, no rompe
 npm run audit:i18n     # informa, no rompe
 ```
 
-**El orden no es negociable.** Cuatro de los cinco verificadores de `check` leen
-`dist/`. Sin `npm run build` previo verifican el contenido de la compilación
-anterior **y dan verde igual**. Pasó dos veces.
+**El orden no es negociable.** Dos de los cinco verificadores de `check` leen
+`dist/` —el de defangueo y el de idioma— y son justo los que comprueban lo que
+ve el lector. Sin `npm run build` previo revisan la compilación anterior **y dan
+verde igual**. Pasó dos veces.
 
 Si agregás un verificador: **no se estrena en verde.** Se prueba sembrando el
 error que debería encontrar, se confirma que lo encuentra, y recién después se

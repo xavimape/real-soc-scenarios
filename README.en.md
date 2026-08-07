@@ -113,15 +113,16 @@ tools/                     Checks and generators that run over the source
 | `npm run dev`            | Development server at `localhost:4321`                        |
 | `npm run build`          | Generate the site in `./dist/`                                |
 | `npm run preview`        | Serve the local build before deploying                        |
-| `npm run check`          | Catalogue, defanging, language, globe contrast and invariants  |
+| `npm run check`          | Catalogue, defanging, language, globe contrast and style        |
 | `npm run check:catalogo` | Coherence across case files, over the `.mdx`                  |
 | `npm run check:idioma`   | Sections written in the wrong language                        |
 | `npm run audit:i18n`     | Interface translation coverage, over the source               |
 
-**`npm run build` always comes before `npm run check`.** Four of the five checks
-in the chain read `dist/`, so without building first they verify the previous
-build's content and pass green anyway. `check:catalogo` is the only one that
-reads the `.mdx`, which is why it runs first.
+**`npm run build` always comes before `npm run check`.** Two of the five checks
+in the chain read `dist/` — defanging and language — so without building first
+they review the previous build's content and pass green anyway. `check:catalogo`
+reads the `.mdx`, which is why it runs first: it is the one that can give a
+useful verdict even without a build.
 
 ---
 

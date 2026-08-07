@@ -56,8 +56,8 @@ cadena de verificación cerrada.
 - `check-i18n`: ninguna página con texto del diccionario en el idioma equivocado.
 - `contraste-globo`: los puntos del globo cumplen 3:1 contra el fondo de los
   catorce temas, que es el mínimo de WCAG 1.4.11 para gráficos no textuales.
-- `verificar-invariantes`: marcas en línea usadas como decoración en vez de
-  como contraste, y reglas escritas en imperativo dirigido en los documentos
+- `verificar-estilo`: marcas en línea usadas como decoración en vez de como
+  contraste, y reglas escritas en imperativo dirigido en los documentos
   públicos.
 - `auditar-idioma-casos` e `i18n-audit`: informan, no rompen el build.
 

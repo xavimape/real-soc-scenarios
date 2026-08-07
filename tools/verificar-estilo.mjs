@@ -11,7 +11,7 @@
  * verificadores para lo que era cómodo medir en vez de para lo que más importaba
  * no romper.
  *
- *   node tools/verificar-invariantes.mjs
+ *   node tools/verificar-estilo.mjs
  */
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -37,7 +37,7 @@ async function archivos(dir) {
 
 // Este archivo contiene, por necesidad, ejemplos de lo que busca. Excluirlo no es
 // una excepción cómoda: es que un detector no puede ser su propio caso de prueba.
-const YO = 'verificar-invariantes.mjs';
+const YO = 'verificar-estilo.mjs';
 
 const todos = [];
 for (const raiz of RAICES) {

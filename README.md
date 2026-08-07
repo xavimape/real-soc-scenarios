@@ -116,15 +116,16 @@ tools/                     Verificaciones y generadores que corren sobre el cód
 | `npm run dev`           | Servidor de desarrollo en `localhost:4321`                       |
 | `npm run build`         | Genera el sitio en `./dist/`                                    |
 | `npm run preview`       | Sirve el build local antes de desplegar                         |
-| `npm run check`         | Catálogo, defangueo, idioma, contraste del globo e invariantes  |
+| `npm run check`         | Catálogo, defangueo, idioma, contraste del globo y estilo       |
 | `npm run check:catalogo`| Coherencia entre archivos de caso, sobre los `.mdx`             |
 | `npm run check:idioma`  | Secciones escritas en el idioma equivocado                      |
 | `npm run audit:i18n`    | Cobertura de traducción de la interfaz, sobre el código         |
 
-**`npm run build` va siempre antes de `npm run check`.** Cuatro de los cinco
-verificadores de la cadena leen `dist/`, así que sin compilar primero verifican el
-contenido de la vez anterior y pasan en verde igual. `check:catalogo` es el único
-que lee los `.mdx`, y por eso corre primero.
+**`npm run build` va siempre antes de `npm run check`.** Dos de los cinco
+verificadores de la cadena leen `dist/` —el de defangueo y el de idioma—, así que
+sin compilar primero revisan el contenido de la vez anterior y pasan en verde
+igual. `check:catalogo` lee los `.mdx` y por eso corre primero: es el que puede
+dar un veredicto útil incluso sin build.
 
 ---
 
