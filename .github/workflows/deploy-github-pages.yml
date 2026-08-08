@@ -22,6 +22,16 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # A nivel de job y no del paso de build, a propósito. El verificador de
+    # defangueo necesita SITE_URL para saber cuál es el host del propio sitio y
+    # no confundirlo con un indicador. Declarada solo en el paso que compila, el
+    # paso que verifica no la ve y marca las 34 páginas.
+    env:
+      # Sitio de proyecto: vive en /<repo>/, no en la raíz.
+      BASE_PATH: /${{ github.event.repository.name }}
+      SITE_URL: https://${{ github.repository_owner }}.github.io
+
     steps:
       - uses: actions/checkout@v7
 
@@ -35,10 +45,6 @@ jobs:
       - run: npm ci
 
       - name: Build
-        env:
-          # Sitio de proyecto: vive en /<repo>/, no en la raíz.
-          BASE_PATH: /${{ github.event.repository.name }}
-          SITE_URL: https://${{ github.repository_owner }}.github.io
         run: npm run build
 
       - name: Verificar que no salgan indicadores vivos
