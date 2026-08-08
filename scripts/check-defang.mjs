@@ -81,6 +81,45 @@ const NO_SON_DOMINIOS = ['asp.net', 'vb.net', 'ado.net'];
  */
 const ENLACE_LOCAL = /^169\.254\./;
 
+/**
+ * El host del propio sitio, tomado de `SITE_URL`.
+ *
+ * No es un indicador: es la dirección canónica de la página que se está
+ * construyendo, y aparece en `og:image` y en los `hreflang` justamente para que
+ * se pueda seguir. Defanguearla rompería las dos cosas.
+ *
+ * No va en PERMITIDOS porque esa lista compara los dos últimos niveles, y acá
+ * eso no alcanza. `xavimape.github.io` como PERMITIDO significaría permitir
+ * `github.io` entero, y GitHub Pages es hosting gratuito que se usa para
+ * phishing: el día que un caso cite `atacante.github.io`, el verificador tiene
+ * que marcarlo. Por eso la comparación es contra el host completo.
+ *
+ * Sin la variable no hay excepción y todo se revisa igual de estricto, que es
+ * como corre en local.
+ */
+const HOST_PROPIO = (() => {
+  if (!process.env.SITE_URL) return null;
+  try {
+    return new URL(process.env.SITE_URL).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+})();
+
+/**
+ * Reconstruye el host completo alrededor de la coincidencia y lo compara con el
+ * propio. El patrón solo captura los dos últimos niveles, así que hay que mirar
+ * hacia atrás para saber de qué subdominio se trata.
+ */
+function esElHostPropio(html, indice, valor) {
+  if (!HOST_PROPIO) return false;
+
+  let inicio = indice;
+  while (inicio > 0 && /[a-z0-9.-]/i.test(html[inicio - 1])) inicio -= 1;
+
+  return html.slice(inicio, indice + valor.length).toLowerCase() === HOST_PROPIO;
+}
+
 /** Patrones de indicador que nunca deberían aparecer sin defanguear. */
 const PATRONES = [
   {
@@ -112,6 +151,7 @@ for (const archivo of await archivosHtml(DIST)) {
     for (const coincidencia of html.matchAll(regex)) {
       const valor = coincidencia[0];
       if (PERMITIDOS.some((p) => valor.toLowerCase().endsWith(p))) continue;
+      if (esElHostPropio(html, coincidencia.index, valor)) continue;
       const anterior = html[coincidencia.index - 1];
       if (NO_SON_DOMINIOS.includes(valor.toLowerCase()) && anterior !== '.') continue;
 
