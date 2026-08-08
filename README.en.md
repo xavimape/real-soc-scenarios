@@ -192,17 +192,18 @@ names, detection rules and protocol codes.
 
 ## Deployment
 
-The same commit serves two targets, and the difference is two environment
-variables that `astro.config.mjs` reads with defaults for local development.
+The site is published on Cloudflare Workers, from the domain root. The
+configuration is in `wrangler.jsonc`.
 
-- **Cloudflare**: serves from the domain root, so it carries no `BASE_PATH`.
-  Publishing configuration is in `wrangler.jsonc`.
-- **GitHub Pages**: serves from a subdirectory, and the workflow in
-  `.github/workflows/` injects `BASE_PATH` with the repository name.
+Two environment variables govern the output, and `astro.config.mjs` reads them
+with defaults for local development:
 
-`SITE_URL` defines the absolute URL used by the sharing tags and the `hreflang`
-links. Without that variable, the share card image is not emitted: better no
-image than one pointing at an address that does not exist.
+- **`BASE_PATH`** — the route prefix. On Cloudflare it is left undefined, because
+  the site lives at the root. It exists so the same commit can be served from a
+  subdirectory without touching the content.
+- **`SITE_URL`** — the absolute URL used by the sharing tags and the `hreflang`
+  links. Without that variable, the share card image is not emitted: better no
+  image than one pointing at an address that does not exist.
 
 No internal link is written by hand: they all go through `withBase()`, which is
 what makes both forms work without touching the content.

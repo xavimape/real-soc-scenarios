@@ -194,18 +194,18 @@ familia de malware, reglas de detección y códigos de protocolo.
 
 ## Despliegue
 
-El mismo commit sirve para dos destinos, y la diferencia son dos variables de
-entorno que `astro.config.mjs` lee con valores por defecto para desarrollo local.
+El sitio se publica en Cloudflare Workers, desde la raíz del dominio. La
+configuración está en `wrangler.jsonc`.
 
-- **Cloudflare**: sirve desde la raíz del dominio, así que no lleva `BASE_PATH`.
-  La configuración de publicación está en `wrangler.jsonc`.
-- **GitHub Pages**: sirve desde un subdirectorio, y el workflow de
-  `.github/workflows/` inyecta `BASE_PATH` con el nombre del repositorio.
+Dos variables de entorno gobiernan la salida, y `astro.config.mjs` las lee con
+valores por defecto para desarrollo local:
 
-`SITE_URL` define la URL absoluta que usan las etiquetas para compartir y los
-`hreflang`. Sin esa variable, la imagen de la tarjeta al compartir no se emite:
-es preferible que no haya imagen a que haya una que apunte a una dirección que no
-existe.
+- **`BASE_PATH`** — el prefijo de las rutas. En Cloudflare va sin definir, porque
+  el sitio vive en la raíz. Existe para que el mismo commit pueda servirse desde
+  un subdirectorio sin tocar el contenido.
+- **`SITE_URL`** — la URL absoluta que usan las etiquetas para compartir y los
+  `hreflang`. Sin esa variable, la imagen de la tarjeta no se emite: es preferible
+  que no haya imagen a que haya una que apunte a una dirección que no existe.
 
 Ningún enlace interno se escribe a mano: todos pasan por `withBase()`, que es lo
 que hace que las dos formas funcionen sin tocar el contenido.

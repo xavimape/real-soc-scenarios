@@ -8,12 +8,12 @@ const google = fontProviders.google();
 
 /**
  * El mismo commit tiene que poder publicarse en Cloudflare Pages (sirve desde la
- * raíz del dominio) y en GitHub Pages como sitio de proyecto (sirve desde
+ * raíz del dominio) y desde un subdirectorio, como sitio de proyecto (sirve desde
  * `/<repo>/`). Ambos valores salen del entorno, con el default puesto en la raíz
  * porque es lo que necesita el desarrollo local.
  *
- *   BASE_PATH=/real-soc-scenarios   -> GitHub Pages
- *   BASE_PATH sin definir            -> Cloudflare Pages y `npm run dev`
+ *   BASE_PATH=/real-soc-scenarios   -> servido desde un subdirectorio
+ *   BASE_PATH sin definir            -> Cloudflare y `npm run dev`
  */
 const base = process.env.BASE_PATH || '/';
 const site = process.env.SITE_URL || 'http://localhost:4321';
