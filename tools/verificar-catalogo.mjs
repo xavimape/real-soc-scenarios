@@ -137,6 +137,90 @@ for (const [archivo, es] of casos.es) {
   }
 }
 
+// 6. Las cifras que los README declaran sobre el catálogo.
+//
+// Envejecen solas: nadie las rompe, dejan de ser ciertas cuando entra un caso
+// nuevo. Y no hay build que falle por eso — el sitio compila igual con un README
+// que dice dieciséis cuando hay diecisiete. Es el tipo de error que descubre un
+// lector, que es tarde.
+//
+// Se comprueba lo que se puede derivar del catálogo: el total, el último
+// identificador, el número escrito en letras y la cantidad de páginas.
+const CIFRAS = {
+  'README.md': {
+    letras: {
+      1: 'Un', 2: 'Dos', 3: 'Tres', 4: 'Cuatro', 5: 'Cinco', 6: 'Seis', 7: 'Siete',
+      8: 'Ocho', 9: 'Nueve', 10: 'Diez', 11: 'Once', 12: 'Doce', 13: 'Trece',
+      14: 'Catorce', 15: 'Quince', 16: 'Dieciséis', 17: 'Diecisiete',
+      18: 'Dieciocho', 19: 'Diecinueve', 20: 'Veinte', 21: 'Veintiún',
+      22: 'Veintidós', 23: 'Veintitrés', 24: 'Veinticuatro', 25: 'Veinticinco',
+    },
+    frase: (n, letra) => new RegExp(`^${letra} casos`, 'm'),
+    fila: /\|\s*Casos\s*\|\s*(\d+), del `soc-001` al `soc-(\d+)`\s*\|/,
+    paginas: /\|\s*Páginas generadas\s*\|\s*(\d+)\s*\|/,
+  },
+  'README.en.md': {
+    letras: {
+      1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven',
+      8: 'Eight', 9: 'Nine', 10: 'Ten', 11: 'Eleven', 12: 'Twelve',
+      13: 'Thirteen', 14: 'Fourteen', 15: 'Fifteen', 16: 'Sixteen',
+      17: 'Seventeen', 18: 'Eighteen', 19: 'Nineteen', 20: 'Twenty',
+      21: 'Twenty-one', 22: 'Twenty-two', 23: 'Twenty-three',
+      24: 'Twenty-four', 25: 'Twenty-five',
+    },
+    frase: (n, letra) => new RegExp(`^${letra} cases`, 'm'),
+    fila: /\|\s*Cases\s*\|\s*(\d+), from `soc-001` to `soc-(\d+)`\s*\|/,
+    paginas: /\|\s*Generated pages\s*\|\s*(\d+)\s*\|/,
+  },
+};
+
+const totalCasos = casos.es.size;
+
+// Una por idioma más la raíz de reparto, y dos por caso.
+const PAGINAS_ESPERADAS = totalCasos * 2 + LANGS.length + 1;
+
+for (const [doc, reglas] of Object.entries(CIFRAS)) {
+  let texto;
+  try {
+    texto = await readFile(doc, 'utf8');
+  } catch {
+    problemas.push(`no se pudo leer ${doc}`);
+    continue;
+  }
+
+  const letra = reglas.letras[totalCasos];
+  if (!letra) {
+    problemas.push(
+      `${doc}: no hay forma escrita para ${totalCasos}; ampliar la tabla en este verificador`
+    );
+  } else if (!reglas.frase(totalCasos, letra).test(texto)) {
+    problemas.push(`${doc}: el recuento en letras no dice "${letra}", que es lo que hay`);
+  }
+
+  const fila = texto.match(reglas.fila);
+  if (!fila) {
+    problemas.push(`${doc}: no se encontró la fila del recuento de casos`);
+  } else {
+    if (Number(fila[1]) !== totalCasos) {
+      problemas.push(`${doc}: declara ${fila[1]} casos y hay ${totalCasos}`);
+    }
+    if (Number(fila[2]) !== totalCasos) {
+      problemas.push(
+        `${doc}: declara que el último es soc-${fila[2]} y es soc-${String(totalCasos).padStart(3, '0')}`
+      );
+    }
+  }
+
+  const paginas = texto.match(reglas.paginas);
+  if (!paginas) {
+    problemas.push(`${doc}: no se encontró la fila de páginas generadas`);
+  } else if (Number(paginas[1]) !== PAGINAS_ESPERADAS) {
+    problemas.push(
+      `${doc}: declara ${paginas[1]} páginas y con ${totalCasos} casos son ${PAGINAS_ESPERADAS}`
+    );
+  }
+}
+
 if (problemas.length > 0) {
   console.error(`\n${problemas.length} problema(s) de coherencia en el catálogo:\n`);
   for (const p of problemas) console.error(`  ${p}`);
@@ -144,7 +228,7 @@ if (problemas.length > 0) {
   process.exit(1);
 }
 
-const total = casos.es.size;
+const total = totalCasos;
 const numeros = [...casos.es.values()].map((d) => Number(d.caseNumber)).sort((a, b) => a - b);
 console.log(
   `Catálogo coherente: ${total} casos en los dos idiomas, ` +
