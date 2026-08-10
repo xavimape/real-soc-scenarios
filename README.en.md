@@ -22,18 +22,18 @@ the route.
 
 ## Current status
 
-Sixteen cases, complete in Spanish and English. Each language has its own route
+Eighteen cases, complete in Spanish and English. Each language has its own route
 and its own content file.
 
 | | |
 | --- | --- |
-| Cases | 16, from `soc-001` to `soc-016` |
+| Cases | 18, from `soc-001` to `soc-018` |
 | Languages | Spanish and English, with verified parity |
-| Generated pages | 35 |
+| Generated pages | 39 |
 | Difficulty | From `beginner` to `expert` |
 | Frameworks used | ATT&CK Enterprise, ICS and Mobile; OWASP for API and for language models |
 
-Eight cases reconstruct publicly documented incidents. The other eight are
+Nine cases reconstruct publicly documented incidents. The other nine are
 scenarios built for the exercise, and they say so on their first screen.
 
 ---

@@ -158,6 +158,7 @@ const CIFRAS = {
     frase: (n, letra) => new RegExp(`^${letra} casos`, 'm'),
     fila: /\|\s*Casos\s*\|\s*(\d+), del `soc-001` al `soc-(\d+)`\s*\|/,
     paginas: /\|\s*Páginas generadas\s*\|\s*(\d+)\s*\|/,
+    reparto: /^(\w+) de los casos reconstruyen[\s\S]{0,80}?Los otros\s*\n?(\w+) son escenarios/m,
   },
   'README.en.md': {
     letras: {
@@ -171,10 +172,19 @@ const CIFRAS = {
     frase: (n, letra) => new RegExp(`^${letra} cases`, 'm'),
     fila: /\|\s*Cases\s*\|\s*(\d+), from `soc-001` to `soc-(\d+)`\s*\|/,
     paginas: /\|\s*Generated pages\s*\|\s*(\d+)\s*\|/,
+    reparto: /^(\w+) cases reconstruct[\s\S]{0,60}?The other\s*\n?(\w+) are/m,
   },
 };
 
 const totalCasos = casos.es.size;
+
+// Reales contra construidos para el ejercicio. Sale del prefijo de `caseType`,
+// que es lo mismo que el README afirma en prosa dos párrafos más abajo. Estuvo
+// desactualizado: decía ocho y ocho cuando eran siete y nueve.
+const casosReales = [...casos.es.values()].filter((d) =>
+  String(d.caseType).startsWith('real_case')
+).length;
+const casosEducativos = totalCasos - casosReales;
 
 // Una por idioma más la raíz de reparto, y dos por caso.
 const PAGINAS_ESPERADAS = totalCasos * 2 + LANGS.length + 1;
@@ -208,6 +218,30 @@ for (const [doc, reglas] of Object.entries(CIFRAS)) {
       problemas.push(
         `${doc}: declara que el último es soc-${fila[2]} y es soc-${String(totalCasos).padStart(3, '0')}`
       );
+    }
+  }
+
+  const reparto = texto.match(reglas.reparto);
+  if (!reparto) {
+    problemas.push(`${doc}: no se encontró la frase del reparto entre casos reales y construidos`);
+  } else {
+    const esperadoReal = reglas.letras[casosReales];
+    const esperadoEdu = reglas.letras[casosEducativos];
+    if (!esperadoReal || !esperadoEdu) {
+      problemas.push(
+        `${doc}: no hay forma escrita para ${casosReales} o ${casosEducativos}; ampliar la tabla`
+      );
+    } else {
+      if (reparto[1].toLowerCase() !== esperadoReal.toLowerCase()) {
+        problemas.push(
+          `${doc}: dice que "${reparto[1]}" casos son reales y son ${casosReales} (${esperadoReal})`
+        );
+      }
+      if (reparto[2].toLowerCase() !== esperadoEdu.toLowerCase()) {
+        problemas.push(
+          `${doc}: dice que "${reparto[2]}" son construidos y son ${casosEducativos} (${esperadoEdu})`
+        );
+      }
     }
   }
 
