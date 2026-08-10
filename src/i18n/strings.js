@@ -258,6 +258,22 @@ export const strings = {
     font: { es: 'Fuente', en: 'Font' },
     language: { es: 'Idioma', en: 'Language' },
     soon: { es: 'Próximamente', en: 'Coming soon' },
+
+    /**
+     * Contacto. El botón no abre el cliente de correo: copia la dirección.
+     * Abrir el cliente de correo es una acción con efecto —una ventana nueva,
+     * a veces una aplicación que tarda— y quien solo quería la dirección
+     * termina cerrando cosas. Copiar no molesta a nadie, y quien sí quiera
+     * escribir tiene el botón en el aviso.
+     */
+    contactLabel: { es: 'Copiar mi correo', en: 'Copy my email' },
+    contactCopied: { es: 'Correo copiado al portapapeles', en: 'Email copied to clipboard' },
+    contactSend: { es: 'Escribirme', en: 'Send email' },
+    contactClose: { es: 'Cerrar', en: 'Dismiss' },
+    contactManual: {
+      es: 'No se pudo copiar. La dirección es:',
+      en: 'Could not copy. The address is:',
+    },
     noTranslation: {
       es: 'Este caso todavía no está en inglés',
       en: 'This case is not in Spanish yet',

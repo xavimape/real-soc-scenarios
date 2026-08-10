@@ -658,3 +658,115 @@ a.marca-texto:hover {
     animation: none;
   }
 }
+
+/* ── Aviso de correo copiado ────────────────────────────────────────────────
+   Abajo al centro, sobre el borde inferior. No bloquea nada y no pide ninguna
+   respuesta: se va solo a los seis segundos.
+
+   Va al centro y no en una esquina a propósito. El botón de volver arriba vive
+   abajo a la derecha y el aviso de cookies abajo a la izquierda; las dos
+   esquinas están ocupadas. */
+
+.aviso-correo {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  z-index: 860;
+
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(30rem, calc(100vw - 2rem));
+  padding: 0.7rem 0.9rem;
+
+  color: var(--text);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--accent-border, var(--border));
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.aviso-correo.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.aviso-correo__texto {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.aviso-correo__dir {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text);
+  /* Seleccionable: es lo único que se puede hacer con ella si no se pudo copiar. */
+  user-select: all;
+}
+
+.aviso-correo__acciones {
+  display: flex;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.aviso-correo__btn {
+  padding: 0.32rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.aviso-correo__btn:hover,
+.aviso-correo__btn:focus-visible {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.aviso-correo__btn--pri {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+@media (max-width: 560px) {
+  .aviso-correo {
+    left: 0.9rem;
+    right: 0.9rem;
+    bottom: 5rem; /* por encima del botón de volver arriba */
+    max-width: none;
+    transform: translateY(10px);
+  }
+
+  .aviso-correo.visible {
+    transform: translateY(0);
+  }
+
+  .aviso-correo__acciones {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviso-correo {
+    transition: opacity 0.2s ease;
+    transform: translate(-50%, 0);
+  }
+}

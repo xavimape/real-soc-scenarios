@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { THEMES, FONTS, LANGUAGES, STORAGE_KEYS, DEFAULTS } from '@/config/appearance.js';
 import { t } from '@/i18n/strings.js';
 import AboutModal from '@/components/AboutModal.jsx';
+import CopyEmailButton from '@/components/CopyEmailButton.jsx';
 import '@/styles/dock.css';
 
 /**
@@ -62,12 +63,6 @@ const ICONS = {
       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
     </>
   ),
-  contact: (
-    <>
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="m22 7-10 6L2 7" />
-    </>
-  ),
 };
 
 /**
@@ -85,10 +80,17 @@ const LINKS = [
     icon: ICONS.linkedin,
     href: 'https://www.linkedin.com/in/javiermapelli',
   },
-  { key: 'github', label: 'GitHub', icon: ICONS.github, href: null },
-  { key: 'portfolio', label: 'Portfolio', icon: ICONS.portfolio, href: null },
-  { key: 'contact', label: 'Contact', icon: ICONS.contact, href: null },
+  { key: 'github', label: 'GitHub', icon: ICONS.github, href: 'https://github.com/xavimape' },
+  {
+    key: 'portfolio',
+    label: 'Portfolio',
+    icon: ICONS.portfolio,
+    href: 'https://xavimape.github.io/xavimape-portfolio/',
+  },
 ];
+
+/* El contacto no está en esta lista: no es un enlace. Copia la dirección al
+   portapapeles y lo resuelve `CopyEmailButton`, que necesita estado propio. */
 
 function DockLink({ item, soonLabel }) {
   const title = item.href ? item.label : `${item.label} — ${soonLabel}`;
@@ -326,7 +328,7 @@ export default function SiteHeader({
         </div>
 
         <DockLink item={LINKS[2]} soonLabel={t('dock.soon', lang)} />
-        <DockLink item={LINKS[3]} soonLabel={t('dock.soon', lang)} />
+        <CopyEmailButton lang={lang} />
       </nav>
 
       {/* Celda 2 — la marca. El título es el mismo en todas las páginas. En la
