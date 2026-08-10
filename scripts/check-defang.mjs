@@ -82,6 +82,23 @@ const NO_SON_DOMINIOS = ['asp.net', 'vb.net', 'ado.net'];
 const ENLACE_LOCAL = /^169\.254\./;
 
 /**
+ * Hosts completos que sí deben quedar vivos.
+ *
+ * Distinta de PERMITIDOS y no por capricho: aquella compara los dos últimos
+ * niveles, y para estos dominios eso sería demasiado. Poner `github.io` en
+ * PERMITIDOS habilitaría cualquier subdominio, y GitHub Pages es hosting
+ * gratuito que se usa para phishing: el día que un caso cite
+ * `atacante.github.io`, el verificador tiene que marcarlo.
+ *
+ * Acá la comparación es contra el host entero, reconstruido mirando hacia atrás
+ * desde la coincidencia.
+ */
+const PERMITIDOS_HOST = [
+  // Portfolio del autor, enlazado desde el encabezado del sitio.
+  'xavimape.github.io',
+];
+
+/**
  * El host del propio sitio, tomado de `SITE_URL`.
  *
  * No es un indicador: es la dirección canónica de la página que se está
@@ -107,17 +124,22 @@ const HOST_PROPIO = (() => {
 })();
 
 /**
- * Reconstruye el host completo alrededor de la coincidencia y lo compara con el
- * propio. El patrón solo captura los dos últimos niveles, así que hay que mirar
- * hacia atrás para saber de qué subdominio se trata.
+ * Reconstruye el host completo alrededor de la coincidencia. El patrón solo
+ * captura los dos últimos niveles, así que hay que mirar hacia atrás para saber
+ * de qué subdominio se trata.
  */
-function esElHostPropio(html, indice, valor) {
-  if (!HOST_PROPIO) return false;
-
+function hostCompleto(html, indice, valor) {
   let inicio = indice;
   while (inicio > 0 && /[a-z0-9.-]/i.test(html[inicio - 1])) inicio -= 1;
 
-  return html.slice(inicio, indice + valor.length).toLowerCase() === HOST_PROPIO;
+  return html.slice(inicio, indice + valor.length).toLowerCase();
+}
+
+/** Host propio del build, o uno de los permitidos por nombre entero. */
+function esHostPermitido(html, indice, valor) {
+  const host = hostCompleto(html, indice, valor);
+  if (HOST_PROPIO && host === HOST_PROPIO) return true;
+  return PERMITIDOS_HOST.includes(host);
 }
 
 /** Patrones de indicador que nunca deberían aparecer sin defanguear. */
@@ -151,7 +173,7 @@ for (const archivo of await archivosHtml(DIST)) {
     for (const coincidencia of html.matchAll(regex)) {
       const valor = coincidencia[0];
       if (PERMITIDOS.some((p) => valor.toLowerCase().endsWith(p))) continue;
-      if (esElHostPropio(html, coincidencia.index, valor)) continue;
+      if (esHostPermitido(html, coincidencia.index, valor)) continue;
       const anterior = html[coincidencia.index - 1];
       if (NO_SON_DOMINIOS.includes(valor.toLowerCase()) && anterior !== '.') continue;
 
