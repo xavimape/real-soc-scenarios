@@ -1,0 +1,515 @@
+---
+title: "Snowflake 2024 - No exploit, no vulnerability, 165 organisations"
+description: "Real case: credentials stolen years earlier by infostealers, accounts without a second factor and perfectly legitimate queries. Nothing was encrypted and no malware ran at the victims, and the data of a hundred and sixty-five companies walked out"
+pubDate: 2024-06-10
+caseId: "soc-018"
+caseNumber: 18
+difficulty: "advanced"
+caseType: "real_case_cloud_misconfiguration"
+severity: "CRITICAL"
+tags: ["saas", "credentials", "infostealer", "mfa", "extortion", "data-theft", "contractors", "logging"]
+author: "Mandiant's report on UNC5537 (10 June 2024), the detection and hardening guidance published by Snowflake and the Snowflake threat hunting guide"
+discoveryDate: "2024-04-01"
+locations:
+  - { lat: 37.3382, lng: -121.8863, label: "San Jose, Snowflake headquarters" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import DiamondModel from '@/components/soc/DiamondModel.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+Between April and June 2024, roughly **165 organisations** were notified that someone
+had walked into their cloud data warehouse and taken what was inside.
+
+No vulnerability was exploited. No malware ran on the victims' infrastructure. Nothing
+was encrypted, there was no ransom note on a screen, no service went down. The attacker
+connected with a username and a password, ran queries the product documents in its
+manual, exported the results and then called the victims to ask for money.
+
+**The credentials were not stolen in 2024.** Many came from infostealer infections on
+machines that did not belong to those companies — personal computers, contractor
+laptops — and the oldest one identified dated back to **November 2020.** It still
+worked four years later.
+
+This case is the exact reverse of 017. There the attacker came in through the one path
+authorised not to raise suspicion. Here they came through the front door with the right
+key, and **the SOC's problem is not detecting an intrusion but telling an intruder
+apart from a data analyst doing their job.**
+
+**Key metrics:**
+
+- Organisations notified: around 165
+- Accounts used that had prior credential exposure: 79.7 per cent
+- Oldest infostealer infection identified: November 2020
+- Age of unrotated credentials, in some cases: up to four years
+- Vulnerabilities exploited in the platform: none
+- Main techniques: T1555, T1078.004, T1213.002, T1530, T1657
+
+<Warn />**Real case.** The technical facts, figures and commands come from Mandiant's
+report on UNC5537 of 10 June 2024 and from the detection and hardening guidance
+published by Snowflake. The joint investigation by both companies concluded there was
+no compromise of the platform: every incident traced back to customer credentials.
+
+---
+
+## Context: where the credentials were stolen
+
+An infostealer is a program that installs on a computer, empties everything it finds
+saved — browser passwords, session cookies, tokens, configuration files — and ships it
+to a server. That material is then sold, given away or leaked in lists that circulate
+for years.
+
+What makes this case different is **where those infections happened.**
+
+```
+NOT on the victim company's network
+NOT on a machine managed by its IT department
+NOT on a device with detection installed
+
+YES on personal computers
+YES on contractor machines also used for private activity
+YES on machines where pirated software was downloaded, or games were played
+```
+
+Mandiant states it plainly: in several investigations, the infection occurred on
+contractor systems that were also used for personal activity.
+
+That detail matters to an analyst more than it appears. **The event that originated the
+incident did not happen on any network the SOC can watch**, produced no alert anyone
+could have seen, and happened years earlier. By the time the intrusion arrives, there
+is nothing prior to review.
+
+And there is a worse consequence. A contractor working for several organisations
+carries credentials for all of them on the same computer. A single infection reaches
+them all, often with administrative privileges.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-018"
+  events={[
+    {
+      time: "Nov 2020",
+      title: "The oldest infection identified",
+      description: "An infostealer captures credentials on a machine belonging to none of the organisations that would later be victims. Nobody finds out.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "2020 to 2024",
+      title: "The credentials circulate and stay valid",
+      description: "The material shows up in sale listings and distribution channels. In several cases the passwords go years without rotation, and the accounts have no second factor.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "Apr 2024",
+      title: "First finding",
+      description: "Database records surface in circulation. The organisation they came from is identified and notified. The investigation determines the compromised account had no second factor.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "Apr to May 2024",
+      title: "Reconnaissance and export",
+      description: "The attacker lists the tables, picks the ones of interest, sets up temporary staging areas, compresses and downloads. All with the product's own commands.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "22 May 2024",
+      title: "It turns out to be a campaign, not one victim",
+      description: "New intelligence reveals the pattern repeating at other organisations. Mass notification begins.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "30 May 2024",
+      title: "Detection and hardening guidance",
+      description: "The platform publishes indicators and queries so each customer can review their own instance.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "10 Jun 2024",
+      title: "The report is published",
+      description: "The full analysis goes out: around 165 organisations notified, root cause in customer credentials and no evidence of a platform compromise.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The three conditions, and why all three are configuration
+
+The report attributes the campaign's success to three factors. None of them is a
+vulnerability.
+
+**First: the accounts had no second factor.** Authenticating required only a valid
+username and password, which is exactly what the attacker had.
+
+**Second: the credentials were still alive.** Material stolen in 2020 worked in 2024.
+In some cases the passwords had gone four years without rotation.
+
+**Third: there were no network allow lists.** The platform lets you restrict which
+addresses can reach an instance. Without that restriction, a connection from a
+commercial VPN exit on another continent is as valid as one from the office.
+
+<Fail />None of the three is a product defect: all three are decisions made by whoever
+configured it.
+
+<Pass />And for that same reason all three were reversible before the incident, without
+buying anything.
+
+It is worth pausing on the uncomfortable part. A notice like this usually gets read as
+"such-and-such vendor got hacked". Here the vendor was not compromised, and the joint
+investigation established that. **What failed was configuration on the customer side,
+which is where the SOC does have reach.**
+
+---
+
+## 2. What a theft made of manual commands looks like
+
+This is the part worth reading slowly, because it is what an analyst would have in
+front of them.
+
+The observed sequence was always similar:
+
+```sql
+SHOW TABLES                            -- list what is there
+SELECT * FROM <db>.<schema>.<table>    -- look at what matters
+LIST <stage>                           -- see where material can be left
+CREATE TEMPORARY STAGE <name>          -- create a temporary area
+COPY INTO @<stage> FROM (SELECT ...)   -- copy the table there, compressed
+GET @<stage> file:///<local path>      -- download it
+```
+
+None of those six commands is suspicious on its own. All six are documented, all six
+are used by legitimate people every day, and none trips an antivirus because there is
+no file to analyse.
+
+**The signal is not in the commands, it is in the shape.** What separates an intruder
+from a data analyst:
+
+- A `SHOW TABLES` followed by `SELECT` against tables that account never queried
+- Temporary staging areas created by an account that never creates any
+- Export volume out of proportion with that account's own baseline
+- A connecting client different from the usual one
+- All of it in a single session, at an hour when that person does not work
+
+Each point on its own is weak. **Together they describe someone seeing that warehouse
+for the first time**, and that is a description that fits nobody who works there.
+
+The attacker also used a bespoke reconnaissance utility that queried users, roles,
+addresses and sessions. Mandiant tracks it as FROSTBITE; the name its author gave it is
+not reproduced here. And they also used a commercial, entirely legitimate database
+client, the kind anyone downloads.
+
+---
+
+## 3. What to review in your own instance
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-018"
+  type="verificacion"
+  title="Reviewing your own instance, from cheap to expensive"
+  data={{
+    "connecting client identification": {
+      "applications the organisation never uses": "The log records which client each session connected with",
+      "desktop database clients": "Legitimate in themselves, suspicious if nobody uses them on that account",
+      "unusual driver versions": "A connector different from the one the organisation's own tools use",
+      "verdict": "clean"
+    },
+    "session origin": {
+      "commercial VPN exits": "Addresses belonging to anonymity services, a poor fit for corporate work",
+      "virtual server providers": "Especially in the session where the export happens",
+      "impossible geography": "As in case 002, and with the same warning about false positives",
+      "verdict": "clean"
+    },
+    "session behaviour": {
+      "creation of temporary staging areas": "By accounts that never do it",
+      "COPY INTO followed by GET": "The combination that stages and downloads; separately they are routine",
+      "volume exported against the baseline": "That account's baseline, not the organisation's",
+      "verdict": "clean"
+    },
+    "account hygiene": {
+      "accounts without a second factor": "The complete inventory, not a sample",
+      "credential age": "Which ones have gone more than a year without rotation",
+      "service and contractor accounts": "The least reviewed and usually the most privileged",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+The last block is the only one that can be done **before** having an incident, and it
+is the one that settles the case. The other three answer "did this happen to me?"; that
+one answers "can this happen to me?".
+
+The platform retains these log views for a year by default, so looking backwards is
+possible with no prior preparation. That is not common and is worth using.
+
+---
+
+## 4. The step that is not there
+
+In almost every previous case there is a moment of escalation: the attacker gets in
+with little and obtains more. Here there is none, and the absence teaches something.
+
+The stolen account already had access to the data. **There was no need to escalate
+because the objective was within reach of the first access.** A data warehouse exists
+precisely to concentrate information, and the accounts that query it have permission to
+query it.
+
+That changes two things in the response:
+
+- **There is no intermediate detection window.** In a classic intrusion, between first
+  access and objective there is lateral movement, escalation, persistence: stages where
+  you can look. Here the first useful event and the impact are minutes apart.
+- **Containment is revocation, and it has to be fast.** There are no machines to
+  isolate and no processes to kill. You cut sessions, rotate credentials and close
+  network access. All of it is reversible and cheap, and none of it requires confirming
+  scope first.
+
+---
+
+## 5. Extortion without encryption
+
+The ending breaks the mould too. After exporting, the attacker offered the data on
+forums and contacted the victims for money.
+
+Nothing encrypted. No service interrupted. **The leverage is not availability, it is
+exposure.**
+
+For a SOC that has a practical consequence: the classic indicators of a serious
+incident — systems down, unreadable files, users unable to work — do not appear. The
+organisation keeps operating normally while its data is already outside. The first
+signal may arrive by email from the attacker, or from a third party who saw the records
+for sale.
+
+Case 006 on this site works on ransomware precursors, and there the question is whether
+you get there before the encryption. Here **there is no "after" to prevent**: the damage
+is done at download, and everything that follows is negotiation.
+
+---
+
+## 6. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-018"
+  tactics={[
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1555.003", "T1539"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1078.004"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1213.002", "T1087.004"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1530", "T1074.002"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002", "T1560.001"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1657"]
+    }
+  ]}
+/>
+
+**What stands out about this map is what it lacks.** No execution, no persistence, no
+defence evasion, no lateral movement, no privilege escalation. Six tactics out of
+fourteen, and none of the ones we tend to associate with a serious intrusion.
+
+A mapping like that should cast doubt on a very established idea: that the severity of
+an incident can be read off the sophistication of its techniques. A hundred and
+sixty-five organisations with stolen data, and the whole path fits in six boxes.
+
+---
+
+## Analysis frameworks
+
+<DiamondModel
+  client:load
+  lang="en"
+  caseId="soc-018"
+  campaign="Campaign against customer instances of a cloud data warehouse, 2024"
+  confidence="High on the technical facts; moderate on the group's composition, per the source itself"
+  adversary={{
+    value: "Financially motivated group, tracked as UNC5537",
+    detail: "The source places its members in North America with collaboration from Turkey, and states this with moderate confidence. It operates under various aliases on forums and messaging channels."
+  }}
+  capability={{
+    value: "Other people's credentials, a bespoke reconnaissance utility and commands from the manual",
+    detail: "The credentials came from third-party infostealer campaigns, not their own. Reconnaissance was done by a custom utility over the platform's drivers, and extraction by a commercial, legitimate database client."
+  }}
+  infrastructure={{
+    value: "Anonymity services to get in and rented servers to get data out",
+    detail: "Access from widely used commercial VPN exits; exfiltration to virtual servers at a Moldovan provider; storage at international providers and at a file hosting service."
+  }}
+  victim={{
+    value: "Around 165 organisations with instances of the same product",
+    detail: "The common trait is neither sector nor size, but configuration: no second factor, no credential rotation and no network allow lists."
+  }}
+  note="All four vertices rest on the same fact: nothing the adversary used was their own or novel. The capability was bought or lifted from circulating lists, the infrastructure is rented and the way in was opened by the victim's configuration. The vertex that explains the campaign is not the adversary, it is the victim — an uncomfortable place to land, but an actionable one."
+/>
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-018"
+  indicators={{
+    hashes: [
+      "None: no file was executed on the victims' infrastructure"
+    ],
+    ips: [
+      "Exits from two widely used commercial VPN services",
+      "Virtual servers at a Moldovan provider, used for exfiltration",
+      "Blocking them reaches thousands of legitimate users of those same services"
+    ],
+    domains: [
+      "There is no command-and-control domain: the channel is the data platform itself"
+    ],
+    artifacts: [
+      "Unusual client application identifiers in the session log",
+      "Temporary staging areas created by accounts that never create any",
+      "COPY INTO followed by GET within the same session",
+      "Export volume far above that account's baseline"
+    ],
+    tools: [
+      "Bespoke reconnaissance utility built on the platform's drivers",
+      "Commercial database client, legitimate and downloadable by anyone"
+    ],
+    ttps: [
+      "Buying or collecting infostealer credentials instead of stealing them",
+      "Authenticating where the second factor is missing and operating only with documented commands",
+      "Extorting on data exposure, without encrypting anything"
+    ]
+  }}
+  note="It is the most lopsided pyramid on the site and that is why it is worth looking at: the bottom two rungs are empty or useless. There is no hash because nothing was executed, no command-and-control domain because the channel is the legitimate product, and the addresses belong to anonymity services thousands of people use. Anyone basing detection on the bottom three rungs has nothing to search for in this case."
+/>
+
+**I am not including the kill chain.** The model describes an intrusion with delivery,
+exploitation and installation, and here there is none of the three: nothing was
+delivered, nothing was exploited and nothing was installed. Forcing it would give four
+empty links and two complete ones, which is not a reading, it is a half-filled form.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-018"
+  summary={{
+    incidentId: "Campaign against customer instances, disclosed on 10 June 2024",
+    title: "Data theft and extortion with valid credentials against a cloud data warehouse",
+    status: "Publicly documented",
+    severity: "CRITICAL",
+    triageInicial: "Database records surfacing in circulation, notified to the affected organisation",
+    causaRaiz: "Customer credentials stolen by infostealers on machines outside the organisation, against accounts with no second factor, no rotation and no network restriction",
+    tiempoDeContencion: "Varies per organisation. The campaign was detected in April 2024 using credentials stolen from 2020 onwards",
+    datosComprometidos: "A significant volume of records across around 165 notified organisations",
+    resolutionCode: "Case study"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**A stolen credential does not expire on its own.** The only moment a leaked password
+stops working is when someone changes it. Four years is ample time for material to
+travel from a casual infection to an organised campaign.
+
+**The machine where the credential is stolen may not be yours, and usually is not.**
+This breaks the assumption that your own telemetry is enough. Against this vector, your
+own telemetry sees absolutely nothing until the moment of access.
+
+**Contractors concentrate several organisations' risk on a single device.** An
+unmanaged machine, used for work and for personal activity, carrying credentials for
+five clients: that is the most valuable asset in the chain and the least watched.
+
+**The second factor is not just another control.** Of the three conditions that made
+the campaign possible, it is the one that alone would have stopped it, and the cheapest
+of the three.
+
+**Severity is not measured in sophistication.** This case used no remarkable technique
+and reached a hundred and sixty-five organisations. A thin ATT&CK mapping does not mean
+a minor incident.
+
+---
+
+## Recommendations
+
+**Mandatory second factor on all data access, with no exceptions for convenience.**
+Documented exceptions are the list an attacker would want to have, as case 003 already
+pointed out.
+
+**Credential rotation with a deadline, and exposure checking.** Services exist that
+report whether an organisation's credential has appeared in stolen material. Querying
+them periodically is cheap and answers a question your own telemetry cannot.
+
+**Network allow lists on data warehouses.** Not a perfect defence, but it turns a stolen
+credential into something that also requires being in the right place.
+
+**A baseline per account, not per organisation.** What gives this attacker away is the
+disproportion against what that account normally does. Without an individual baseline,
+export volume says nothing.
+
+**Alert on the combination, not on the commands.** Temporary staging area created,
+`COPY INTO` and `GET` in the same session, by an account that never does it. Each piece
+is routine; the sequence is not.
+
+**Treat contractors as your own surface.** Access from managed devices, or a second
+factor and network restriction that compensate for their not being managed.
+
+---
+
+## References
+
+- Mandiant, *UNC5537 Targets Snowflake Customer Instances for Data Theft and
+  Extortion*, 10 June 2024
+- Snowflake, detection and hardening guidance published on 30 May 2024
+- Mandiant and Snowflake, threat hunting guide for Snowflake instances
+- MITRE ATT&CK: T1555.003, T1539, T1078.004, T1213.002, T1530, T1567.002, T1657
+
+---
+
+## Further reading
+
+- **Case 017**, for the direct contrast: there the attacker comes in through a trusted
+  channel, and here they come in with the key already in the lock.
+- **Case 002**, for session analysis by origin and its false positives.
+- **Case 003**, for second-factor exceptions as an inventory of open doors.
+- **Case 006**, for the other possible ending of a data theft, when encryption is also
+  involved.
