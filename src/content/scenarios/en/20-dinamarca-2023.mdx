@@ -1,0 +1,527 @@
+---
+title: "Denmark 2023 - Twenty-two companies at once, seen from a single vantage point"
+description: "Real case: one UDP packet against the firewall protecting industrial control. Sixteen simultaneous targets, none of them picked at random, and a sector CERT that saw the pattern because it was watching three hundred companies at the same time"
+pubDate: 2023-11-01
+caseId: "soc-020"
+caseNumber: 20
+difficulty: "advanced"
+caseType: "real_case_ot"
+severity: "CRITICAL"
+tags: ["ot", "energy", "edge-devices", "patching", "zero-day", "botnet", "sector-cert", "asset-inventory"]
+author: "SektorCERT report, The attack against Danish critical infrastructure, published in November 2023"
+discoveryDate: "2023-05-11"
+locations:
+  - { lat: 55.6761, lng: 12.5683, label: "Copenhagen, SektorCERT headquarters" }
+  - { lat: 56.1629, lng: 10.2039, label: "Aarhus, region of the affected companies" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+
+## Executive summary
+
+In May 2023, twenty-two companies operating parts of the Danish energy infrastructure
+were compromised in a coordinated attack. Several had to switch to island operation,
+disconnecting from the internet in order to keep running.
+
+The entry point was the firewall. **The very device separating the industrial control
+systems from the rest of the world was the one carrying the vulnerability**, and a
+single packet to port 500 over UDP was enough to execute commands with maximum
+privileges without knowing any credentials.
+
+But what makes this case unique is not the vulnerability. It is **where it is told
+from.** The other nineteen cases on this site look at one organisation. This one is
+written by a sector CERT that watched three hundred members with a network of two
+hundred and seventy sensors, and that saw the pattern because it could compare across
+companies what, at each one individually, might have gone unnoticed.
+
+**The question in this case is what can be seen from above that cannot be seen from
+inside**, and what a team does when it has sixteen simultaneous incidents and no staff
+to handle them.
+
+**Key metrics:**
+
+- Companies compromised in total: 22
+- First-wave targets: 16, of which 11 compromised
+- Members of the sector organisation: around 300
+- Sensors deployed: 270
+- Score of the first vulnerability: 9.8 out of 10
+- Days between the vendor advisory and the attack: 16
+- Main techniques: T1190, T0819, T1584.005, T1498
+
+<Warn />**Real case, with the separation of fact and analysis made by the source
+itself.** The SektorCERT report explicitly divides what was observed from what was
+interpreted, and warns that its analysis is subjective and may be wrong. That separation
+is respected here: where something is assessment rather than observation, it is said.
+
+---
+
+## Context: the firewall as the only control
+
+At many small plants, the separation between industrial control systems and the internet
+is made by a single device.
+
+```
+internet  ──►  firewall  ──►  industrial control systems
+                  ▲
+                  └── the only control, and the one with the vulnerability
+```
+
+That design is not carelessness: it is what a small company operating a stretch of
+electrical or heating network can afford. And it works, as long as the device is
+healthy.
+
+When the vulnerability is in the control itself, **defence in depth becomes zero.**
+There is no second layer to compensate, because the second layer was that one. An
+organisation monitoring alerts on its internal network sees nothing, because the
+attacker is not on the internal network yet: they are at the door.
+
+An organisation dedicated to monitoring the internet put it bluntly when the advisory
+came out: if you have a vulnerable device exposed, assume compromise.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-020"
+  events={[
+    {
+      time: "25 Apr 2023",
+      title: "The vendor publishes the vulnerability",
+      description: "A critical flaw is announced, scored 9.8 out of 10, in firewalls widely used to protect industrial environments at small companies.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "1 May 2023",
+      title: "Extraordinary warning from the sector CERT",
+      description: "With no attacks yet observed in the country, members are asked to install the update immediately: partners abroad indicated it was only a matter of time.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "11 May 2023",
+      title: "First wave, sixteen at once",
+      description: "Coordinated attack against sixteen selected targets. Eleven end up compromised; at five the attempt fails. The attackers do not miss a single target.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "11 May, following hours",
+      title: "Four parallel tracks",
+      description: "The incident team works simultaneously on identifying everyone under attack, assisting those already affected, coordinating with vendors to reach those still unpatched, and briefing the authorities.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "11 May, night",
+      title: "The decision that proved decisive",
+      description: "The team keeps working outside office hours even though there is no staffing for it. The eleven compromised companies are secured before the access is turned on the industrial control systems.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "12 to 21 May",
+      title: "Ten days of silence",
+      description: "No attacker activity is observed.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "22 May, 14:44",
+      title: "Second wave, different style",
+      description: "An alarm reports a firewall downloading new software over an insecure connection. The alarm only fires at the download: the preceding attack had not been seen.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "22 May, ~15:00",
+      title: "Island operation",
+      description: "The affected device had joined a known network of compromised machines and was taking part in denial-of-service attacks against third parties. The company cuts its internet connection entirely.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "22 May, 18:13",
+      title: "Another member, same method",
+      description: "The pattern repeats. By around 20:00 the company switches to island operation. That firewall had to be replaced entirely: it never went back into service.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "23 May, 18:43",
+      title: "Infrastructure used against third parties",
+      description: "A newly compromised member takes part in an SSH brute force attack against a company in Canada, before being stopped.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "24 May",
+      title: "The vendor announces two more vulnerabilities",
+      description: "The two flaws used in the second wave are published. Until then they were unknown: the CERT's assessment is that the attackers knew about them before the announcement.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "24 May, 10:31 to 10:58",
+      title: "Three members in seventeen minutes",
+      description: "Three consecutive compromises with the same payload. In one case the traffic volume saturated the firewall itself and left the company without a network.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "24 May, 15:59",
+      title: "The device nobody knew existed",
+      description: "A member under attack believed it had none of those firewalls. After checking, one turns up that a vendor had installed alongside some cameras.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. Why they were not updated
+
+The report lists the reasons given by the affected companies themselves, and they are
+the most usable material in the case because **none of them is negligence in the sense
+we usually mean:**
+
+- **"The device is new, it comes updated."** A reasonable and false assumption.
+- **"The vendor handles updates."** Nobody had verified it in writing.
+- **"The update costs money."** The software was free, but the vendor charged to install
+  it, and someone decided to postpone.
+- **"We did not know we had that device."** Installed by a supplier without telling
+  anyone, or simply no inventory at all.
+
+<Fail />All four are management problems, not security problems, and none is solved by
+buying a detection tool.
+
+<Pass />All four are answered by one question, asked in time: **who updates this device
+and how do we verify it?**
+
+The fourth is the most serious and the most common in practice. The camera supplier who
+left a firewall installed without saying so is not an anecdote: it is the usual way
+uninventoried equipment appears on a network. Every third-party installation — cameras,
+access control, climate, metering — can bring in a network device nobody recorded.
+
+**An inventory built by asking IT is incomplete by design.** It has to be built by
+looking at the network.
+
+---
+
+## 2. What the attack needed, and what it did not
+
+The first vulnerability was exploited **with a single packet** sent to port 500 over
+UDP. That packet was processed by the key exchange protocol's decoder, and that is where
+the flaw was. The result was command execution with maximum privileges, with no username
+and no password.
+
+It is worth pausing on what that means for detection:
+
+- **There is no failed authentication attempt.** The access log shows nothing.
+- **There is no prior scanning traffic.** No sweep preceded the attack.
+- **One packet is not a pattern.** Detections based on volume or repetition have nothing
+  to hold on to.
+
+On the eleven compromised devices, the first thing the attackers did was ask the
+firewall for its configuration and its usernames. The CERT's assessment is that this was
+reconnaissance: seeing how each one was set up before deciding how to proceed.
+
+**That does leave a signal.** An edge device suddenly sending its configuration outbound
+is a rare event, observable in traffic, and it does not depend on knowing the
+vulnerability.
+
+---
+
+## 3. What can only be seen from above
+
+Here is what sets this case apart from every other one on the site.
+
+The attackers picked sixteen targets and **hit all sixteen.** All of them did have the
+vulnerable device. The report notes something unsettling: at the time, information about
+who had vulnerable devices was not available on the public search engines for exposed
+equipment, and the CERT could not identify any prior scanning in its data that would
+have provided it. To this day there is no clear explanation.
+
+The simultaneity is not accidental either. **Attacking everyone at once neutralises
+information sharing**, which is a sector's main defence: by the time the first victim
+notices, there is nobody left to warn.
+
+Against that tactic, the only thing that works is seeing everyone at the same time. And
+that is exactly what the sensor network did: identify the pattern by crossing data
+between companies, when each individual attack **might have gone unnoticed inside its
+own organisation.**
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-020"
+  type="verificacion"
+  title="What each level of observation sees"
+  data={{
+    "from a single company": {
+      "one UDP packet to port 500": "Indistinguishable from legitimate encrypted tunnel traffic",
+      "the firewall downloads software": "Could be a scheduled update",
+      "new outbound traffic": "Without a baseline, it says nothing",
+      "verdict": "clean"
+    },
+    "across several companies": {
+      "the same packet at sixteen sites on the same day": "Stops being traffic and becomes a campaign",
+      "the same download destination at several members": "Confirms a common origin",
+      "the same timing sequence": "Coordination, and therefore planning",
+      "verdict": "clean"
+    },
+    "what neither of them sees": {
+      "how they knew whom to attack": "No observable prior scanning and no public exposure",
+      "what commands travelled the encrypted channel": "Only the consequences were visible",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+**The third block is the most honest part of the report** and worth imitating: some
+things were left unexplained, and they are written down as such instead of being filled
+in with a convenient hypothesis.
+
+---
+
+## 4. The prize was the device, not the plant
+
+There is a twist that makes the case more useful than it looks.
+
+After compromising the firewalls, much of the second wave **did not head for the control
+systems.** It added the devices to networks of compromised machines and used them
+against third parties: denial of service against targets in the United States and Hong
+Kong, SSH brute force against a company in Canada.
+
+The CERT's reading is that this was, all things considered, good news: it suggests those
+attackers wanted the device and not the critical infrastructure behind it, which they
+may have reached without realising.
+
+For an analyst there are two practical conclusions:
+
+**First: a compromised edge device has value in itself.** The attacker does not need to
+understand or care about what is behind it. That vastly widens the set of people who can
+attack a plant: no industrial systems specialists required.
+
+**Second: the most visible signal was outbound traffic.** In one case the volume
+saturated the firewall itself and left the company without a network. Watching what
+leaves an edge device — not only what enters it — is cheap and is what set off several
+alarms.
+
+---
+
+## 5. Cutting the connection as a defensive decision
+
+Several companies switched to island operation: they disconnected from the internet and
+kept operating.
+
+It is the most drastic measure available and in this case it was the right one. It is
+worth looking at closely because **it contradicts the usual reflex of maintaining
+service at all costs.**
+
+In an industrial environment the question is not "can we stay connected?" but "can we
+keep operating without a connection?". If the answer is yes, disconnecting is cheap. If
+it is no, that in itself is a serious finding, and one better discovered in a workshop
+than during an incident.
+
+In one case the firewall had to be replaced entirely: it could not be trusted back into
+service. **When the compromised device is the one enforcing the security control,
+cleaning it is not a reasonable option.**
+
+---
+
+## 6. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-020"
+  tactics={[
+    {
+      id: "TA0043",
+      name: "Reconnaissance",
+      techniques: ["T1595.002", "T1590.005"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190", "T0819"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1059.004"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1592.004"]
+    },
+    {
+      id: "TA0042",
+      name: "Resource Development",
+      techniques: ["T1584.005", "T1587.001"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1498", "T1499.001"]
+    }
+  ]}
+/>
+
+**T0819 · Exploit Public-Facing Application** comes from the industrial control systems
+matrix, the same one used by case 013. It is here because the exploited device is the
+one protecting the industrial environment, even though the compromise happens on its
+internet-facing side.
+
+**T1584.005 · Compromise Infrastructure: Botnet** is the surprising one. The end goal of
+much of the activity was not the victim: it was to use the victim. That is uncommon in a
+critical infrastructure mapping and describes precisely what happened.
+
+---
+
+## Analysis frameworks
+
+<KillChain
+  client:load
+  lang="en"
+  caseId="soc-020"
+  phases={[
+    {
+      state: "reached",
+      detail: "The attackers knew exactly who had the vulnerable device. No prior scanning or public exposure could be identified, and it remains unexplained."
+    },
+    {
+      state: "reached",
+      detail: "A single packet against the key exchange protocol decoder. In the second wave, with flaws the vendor had not yet published."
+    },
+    {
+      state: "reached",
+      detail: "Sent straight at the exposed port. There is no user to deceive and no file to deliver."
+    },
+    {
+      state: "reached",
+      detail: "Command execution with maximum privileges, without authentication."
+    },
+    {
+      state: "blocked",
+      detail: "First wave: the eleven compromised companies were secured the same night, before the access turned into presence inside the industrial environment. This is where it was cut."
+    },
+    {
+      state: "reached",
+      detail: "In the second wave there was a command-and-control channel, encrypted. Only the consequences could be seen, not the commands."
+    },
+    {
+      state: "reached",
+      detail: "Use of the compromised devices against third parties: denial of service and brute force. No action observed against the control systems."
+    }
+  ]}
+  note="The chain is cut at the fifth link and only in the first wave. What cut it was not a technical control but a management decision: to keep working outside office hours when there was no staffing for it. It is worth saying that bluntly, because it is what separated a contained incident from one with operational consequences, and it appears in no reference architecture."
+/>
+
+**I am not including the pyramid of pain or the Diamond Model.** The pyramid would have
+its bottom rungs full of indicators the report itself publishes, but the case does not
+teach anything about indicator durability. And the adversary vertex has no firm data:
+the source speaks of indications of state actor involvement and of the possibility of
+two different groups, with the express caveat that this is assessment and may be wrong.
+**A diamond built on a doubtful vertex presents as knowledge what the source presents as
+doubt.**
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-020"
+  summary={{
+    incidentId: "Coordinated attack of May 2023, report published in November 2023",
+    title: "Compromise of edge firewalls at twenty-two energy infrastructure companies",
+    status: "Publicly documented",
+    severity: "CRITICAL",
+    triageInicial: "Detection on the sector CERT's sensor network, by comparison across companies",
+    causaRaiz: "Critical vulnerabilities in unpatched edge firewalls, and in the second wave flaws the vendor had not yet published",
+    tiempoDeContencion: "First wave secured the same night; the campaign spanned about two weeks",
+    datosComprometidos: "No actions observed against the control systems. The compromised devices were used to attack third parties",
+    resolutionCode: "Contained before operational impact"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**When the control is the vulnerable thing, there is no second layer.** An edge firewall
+protecting an industrial environment concentrates all the risk, and updating it stops
+being maintenance and becomes a critical control.
+
+**The inventory that is missing is the one a third party installed.** Cameras, access
+control, climate: any job can leave behind a network device nobody recorded. An
+inventory built by asking will not find those devices; one built by looking at the
+network will.
+
+**"The vendor handles it" is a verifiable claim, and it needs verifying.** Preferably in
+writing and with a date.
+
+**Attacking everyone at once neutralises information sharing.** The only defence against
+that tactic is simultaneous observation, which no organisation can have over itself.
+
+**An edge device is worth having in itself.** The attacker may have no interest in the
+plant at all, and that vastly widens who might end up compromising it.
+
+**What cut the chain was a management decision.** Working outside office hours with no
+staffing for it appears in no security architecture, and it was decisive.
+
+---
+
+## Recommendations
+
+**An edge device inventory built from the network**, not from memory and not from
+purchase orders. With make, model, version and an owner for updates.
+
+**An explicit agreement on who updates each device**, with a name and a deadline. If the
+vendor charges to install a free update, that argument needs having before the advisory,
+not after.
+
+**Monitoring of outbound traffic from edge devices.** It was the signal that worked
+best: downloads initiated by the device itself, and anomalous volume heading out.
+
+**An alert on configuration being sent outbound.** It is reconnaissance and it is
+observable without knowing which vulnerability was used.
+
+**A rehearsal of island operation.** Know in advance how long the plant can operate
+without a connection, and find that number in an exercise rather than in an incident.
+
+**Take part in whatever sector mechanism exists.** This case is the practical
+demonstration that some attacks are only visible from above, and that no company can see
+them alone.
+
+---
+
+## References
+
+- SektorCERT, *The attack against Danish critical infrastructure*, November 2023
+- CVE-2023-28771, CVE-2023-33009 and CVE-2023-33010
+- MITRE ATT&CK for ICS: T0819
+- MITRE ATT&CK: T1190, T1584.005, T1498
+
+---
+
+## Further reading
+
+- **Case 013**, for the other end of the industrial environment: there the attacker
+  reaches operations and moves the operator's mouse.
+- **Case 005**, for the other shape of mass exploitation, when the vulnerable product
+  belongs to a supplier and is not at your edge.
+- **Case 011**, for third-party dependency and information sharing between
+  organisations.
