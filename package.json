@@ -18,6 +18,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "deploy": "node tools/desplegar.mjs",
     "astro": "astro",
     "check": "node tools/verificar-catalogo.mjs && node scripts/check-defang.mjs && node scripts/check-i18n.mjs && node tools/contraste-globo.mjs && node tools/verificar-estilo.mjs",
     "audit:i18n": "node tools/i18n-audit.mjs",
