@@ -1,0 +1,517 @@
+---
+title: "SolarWinds 2020 - The update came signed"
+description: "Real case: the implant arrived inside a legitimate update of the software that watches the network. No tool in the SOC could object to anything, and the campaign broke open through a severity-zero alert"
+pubDate: 2020-12-13
+caseId: "soc-017"
+caseNumber: 17
+difficulty: "expert"
+caseType: "real_case_supply_chain"
+severity: "CRITICAL"
+tags: ["supply-chain", "build-system", "code-signing", "identity", "saml", "espionage", "dns", "dwell-time"]
+author: "CISA advisory AA20-352A, SolarWinds' publications on its own investigation, Mandiant's technical analysis of SUNBURST and CrowdStrike's analysis of SUNSPOT"
+discoveryDate: "2020-12-08"
+locations:
+  - { lat: 30.2672, lng: -97.7431, label: "Austin, SolarWinds headquarters" }
+  - { lat: 38.8951, lng: -77.0364, label: "Washington, affected federal agencies" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Executive summary
+
+Between March and June 2020, anyone who updated their network monitoring platform
+installed, along with the update, an implant that handed access to a foreign
+intelligence service.
+
+The update was not tampered with after leaving the factory. **The malicious code was
+added inside the factory, during compilation, and came out signed with the vendor's
+legitimate certificate.** To every control on the customer's side — digital signature,
+vendor reputation, hash against the one the vendor published — the file was exactly
+what it claimed to be, because it was.
+
+The previous fifteen cases start from something an analyst can look at: an alert, a
+log, an anomaly. This one starts from the opposite. **The question here is what a SOC
+does when the attacker came in through the one path that was authorised not to raise
+suspicion.**
+
+And the incident itself answered it, in the least dramatic way possible. Nobody
+detected the implant for what it was. Someone looked at a severity-zero alert — a
+second device registered against an employee's second factor — picked up the phone and
+asked. The person said it had not been them.
+
+**Key metrics:**
+
+- First access to the vendor's network: September 2019
+- Malicious code inside the product: 26 March 2020
+- Removed by the attackers themselves: June 2020
+- Public disclosure: 13 December 2020
+- Time between insertion and disclosure: about nine months
+- Implant dwell before its first communication: 12 to 14 days
+- Main techniques: T1195.002, T1554, T1553.002, T1071.004, T1606.002
+
+<Warn />**Real case, with figures that do not match across sources.** The technical
+facts come from CISA advisory AA20-352A, from SolarWinds' publications on its own
+investigation, from Mandiant's analysis of SUNBURST and from CrowdStrike's analysis of
+SUNSPOT. On how many organisations received the compromised version and how many moved
+to the second stage, the sources give different numbers; the disagreement is recorded
+below, without picking one.
+
+---
+
+## Context: why this piece and not another
+
+The compromised product was a network monitoring platform. It is worth pausing on what
+that means before looking at the implant, because it explains why the attacker chose
+this door and not another.
+
+A tool that monitors infrastructure needs, in order to do its job:
+
+```
+privileged credentials       to query network devices, servers and services
+unrestricted network reach   to get to everything it has to watch
+antivirus exclusions         because its behaviour looks like an attacker's
+outbound internet access     to update itself and to report
+```
+
+Each of those four things is correctly granted. **Together they describe the most
+appealing asset on the network**, and they describe something less comfortable: a
+console from which, if someone controls it, almost no movement looks odd.
+
+The attacker did not need to escalate privileges. They were granted at installation.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-017"
+  events={[
+    {
+      time: "Sep 2019",
+      title: "First access to the vendor's network",
+      description: "The later investigation identifies suspicious activity on the vendor's internal systems. Nothing is in the product yet.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "Feb 2020",
+      title: "Injection rehearsal",
+      description: "Code insertion into the build process is tested, without distributing anything. The attacker verifies the method works before using it.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "26 Mar 2020",
+      title: "The implant enters the product",
+      description: "Malicious code is injected during compilation and comes out signed with the vendor's legitimate certificate. It begins shipping as an update.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "Apr to Jun 2020",
+      title: "Target selection",
+      description: "The implant waits 12 to 14 days on each installation, then queries a domain. Out of every organisation that installed it, the attacker picks a subset for the second stage.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "Jun 2020",
+      title: "The attacker cleans the factory",
+      description: "The injection code is removed from the build environment. The product compiles clean again, and the implants already shipped keep working.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "8 Dec 2020",
+      title: "The severity-zero alert",
+      description: "A security firm announces the theft of its assessment tooling. The investigation had started from a routine notice: a second device registered against an employee's second factor.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "13 Dec 2020",
+      title: "Disclosure and emergency directive",
+      description: "The product compromise becomes public. CISA issues Emergency Directive 21-01 ordering federal agencies to disconnect affected devices.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "15 Dec 2020",
+      title: "Domain neutralised",
+      description: "The first-communication domain is redirected to a controlled address. It stops serving implants that had not yet advanced, and does nothing about those already on another channel.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. Where the compromise happened
+
+The distinction that organises the whole case is **where** the code was added.
+
+A product is compiled from source code. The result of that compilation is signed and
+published. If someone alters the file after signing, the signature stops validating and
+any control catches it.
+
+Here the implant was installed on the system that compiles. It watched the build
+process, waited for the component it cared about to be compiled and swapped the source
+for its own version, only for that instant. The developer who triggered the build saw
+nothing different. **The source code in the repository stayed clean, and the binary
+came out with the implant inside.**
+
+Then the chain went on as normal: the binary was signed with the legitimate
+certificate, published on the vendor's site and distributed as an update.
+
+<Fail />The digital signature validated: the vendor placed it over a file that was
+already compromised.
+
+<Fail />The hash matched the published one: it was the file the vendor really compiled
+and published.
+
+<Pass />The only thing left odd was the later behaviour, and the implant was designed
+so that it would not look odd either.
+
+That is the point worth taking away: **a digital signature certifies origin, not
+intent.** It says who compiled and published that file, not whether what is inside is
+what its author believes it is.
+
+---
+
+## 2. How it avoided looking like what it was
+
+The implant did nothing for the first twelve to fourteen days, and it picked the exact
+threshold at random within that range.
+
+It is worth thinking about what that detail is designed against:
+
+- **Against automated analysis.** A file detonated in a sandbox is watched for a few
+  minutes. Twelve days later nobody is looking.
+- **Against temporal correlation.** By the time the implant wakes up, the update
+  install is two weeks back and outside the window an analyst reviews when looking for
+  the cause of something.
+- **Against the pattern, the random threshold.** If they all woke on the same day, the
+  spike would be visible. Spread across a two-day window, there is no spike.
+
+The first communication went to a subdomain of a single domain, over DNS, in a format
+that mimicked the product's own protocol. A monitoring product querying odd names and
+talking to its vendor is exactly what one expects from a monitoring product.
+
+And the answer to that query decided everything: most installations received nothing
+further. **The attacker used the first stage as a census, not as access.**
+
+---
+
+## 3. What a SOC could see
+
+Here is the useful part, and it is not comfortable: over those nine months, almost
+nothing. But "almost" is not "nothing", and the difference is where the work lives.
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-017"
+  type="verificacion"
+  title="What can be searched for, in order of cost"
+  data={{
+    "in the DNS log": {
+      "queries to the first-stage domain": "avsvmcloud[.]com and its subdomains, across the whole period",
+      "who queried": "If the source is the monitoring server, the finding is direct",
+      "different subsequent resolutions": "A single query means an implant; queries to other names afterwards mean the attacker advanced",
+      "verdict": "clean"
+    },
+    "in the monitoring server's behaviour": {
+      "unusual child processes": "The product's service launching command interpreters or administration tooling",
+      "outbound traffic to new destinations": "Outside the vendor's update range",
+      "use of its own credentials": "Authentications by the service account against hosts it does not monitor",
+      "verdict": "clean"
+    },
+    "in identity, which is where it surfaced": {
+      "second factor added or new device": "On any account, without the person requesting it",
+      "token-signing certificates": "Exports of, or access to, the material that signs authentication assertions",
+      "sessions with no prior authentication": "Valid access with no sign-in event to explain it",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+The third block carries the most weight and gets looked at the least. CISA documented
+that this adversary, once inside, stole the material an organisation uses to sign
+authentication assertions and **minted valid credentials for any user and any
+service.** With that it no longer needs the implant: it walks through the front door,
+carrying authentic documents issued by the organisation itself.
+
+Access like that does not generate a suspicious sign-in. It generates a session that
+simply exists. The only way to see it is to ask about the absence: **there is
+authenticated activity from this account — where is the sign-in that produced it?**
+
+That question — looking for the event that is missing rather than the one that is extra
+— is the same one case 010 uses for the DNS tunnel, applied to identity.
+
+---
+
+## 4. The figures that do not match
+
+The number of affected organisations gets repeated a lot and holds up poorly.
+
+| Source | What it says |
+| --- | --- |
+| Vendor communications | Around 18,000 customers downloaded a version carrying the implant |
+| Response analysis | Of that total, a much smaller subset received the second stage |
+| Figures in circulation | That subset was described as "fewer than a hundred" and also as "a few hundred" |
+
+**I am not picking one.** The difference between "fewer than a hundred" and "a few
+hundred" is not cosmetic: it changes by a factor of three or more the estimate of how
+many organisations had an intruder inside, and no public source I have seen settles it
+with evidence.
+
+What does hold up, and is what matters to an analyst, is the shape: **a very large
+majority received the implant and were never targeted; a small minority were the real
+target.** Having installed the compromised version and having been attacked are two
+distinct facts, and conflating them leads to two expensive mistakes. One is treating
+the whole organisation as compromised and paralysing it. The other is concluding
+nothing happened because the implant never advanced, without having verified it.
+
+The verification is the DNS query from the block above. It is cheap and it answers
+exactly that question.
+
+---
+
+## 5. How it was found, which is the part that gets forgotten
+
+None of the capabilities we usually buy for this found it. Not the antivirus, not
+endpoint detection, not threat intelligence, not the vendor review.
+
+It was found by **an alert most SOCs classify as noise**: a second device was
+registered for an employee's second authentication factor.
+
+It is an alert that fires every day for legitimate reasons. Someone changes phone,
+someone adds a tablet, someone reinstalls the app. In almost every case, closing it as
+benign is correct.
+
+What happened that time is that someone did the one-minute verification the situation
+calls for: **they asked the person.** The person said they had registered no device.
+From there, the question became how anyone had obtained those credentials, and that
+question ended at the monitoring server.
+
+It is worth saying plainly, because it is the most usable lesson in the case: the
+largest known espionage campaign of the decade opened up because a routine ticket was
+not closed from memory. Case 014 on this site is about how a false positive gets closed
+well; this one is its exact reverse, and both say the same thing. **The value is not in
+the alert, it is in the verification.**
+
+---
+
+## 6. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-017"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1195.002", "T1078"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1059.001"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1554", "T1078.004"]
+    },
+    {
+      id: "TA0005",
+      name: "Defense Evasion",
+      techniques: ["T1553.002", "T1497.003", "T1027"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1606.002", "T1552.004"]
+    },
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1071.004", "T1568.002"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002"]
+    }
+  ]}
+/>
+
+**The three that define this case and do not appear in the previous ones:**
+
+- **T1195.002 · Compromise Software Supply Chain.** The compromise happens in the
+  product's build chain, not in its distribution or its use.
+- **T1554 · Compromise Host Software Binary.** Persistence is provided by the product
+  itself: as long as it is installed, the implant returns with every start, and no new
+  scheduled task or service gives it away.
+- **T1606.002 · Forge Web Credentials: SAML Tokens.** The attacker stops needing stolen
+  credentials because they issue their own.
+
+---
+
+## Analysis frameworks
+
+**I am not including the kill chain.** All seven links were completed, and a chain with
+seven rows in red does not teach where to cut, which is what the framework is for. Case
+004 already shows a complete chain, and there the point is that controls existed and
+failed one by one.
+
+Here the reason is different and worth stating in prose: **the controls worked as
+designed, and the design did not account for this path.** A control that validates
+signatures did its job correctly by accepting a valid signature. There is no link to
+point at as the failure, and that absence is precisely the case's finding.
+
+The chain was cut outside the chain: nine months later, at another organisation,
+through an identity anomaly.
+
+<PyramidOfPain
+  client:load
+  lang="en"
+  caseId="soc-017"
+  indicators={{
+    hashes: [
+      "The compromised component's, useful for inventorying who installed the affected version",
+      "Changes with every legitimate release of the product: on its own it distinguishes nothing"
+    ],
+    ips: [
+      "Second-stage infrastructure, different per victim",
+      "Hosted at commonly used providers, where blocking by address reaches third parties"
+    ],
+    domains: [
+      "The first-communication domain, neutralised on 15 December 2020",
+      "It cut off implants that had not advanced; for those already on another channel, nothing"
+    ],
+    artifacts: [
+      "12 to 14 days of dwell between install and first query",
+      "Query format mimicking the product's own protocol",
+      "The monitoring service launching processes that are not its business",
+      "Authenticated activity with no sign-in to explain it"
+    ],
+    tools: [
+      "Build-environment implant",
+      "Second-stage loaders, deployed only at the chosen targets"
+    ],
+    ttps: [
+      "Entering through the vendor's build chain instead of the victim's network",
+      "Using the first stage as a census rather than as access",
+      "Stealing the signing material and minting valid credentials"
+    ]
+  }}
+  note="The bottom three rungs describe this incident and are useless for the next one: the hash differs in every legitimate release, the addresses change per victim and the domain is already neutralised. What holds up is at the top. An administration product launching command interpreters, or an authenticated session with no sign-in to explain it, are signals that no change of attacker infrastructure erases."
+/>
+
+**I am not including the Diamond Model here.** All four vertices exist and are
+documented — there is official attribution, described capability, published
+infrastructure and identified victims — but the model adds nothing the other two pieces
+do not say better in this case. The site's invariant is that a framework goes in when
+it contributes, not when it can be filled.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-017"
+  summary={{
+    incidentId: "Build chain compromise, disclosed on 13 December 2020",
+    title: "Implant distributed inside an update signed by its vendor",
+    status: "Publicly documented",
+    severity: "CRITICAL",
+    triageInicial: "Severity-zero alert: second device registered against an employee's second factor",
+    causaRaiz: "Code injected during the product's compilation, in the vendor's environment, and signed with its legitimate certificate",
+    tiempoDeContencion: "About nine months between insertion and public disclosure",
+    datosComprometidos: "Scope varies per organisation. The initial census was broad; the second stage reached a subset whose size the sources describe differently",
+    resolutionCode: "Case study"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**A digital signature answers a smaller question than it appears to.** It certifies
+that a file left a given vendor unaltered afterwards. It says nothing about whether the
+vendor was compromised before signing. It is a valid control and worth having; what is
+not worth doing is asking it for a guarantee it does not give.
+
+**Administration software is critical network infrastructure, and is rarely treated as
+such.** Tools that monitor, back up, distribute patches or manage endpoints hold broad
+credentials, total reach and detection exclusions. They deserve the same scrutiny as a
+domain controller.
+
+**Installing the compromised version and having been attacked are two distinct facts.**
+Responding to a notice like this starts by determining which of the two applies, and
+that determination is cheap.
+
+**The detection that worked was identity, not threat detection.** When the attacker
+comes in through a trusted channel, what is left to see them is their behaviour as a
+user: a device that appears, a session with no origin, a permission nobody asked for.
+
+**A routine alert is worth whatever its verification is worth.** Without the phone
+call, that notice would have been closed as benign, and closing it that way was
+statistically reasonable.
+
+---
+
+## Recommendations
+
+**An inventory of privileged software.** Which administration tools run on the network,
+under which accounts, with what reach and with which detection exclusions. Without that
+list, a vendor compromise notice cannot be answered.
+
+**Segment those tools' outbound access.** A monitoring server needs to talk to the
+internal network and to its vendor's update site. It does not need to talk to the
+internet at large, and that restriction does not break the product.
+
+**Log and review DNS from servers, not just from workstations.** The first stage was a
+name query from a server. It is the only artefact that was available across those nine
+months.
+
+**Watch the material that signs authentication assertions** and the sessions that have
+no sign-in to explain them.
+
+**Treat second-factor changes as verifiable, not informational.** A new device is
+confirmed with the person over a different channel. It is the cheapest verification in
+the catalogue and in this case it was the only one that worked.
+
+---
+
+## References
+
+- CISA, advisory AA20-352A, *Advanced Persistent Threat Compromise of Government
+  Agencies, Critical Infrastructure, and Private Sector Organizations*
+- CISA, Emergency Directive 21-01
+- SolarWinds' publications on its own investigation
+- Mandiant, technical analysis of SUNBURST
+- CrowdStrike, analysis of SUNSPOT, the build-environment implant
+- MITRE ATT&CK: T1195.002, T1554, T1553.002, T1606.002, T1071.004
+
+---
+
+## Further reading
+
+- **Case 011**, for the other kind of dependency: there the supplier suffers an
+  incident and the information arrives late; here the product arrives already
+  compromised.
+- **Case 014**, for the reverse of the severity-zero alert: how a false positive gets
+  closed well without closing it from memory.
+- **Case 010**, for searching by absence and for DNS as a channel.
