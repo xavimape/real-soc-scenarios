@@ -1,0 +1,518 @@
+---
+title: "SolarWinds 2020 - La actualización venía firmada"
+description: "Caso real: el implante entró dentro de una actualización legítima del software que vigila la red. Ninguna herramienta del SOC podía objetar nada, y la campaña se destapó por una alerta de severidad cero"
+pubDate: 2020-12-13
+caseId: "soc-017"
+caseNumber: 17
+difficulty: "expert"
+caseType: "real_case_supply_chain"
+severity: "CRITICAL"
+tags: ["supply-chain", "build-system", "code-signing", "identity", "saml", "espionage", "dns", "dwell-time"]
+author: "Aviso AA20-352A de CISA, publicaciones de la investigación de SolarWinds, análisis técnico de SUNBURST de Mandiant y análisis de SUNSPOT de CrowdStrike"
+discoveryDate: "2020-12-08"
+locations:
+  - { lat: 30.2672, lng: -97.7431, label: "Austin, casa central de SolarWinds" }
+  - { lat: 38.8951, lng: -77.0364, label: "Washington, agencias federales afectadas" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import PyramidOfPain from '@/components/soc/PyramidOfPain.jsx';
+
+## Resumen ejecutivo
+
+Entre marzo y junio de 2020, quien actualizó su plataforma de monitoreo de red
+instaló, junto con la actualización, un implante que le daba acceso a un servicio de
+inteligencia extranjero.
+
+La actualización no estaba alterada después de salir de fábrica. **El código malicioso
+se agregó adentro de la fábrica, durante la compilación, y salió firmado con el
+certificado legítimo del fabricante.** Para cualquier control del lado del cliente
+—firma digital, reputación del proveedor, hash contra el publicado por el fabricante—
+el archivo era exactamente lo que decía ser, porque lo era.
+
+Los quince casos anteriores parten de algo que un analista puede mirar: una alerta, un
+registro, una anomalía. Este parte de lo contrario. **La pregunta acá es qué hace un
+SOC cuando el atacante entró por el único camino que estaba autorizado a no
+levantar sospechas.**
+
+Y la respuesta la dio el propio incidente, en la forma menos épica posible. Nadie
+detectó el implante por lo que era. Alguien miró una alerta de severidad cero —un
+segundo dispositivo registrado en el segundo factor de un empleado—, levantó el
+teléfono y preguntó. La persona dijo que no había sido ella.
+
+**Métricas clave:**
+
+- Primer acceso a la red del fabricante: septiembre de 2019
+- Código malicioso dentro del producto: 26 de marzo de 2020
+- Retirado por los propios atacantes: junio de 2020
+- Divulgación pública: 13 de diciembre de 2020
+- Tiempo entre la inserción y la divulgación: unos nueve meses
+- Dormancia del implante antes de la primera comunicación: entre 12 y 14 días
+- Técnicas principales: T1195.002, T1554, T1553.002, T1071.004, T1606.002
+
+<Warn />**Caso real, con cifras que no coinciden entre fuentes.** Los hechos técnicos
+salen del aviso AA20-352A de CISA, de las publicaciones de la propia investigación de
+SolarWinds, del análisis de SUNBURST de Mandiant y del análisis de SUNSPOT de
+CrowdStrike. Sobre cuántas organizaciones recibieron la versión comprometida y cuántas
+pasaron a la segunda etapa, las fuentes dan números distintos; más abajo está la
+discrepancia, sin elegir una.
+
+---
+
+## Contexto: por qué esta pieza y no otra
+
+El producto comprometido era una plataforma de monitoreo de red. Conviene detenerse en
+lo que eso significa antes de mirar el implante, porque explica por qué el atacante
+eligió esta puerta y no otra.
+
+Una herramienta que monitorea la infraestructura necesita, para hacer su trabajo:
+
+```
+credenciales privilegiadas      para consultar equipos de red, servidores y servicios
+alcance de red sin restricción  para llegar a todo lo que tiene que vigilar
+excepciones en el antivirus     porque su comportamiento parece el de un atacante
+salida a internet               para actualizarse y para reportar
+```
+
+Cada una de esas cuatro cosas está bien concedida. **Juntas describen el activo más
+apetecible de la red**, y describen algo más incómodo: una consola desde la cual, si
+alguien la controla, casi ningún movimiento se ve raro.
+
+El atacante no necesitó escalar privilegios. Los recibió en la instalación.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-017"
+  events={[
+    {
+      time: "sep 2019",
+      title: "Primer acceso a la red del fabricante",
+      description: "La investigación posterior identifica actividad sospechosa en los sistemas internos del fabricante. Todavía no hay nada en el producto.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "feb 2020",
+      title: "Ensayo de inyección",
+      description: "Se prueba la inserción de código en el proceso de compilación, sin distribuir nada. El atacante verifica que su método funciona antes de usarlo.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "26 mar 2020",
+      title: "El implante entra al producto",
+      description: "El código malicioso se inyecta durante la compilación y sale firmado con el certificado legítimo del fabricante. Empieza a distribuirse como actualización.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "abr a jun 2020",
+      title: "Selección de objetivos",
+      description: "El implante espera entre 12 y 14 días en cada instalación y luego consulta un dominio. De todas las organizaciones que lo instalaron, el atacante elige un subconjunto para la segunda etapa.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "jun 2020",
+      title: "El atacante limpia la fábrica",
+      description: "El código de inyección se retira del entorno de compilación. El producto vuelve a compilarse limpio, y los implantes ya distribuidos siguen funcionando.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "8 dic 2020",
+      title: "La alerta de severidad cero",
+      description: "Una empresa de seguridad anuncia el robo de sus herramientas de evaluación. La investigación había arrancado con un aviso rutinario: un segundo dispositivo registrado en el segundo factor de un empleado.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "13 dic 2020",
+      title: "Divulgación y directiva de emergencia",
+      description: "Se hace público el compromiso del producto. CISA emite la Directiva de Emergencia 21-01 ordenando a las agencias federales desconectar los equipos afectados.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "15 dic 2020",
+      title: "Neutralización del dominio",
+      description: "El dominio de la primera comunicación se redirige a una dirección controlada. Deja de servir a los implantes que todavía no habían avanzado, y no afecta a los que ya tenían otro canal.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. Dónde ocurrió el compromiso
+
+La distinción que ordena todo el caso es **dónde** se agregó el código.
+
+Un producto se compila a partir de código fuente. El resultado de esa compilación se
+firma y se publica. Si alguien altera el archivo después de la firma, la firma deja de
+validar y cualquier control lo detecta.
+
+Acá el implante se instaló en el sistema que compila. Vigilaba el proceso de
+construcción, esperaba a que se compilara el componente que le interesaba y sustituía
+el código fuente por su versión, solo durante ese instante. El desarrollador que
+disparó la compilación no vio nada distinto. **El código fuente en el repositorio
+quedó limpio, y el binario salió con el implante adentro.**
+
+Después la cadena siguió su curso normal: el binario se firmó con el certificado
+legítimo, se publicó en el sitio del fabricante y se distribuyó como actualización.
+
+<Fail />La firma digital validaba: la puso el fabricante sobre un archivo que ya
+estaba comprometido.
+
+<Fail />El hash coincidía con el publicado: era el archivo que el fabricante compiló y
+publicó de verdad.
+
+<Pass />Lo único que quedaba raro era el comportamiento posterior, y el implante fue
+diseñado para que tampoco lo pareciera.
+
+Ese es el punto que conviene llevarse: **la firma digital certifica el origen, no la
+intención.** Dice quién compiló y publicó ese archivo, no si lo que hay adentro es lo
+que su autor cree que es.
+
+---
+
+## 2. Cómo evitaba parecerse a lo que era
+
+El implante no hacía nada durante los primeros doce a catorce días, y el umbral exacto
+lo elegía al azar dentro de ese rango.
+
+Vale la pena pensar contra qué está diseñado ese detalle:
+
+- **Contra el análisis automático.** Un archivo que se detona en una caja de arena se
+  observa unos minutos. Doce días después ya nadie está mirando.
+- **Contra la correlación temporal.** Cuando el implante despierta, la instalación de
+  la actualización quedó dos semanas atrás y salió del período que un analista revisa
+  cuando busca la causa de algo.
+- **Contra el aleatorio, la elección del umbral.** Si todos despertaran el mismo día,
+  el pico sería visible. Repartidos en una ventana de dos días, no hay pico.
+
+La primera comunicación iba a un subdominio dentro de un dominio único, por DNS, con
+un formato que imitaba el protocolo propio del producto. Un producto de monitoreo que
+consulta nombres raros y habla con su fabricante es exactamente lo que se espera de un
+producto de monitoreo.
+
+Y la respuesta a esa consulta era la que decidía todo: la mayoría de las instalaciones
+no recibía nada más. **El atacante usó la primera etapa como censo, no como acceso.**
+
+---
+
+## 3. Lo que un SOC sí podía ver
+
+Acá está la parte útil, y no es cómoda: durante los nueve meses, casi nada. Pero
+"casi" no es "nada", y la diferencia es donde vive el trabajo.
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-017"
+  type="verificacion"
+  title="Qué se puede buscar, en orden de costo"
+  data={{
+    "en el registro de DNS": {
+      "consultas al dominio de la primera etapa": "avsvmcloud[.]com y sus subdominios, en todo el período",
+      "quién consultó": "Si el origen es el servidor de monitoreo, el hallazgo es directo",
+      "resoluciones posteriores distintas": "Una consulta aislada indica implante; consultas a otros nombres después indican que el atacante avanzó",
+      "verdict": "clean"
+    },
+    "en el comportamiento del servidor de monitoreo": {
+      "procesos hijo inhabituales": "El servicio del producto lanzando intérpretes de comandos o herramientas de administración",
+      "salidas a destinos nuevos": "Fuera del rango de actualización del fabricante",
+      "uso de sus propias credenciales": "Autenticaciones de la cuenta de servicio contra equipos que no monitorea",
+      "verdict": "clean"
+    },
+    "en la identidad, que es donde apareció": {
+      "segundo factor agregado o dispositivo nuevo": "En cualquier cuenta, sin pedido de la persona",
+      "certificados de firma de tokens": "Exportaciones o accesos al material que firma las aserciones de autenticación",
+      "sesiones sin autenticación previa": "Accesos válidos que no tienen un inicio de sesión que los explique",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+El tercer bloque es el que más pesa y el que menos se mira. CISA documentó que este
+adversario, una vez adentro, robaba el material con el que la organización firma las
+aserciones de autenticación y **se fabricaba credenciales válidas para cualquier
+usuario y cualquier servicio.** Con eso ya no necesita el implante: entra por la
+puerta, con documentos auténticos emitidos por la propia organización.
+
+Un acceso así no genera un inicio de sesión sospechoso. Genera una sesión que
+simplemente existe. La única forma de verla es preguntarse por la ausencia: **hay
+actividad autenticada de esta cuenta, ¿dónde está el inicio de sesión que la
+originó?**
+
+Esa pregunta —buscar el evento que falta en lugar del que sobra— es la misma que el
+caso 010 usa para el túnel de DNS, aplicada a identidad.
+
+---
+
+## 4. Las cifras que no coinciden
+
+El número de organizaciones afectadas se repite mucho y se sostiene poco.
+
+| Fuente | Qué dice |
+| --- | --- |
+| Comunicaciones del fabricante | Alrededor de 18.000 clientes descargaron una versión con el implante |
+| Análisis de la respuesta | Del total, un subconjunto mucho menor recibió la segunda etapa |
+| Cifras que circularon | Ese subconjunto se describió como "menos de cien" y también como "unos cientos" |
+
+**No elijo una.** La diferencia entre "menos de cien" y "unos cientos" no es
+cosmética: cambia por un factor de tres o más la estimación de cuántas organizaciones
+tuvieron un intruso adentro, y ninguna fuente pública que haya visto la resuelve con
+evidencia.
+
+Lo que sí se sostiene, y es lo que importa para un analista, es la forma: **una
+mayoría enorme recibió el implante y nunca fue objetivo; una minoría chica fue el
+objetivo real.** Haber instalado la versión comprometida y haber sido atacado son dos
+hechos distintos, y confundirlos lleva a dos errores caros. Uno es tratar a toda la
+organización como comprometida y paralizarla. El otro es concluir que no pasó nada
+porque el implante nunca avanzó, sin haberlo verificado.
+
+La verificación es la consulta de DNS del bloque anterior. Es barata y responde
+exactamente esa pregunta.
+
+---
+
+## 5. Cómo se descubrió, que es la parte que se olvida
+
+Ninguna de las capacidades que solemos comprar para esto lo encontró. No lo encontró
+el antivirus, ni el sistema de detección en el punto final, ni la inteligencia de
+amenazas, ni la revisión del proveedor.
+
+Lo encontró **una alerta que la mayoría de los SOC clasifica como ruido**: se registró
+un segundo dispositivo para el segundo factor de autenticación de un empleado.
+
+Es una alerta que se dispara todos los días por motivos legítimos. Alguien cambia de
+teléfono, alguien agrega la tableta, alguien reinstala la aplicación. En casi todos los
+casos, cerrarla como benigna es correcto.
+
+Lo que ocurrió esa vez es que alguien hizo la verificación de un minuto que corresponde
+hacer: **preguntarle a la persona.** La persona dijo que no había registrado ningún
+dispositivo. A partir de ahí, la pregunta pasó a ser cómo consiguió alguien esas
+credenciales, y esa pregunta terminó en el servidor de monitoreo.
+
+Vale la pena decirlo sin adornos, porque es la lección más aprovechable del caso: la
+mayor campaña de espionaje conocida de la década se abrió por un ticket de rutina que
+un analista no cerró de memoria. El caso 014 de este sitio trata sobre cómo se cierra
+bien un falso positivo; este es el reverso exacto, y los dos dicen lo mismo. **El valor
+no está en la alerta, está en la verificación.**
+
+---
+
+## 6. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-017"
+  tactics={[
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1195.002", "T1078"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1059.001"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1554", "T1078.004"]
+    },
+    {
+      id: "TA0005",
+      name: "Defense Evasion",
+      techniques: ["T1553.002", "T1497.003", "T1027"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1606.002", "T1552.004"]
+    },
+    {
+      id: "TA0011",
+      name: "Command and Control",
+      techniques: ["T1071.004", "T1568.002"]
+    },
+    {
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1567.002"]
+    }
+  ]}
+/>
+
+**Las tres que hacen a este caso y no aparecen en los anteriores:**
+
+- **T1195.002 · Compromise Software Supply Chain.** El compromiso ocurre en la cadena
+  de construcción del producto, no en su distribución ni en su uso.
+- **T1554 · Compromise Host Software Binary.** La persistencia la da el propio
+  producto: mientras esté instalado, el implante vuelve con cada arranque, y ninguna
+  tarea programada ni servicio nuevo lo delata.
+- **T1606.002 · Forge Web Credentials: SAML Tokens.** El atacante deja de necesitar
+  credenciales robadas porque se emite las suyas.
+
+---
+
+## Marcos de análisis
+
+**No incluyo la cadena de ataque.** Los siete eslabones se completaron, y una cadena
+con las siete filas en rojo no enseña dónde cortar, que es para lo que sirve el marco.
+El caso 004 ya muestra una cadena completa y ahí el punto es que los controles
+existían y fallaron uno por uno.
+
+Acá el motivo es distinto y vale decirlo en prosa: **los controles funcionaron como
+estaban diseñados, y el diseño no contemplaba este camino.** Un control que valida
+firmas hizo bien su trabajo al aceptar una firma válida. No hay un eslabón donde
+señalar una falla, y esa ausencia es justamente el hallazgo del caso.
+
+La cadena se cortó fuera de la cadena: nueve meses después, en otra organización, por
+una anomalía de identidad.
+
+<PyramidOfPain
+  client:load
+  lang="es"
+  caseId="soc-017"
+  indicators={{
+    hashes: [
+      "El del componente comprometido, útil para inventariar quién instaló la versión afectada",
+      "Cambia con cada versión legítima del producto: no distingue nada por sí solo"
+    ],
+    ips: [
+      "Infraestructura de segunda etapa, distinta por víctima",
+      "Alojada en proveedores de uso corriente, donde bloquear por dirección alcanza a terceros"
+    ],
+    domains: [
+      "El dominio de la primera comunicación, neutralizado el 15 de diciembre de 2020",
+      "Cortó a los implantes que no habían avanzado; a los que ya tenían otro canal, ninguno"
+    ],
+    artifacts: [
+      "Dormancia de 12 a 14 días entre la instalación y la primera consulta",
+      "Formato de consulta que imita el protocolo propio del producto",
+      "El servicio de monitoreo lanzando procesos que no le corresponden",
+      "Actividad autenticada sin un inicio de sesión que la explique"
+    ],
+    tools: [
+      "Implante en el entorno de compilación",
+      "Cargadores de segunda etapa, desplegados solo en los objetivos elegidos"
+    ],
+    ttps: [
+      "Entrar por la cadena de construcción del proveedor en vez de por la red de la víctima",
+      "Usar la primera etapa como censo y no como acceso",
+      "Robar el material de firma y emitirse credenciales válidas"
+    ]
+  }}
+  note="Los tres escalones de abajo describen este incidente y no sirven para el próximo: el hash es distinto en cada versión legítima, las direcciones cambian por víctima y el dominio ya está neutralizado. Lo que se sostiene está arriba. Un producto de administración que lanza intérpretes de comandos, o una sesión autenticada sin inicio de sesión que la explique, son señales que ningún cambio de infraestructura del atacante borra."
+/>
+
+**No incluyo el Diamond Model acá.** Los cuatro vértices existen y están documentados
+—hay atribución oficial, capacidad descrita, infraestructura publicada y víctimas
+identificadas— pero el modelo no agrega nada que las otras dos piezas no digan mejor
+en este caso. La invariante del sitio es que un marco entra cuando aporta, no cuando
+se puede llenar.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-017"
+  summary={{
+    incidentId: "Compromiso de la cadena de construcción, divulgado el 13 de diciembre de 2020",
+    title: "Implante distribuido dentro de una actualización firmada por su fabricante",
+    status: "Documentado públicamente",
+    severity: "CRITICAL",
+    triageInicial: "Alerta de severidad cero: segundo dispositivo registrado en el segundo factor de un empleado",
+    causaRaiz: "Código inyectado durante la compilación del producto, en el entorno del fabricante, y firmado con su certificado legítimo",
+    tiempoDeContencion: "Unos nueve meses entre la inserción y la divulgación pública",
+    datosComprometidos: "Alcance por organización. El censo inicial fue amplio; la segunda etapa alcanzó a un subconjunto cuya magnitud las fuentes describen de forma distinta",
+    resolutionCode: "Caso de estudio"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**La firma digital responde una pregunta más chica de la que parece.** Certifica que un
+archivo salió de determinado fabricante sin alterarse después. No dice nada sobre si el
+fabricante fue comprometido antes de firmar. Es un control válido y hay que tenerlo; lo
+que no hay que hacer es pedirle una garantía que no da.
+
+**El software de administración es infraestructura crítica de la red, y rara vez se lo
+trata así.** Las herramientas que vigilan, respaldan, distribuyen parches o
+administran equipos tienen credenciales amplias, alcance total y excepciones de
+detección. Merecen el mismo escrutinio que un controlador de dominio.
+
+**Instalar la versión comprometida y haber sido atacado son dos hechos distintos.** La
+respuesta a un aviso de este tipo empieza por determinar cuál de los dos aplica, y esa
+determinación es barata.
+
+**La detección que funcionó fue de identidad, no de amenazas.** Cuando el atacante
+entra por un canal confiable, lo que queda para verlo es su comportamiento como
+usuario: un dispositivo que aparece, una sesión sin origen, un permiso que nadie pidió.
+
+**Una alerta rutinaria vale lo que valga su verificación.** Sin la llamada telefónica,
+ese aviso se cerraba como benigno y era estadísticamente razonable cerrarlo así.
+
+---
+
+## Recomendaciones
+
+**Inventario de software con privilegios.** Qué herramientas de administración corren
+en la red, con qué cuentas, con qué alcance y con qué exclusiones de detección. Sin esa
+lista, un aviso de compromiso de proveedor no se puede responder.
+
+**Segmentar la salida a internet de esas herramientas.** Un servidor de monitoreo
+necesita hablar con la red interna y con el sitio de actualizaciones de su fabricante.
+No necesita hablar con internet en general, y esa restricción no rompe el producto.
+
+**Registrar y revisar el DNS de los servidores, no solo el de los puestos de trabajo.**
+La primera etapa fue una consulta de nombres desde un servidor. Es el único artefacto
+que estuvo disponible durante los nueve meses.
+
+**Vigilar el material de firma de aserciones de autenticación** y las sesiones que no
+tienen un inicio de sesión que las explique.
+
+**Tratar los cambios de segundo factor como verificables, no como informativos.** Un
+dispositivo nuevo se confirma con la persona por un canal distinto. Es la verificación
+más barata del catálogo y en este caso fue la única que funcionó.
+
+---
+
+## Referencias
+
+- CISA, aviso AA20-352A, *Advanced Persistent Threat Compromise of Government
+  Agencies, Critical Infrastructure, and Private Sector Organizations*
+- CISA, Directiva de Emergencia 21-01
+- Publicaciones de SolarWinds sobre su propia investigación
+- Mandiant, análisis técnico de SUNBURST
+- CrowdStrike, análisis de SUNSPOT, el implante del entorno de compilación
+- MITRE ATT&CK: T1195.002, T1554, T1553.002, T1606.002, T1071.004
+
+---
+
+## Próximas lecturas
+
+- **Caso 011**, para el otro tipo de dependencia: ahí el proveedor sufre un incidente
+  y la información llega tarde; acá el producto llega ya comprometido.
+- **Caso 014**, para el reverso de la alerta de severidad cero: cómo se cierra bien un
+  falso positivo sin cerrarlo de memoria.
+- **Caso 010**, para la búsqueda por ausencia y para el DNS como canal.

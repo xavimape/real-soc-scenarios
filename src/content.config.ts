@@ -35,6 +35,9 @@ const FAMILIA = [
   'real_case_cloud_misconfiguration',
   'real_case_recovery',
   'real_case_third_party',
+  // Distinto de `third_party`: ahí el proveedor sufre un incidente y te salpica.
+  // Acá el producto que instalaste llega ya comprometido y firmado por su autor.
+  'real_case_supply_chain',
   'real_case_ot',
 ] as const;
 
