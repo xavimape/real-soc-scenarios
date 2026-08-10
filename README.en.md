@@ -83,8 +83,10 @@ src/
 ├── components/
 │   ├── soc/               Case components (timeline, indicators, ATT&CK, report, frameworks)
 │   ├── mdx/               Inline marks injected into the content
-│   ├── SiteHeader.jsx     Header: configuration, brand and back
+│   ├── SiteHeader.jsx     Header: configuration, links, brand and back
 │   ├── AboutModal.jsx     About, as a dialog, from the home header
+│   ├── CopyEmailButton.jsx  Contact: copies the address and says so
+│   ├── CookieConsent.jsx  Cookie notice and analytics gate
 │   ├── CaseDeck.jsx       Case deck on the home page
 │   ├── Globe.jsx          Globe with the geography of the cases
 │   └── TableOfContents.jsx  Side index with scroll tracking
@@ -207,6 +209,25 @@ with defaults for local development:
 
 No internal link is written by hand: they all go through `withBase()`, which is
 what makes both forms work without touching the content.
+
+---
+
+## Contact and address privacy
+
+The header's contact button **does not open the mail client**: it copies the
+address to the clipboard and says so. Opening the client is an action with
+consequences — a new window, sometimes an application that takes its time — and
+someone who only wanted the address ends up closing things. Anyone who does want
+to write has the button in the notice.
+
+The address does not travel in the clear: it is assembled at runtime from its
+parts, so the `something@something.tld` pattern does not exist in the HTML or in
+the text of the JavaScript files until someone clicks. This is not cryptography
+and does not pretend to be. Against a harvester that executes the code it is
+useless; against the ones that scrape text, it works.
+
+If the clipboard is unavailable — no secure context, no permission — the notice
+shows the address to copy by hand instead of failing silently.
 
 ---
 

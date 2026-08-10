@@ -86,8 +86,10 @@ src/
 ├── components/
 │   ├── soc/               Componentes de caso (timeline, indicadores, ATT&CK, reporte, marcos)
 │   ├── mdx/               Marcas en línea que se inyectan al contenido
-│   ├── SiteHeader.jsx     Encabezado: configuración, marca y volver
+│   ├── SiteHeader.jsx     Encabezado: configuración, enlaces, marca y volver
 │   ├── AboutModal.jsx     Acerca de, en ventana, desde el encabezado del inicio
+│   ├── CopyEmailButton.jsx  Contacto: copia la dirección y avisa
+│   ├── CookieConsent.jsx  Aviso de cookies y puerta de la analítica
 │   ├── CaseDeck.jsx       Mazo de casos del inicio
 │   ├── Globe.jsx          Globo con la geografía de los casos
 │   └── TableOfContents.jsx  Índice lateral con seguimiento del scroll
@@ -209,6 +211,25 @@ valores por defecto para desarrollo local:
 
 Ningún enlace interno se escribe a mano: todos pasan por `withBase()`, que es lo
 que hace que las dos formas funcionen sin tocar el contenido.
+
+---
+
+## Contacto y privacidad de la dirección
+
+El botón de contacto del encabezado **no abre el cliente de correo**: copia la
+dirección al portapapeles y lo avisa. Abrir el cliente es una acción con efecto
+—una ventana nueva, a veces una aplicación que tarda— y quien solo quería la
+dirección termina cerrando cosas. Quien sí quiera escribir tiene el botón en el
+aviso.
+
+La dirección no viaja en claro: se arma en tiempo de ejecución desde sus partes,
+así que el patrón `algo@algo.tld` no existe en el HTML ni en el texto de los
+archivos JavaScript hasta que alguien hace clic. No es criptografía y no
+pretende serlo. Contra un recolector que ejecute el código no sirve; contra los
+que raspan texto, sí.
+
+Si el portapapeles no está disponible —sin contexto seguro, sin permiso— el
+aviso muestra la dirección para copiarla a mano en vez de fallar en silencio.
 
 ---
 

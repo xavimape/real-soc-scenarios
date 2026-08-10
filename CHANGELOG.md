@@ -7,6 +7,51 @@ Las fechas son las de los commits, no las de publicación de los casos: un caso
 real lleva en su frontmatter la fecha del incidente que reconstruye, que puede
 ser de hace diez años.
 
+## [1.1.0] - 2026-08-08
+
+### Contenido
+
+- Cuatro casos reales nuevos, del `soc-017` al `soc-020`, completos en los dos
+  idiomas: compromiso de la cadena de construcción de un producto, robo de datos
+  con credenciales válidas contra un almacén en la nube, ingeniería social
+  telefónica contra una mesa de ayuda, y explotación de cortafuegos de borde en
+  veintidós empresas de energía vista desde un CERT sectorial.
+- El catálogo queda en veinte casos: once reconstruyen incidentes documentados
+  públicamente y nueve son escenarios construidos para el ejercicio.
+- Valor nuevo en el esquema: `real_case_supply_chain`, distinto de
+  `real_case_third_party` porque ahí el proveedor sufre un incidente y acá el
+  producto llega ya comprometido y firmado por su autor.
+
+### Encabezado
+
+- Enlaces a GitHub y al portfolio del autor, que estaban reservados y atenuados.
+- Botón de contacto que copia la dirección al portapapeles y lo avisa, sin abrir
+  el cliente de correo. La dirección se arma en tiempo de ejecución y no aparece
+  en claro en el sitio publicado.
+
+### Verificación
+
+- El verificador de catálogo comprueba las cifras que los README declaran sobre
+  el catálogo: el total, el último identificador, el número escrito en letras, la
+  cantidad de páginas y el reparto entre casos reales y construidos. Esas cifras
+  no las rompe nadie: dejan de ser ciertas solas cuando entra un caso nuevo.
+- El verificador de defangueo distingue el host propio del sitio y una lista de
+  hosts completos permitidos, en lugar de aceptar dominios de dos niveles enteros.
+
+### Corregido
+
+- Los README declaraban ocho casos reales y ocho construidos cuando eran siete y
+  nueve. Ahora la cifra se deriva del catálogo y se verifica.
+- El patrón de voz imperativa del verificador de estilo cerraba con un límite de
+  palabra que no funciona después de una vocal acentuada: cinco de sus diez
+  términos no podían dispararse.
+
+### Quitado
+
+- El workflow de GitHub Pages. El despliegue es Cloudflare y siempre lo fue;
+  mantener un segundo destino significaba una segunda dirección con el mismo
+  contenido y cuatro acciones de terceros que envejecen.
+
 ## [1.0.0] - 2026-08-03
 
 Primera versión completa: dieciséis casos en dos idiomas, sitio desplegado y
