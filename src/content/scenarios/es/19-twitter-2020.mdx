@@ -1,0 +1,518 @@
+---
+title: "Twitter 2020 - Un llamado del área de sistemas"
+description: "Caso real: sin malware, sin exploits y sin puertas traseras. Llamadas telefónicas a empleados con problemas de VPN, un sitio idéntico al verdadero y el segundo factor entregado en vivo. El SOC tuvo la señal seis horas antes del impacto"
+pubDate: 2020-10-14
+caseId: "soc-019"
+caseNumber: 19
+difficulty: "intermediate"
+caseType: "real_case_classic"
+severity: "HIGH"
+tags: ["social-engineering", "vishing", "help-desk", "mfa", "phishing", "insider-tooling", "containment", "remote-work"]
+author: "Informe de investigación del Departamento de Servicios Financieros del Estado de Nueva York sobre el incidente del 15 de julio de 2020, publicado en octubre de 2020"
+discoveryDate: "2020-07-15"
+locations:
+  - { lat: 37.7749, lng: -122.4194, label: "San Francisco, casa central de Twitter" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+
+## Resumen ejecutivo
+
+El 15 de julio de 2020, un adolescente de diecisiete años y sus cómplices tomaron el
+control de decenas de cuentas de la plataforma social más usada para difundir
+información pública, y publicaron desde ellas una estafa de criptomonedas.
+
+El informe del regulador es explícito sobre el método: **no hubo malware, ni exploits,
+ni puertas traseras.** Hubo llamadas telefónicas. Alguien llamó a empleados diciendo
+ser del área de sistemas, ofreció ayuda con un problema de conexión remota que era
+real y frecuente, y los llevó a un sitio idéntico al verdadero.
+
+Para un SOC hay un dato que ordena todo el caso y que se suele pasar por alto:
+**varios empleados reportaron las llamadas sospechosas esa misma mañana**, y el equipo
+de respuesta estaba investigando esos reportes cuando, a las 15:18, empezaron las tomas
+de cuentas públicas.
+
+La señal existió, llegó a tiempo y llegó por el canal correcto: la gente. **La pregunta
+del caso no es cómo detectarlo, es qué se hace con un reporte de este tipo en las horas
+que separan la sospecha del impacto.**
+
+**Métricas clave:**
+
+- Duración total del incidente: alrededor de 24 horas
+- Cuentas comprometidas: 130
+- Cuentas usadas para publicar: 45
+- Cuentas cuya información se descargó con la herramienta interna: 7
+- Monto robado en criptomonedas: unos 118.000 dólares
+- Tiempo sin responsable de seguridad de la información: siete meses
+- Técnicas principales: T1598.004, T1566.002, T1621, T1078, T1552.001
+
+<Warn />**Caso real.** Los hechos, las horas y las cifras salen del informe de
+investigación del Departamento de Servicios Financieros del Estado de Nueva York,
+publicado en octubre de 2020. Es un documento de un regulador con potestad de
+investigación, no una reconstrucción periodística.
+
+---
+
+## Contexto: por qué el pretexto funcionó
+
+El pretexto fue un problema con la conexión remota. Conviene entender por qué era
+creíble, porque ahí está la lección transferible.
+
+En marzo de 2020 la organización pasó a trabajo remoto total, como casi todas. Ese
+cambio puso la infraestructura al límite y **los problemas de conexión eran
+frecuentes.** Todo el mundo los tenía y todo el mundo hablaba de ellos.
+
+```
+Pretexto inventado:    "Hay un problema con tu VPN"
+Realidad del empleado:  Efectivamente tenía problemas con la VPN
+Resultado:              El pretexto no había que creerlo, ya se estaba viviendo
+```
+
+Un buen pretexto no convence: **confirma algo que la persona ya cree.** Y en 2020 esa
+frase describía la experiencia diaria de millones de personas.
+
+Los atacantes además usaban información personal de cada empleado para sonar
+legítimos. El informe deja constancia de algo que importa decir: no encontró evidencia
+de que ningún empleado ayudara a sabiendas.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-019"
+  events={[
+    {
+      time: "14 jul, tarde",
+      title: "Primeras llamadas",
+      description: "Los atacantes llaman a varios empleados diciendo ser de la mesa de ayuda del área de sistemas, y ofrecen resolver un problema de conexión remota.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "14 jul",
+      title: "Credenciales y segundo factor, en vivo",
+      description: "El empleado escribe sus credenciales en un sitio idéntico al verdadero. Los atacantes las ingresan al sitio real al mismo tiempo, lo que dispara la solicitud de segundo factor, que la persona aprueba.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "14 jul",
+      title: "La primera cuenta no alcanzaba",
+      description: "La primera persona comprometida no tenía acceso a las herramientas internas de administración. Los atacantes usan ese acceso para recorrer la intranet y aprender quién sí lo tiene.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "15 jul, mañana",
+      title: "La señal llega al equipo de respuesta",
+      description: "Varios empleados reportan inicios de sesión y llamadas sospechosas. El equipo interno de respuesta comienza a investigar.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul, 03:00 a 10:00",
+      title: "Venta de cuentas cortas",
+      description: "Los atacantes negocian y venden el acceso a nombres de usuario cortos y codiciados, sin llamar la atención pública.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "15 jul, ~14:00",
+      title: "Primera exposición pública",
+      description: "Publican capturas de pantalla de una herramienta interna desde cuentas tomadas. El incidente deja de ser silencioso.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "15 jul, 15:18",
+      title: "Empiezan las cuentas de empresas de criptomonedas",
+      description: "Toman la cuenta de una casa de cambio y publican la estafa. Entre las 15:26 y las 16:12 caen diez cuentas más del rubro.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "15 jul, 16:17 a 18:05",
+      title: "Cuentas de alcance masivo",
+      description: "Publican desde cuentas con millones de seguidores. El alcance de la estafa se multiplica.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "15 jul, 17:45",
+      title: "Primer reconocimiento público",
+      description: "La empresa publica que está al tanto de un incidente de seguridad. Hasta ese momento su única acción visible había sido borrar publicaciones.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul, 18:18",
+      title: "Contención con daño colateral",
+      description: "Se impide publicar a muchas cuentas verificadas y se bloquean las que cambiaron su contraseña en los últimos treinta días. Instituciones públicas quedan sin poder comunicarse.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "15 jul, 20:41",
+      title: "Restablecimiento parcial",
+      description: "Se informa que la mayoría de las cuentas recuperó el servicio. Internamente, cada empleado debe cambiar su contraseña por videollamada con su supervisor.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. El segundo factor no falló: se entregó
+
+Este es el punto técnico del caso y conviene desarmarlo despacio, porque contradice una
+creencia muy extendida.
+
+El esquema fue así:
+
+```
+1. La persona entra al sitio falso y escribe usuario y contraseña
+2. El atacante, al mismo tiempo, los escribe en el sitio verdadero
+3. El sitio verdadero pide el segundo factor a la persona
+4. La persona, que cree estar iniciando sesión, lo aprueba
+5. El atacante entra
+```
+
+<Fail />El segundo factor funcionó exactamente como fue diseñado: pidió confirmación al
+titular de la cuenta y el titular confirmó.
+
+<Pass />Lo que falta en ese diseño es que la confirmación esté atada al sitio donde se
+está entrando, no solo a la persona.
+
+**Un segundo factor que la persona puede transcribir o aprobar es un secreto más, con
+una vida útil más corta.** Los factores resistentes a este ataque —los que verifican
+criptográficamente el dominio antes de responder— no habrían funcionado en el sitio
+falso, porque el dominio no coincide y el propio factor se niega.
+
+Para un analista esto cambia una pregunta habitual. Ante un acceso sospechoso, "¿tenía
+segundo factor?" no alcanza. La pregunta útil es **de qué tipo era**, y si el usuario
+tuvo que decidir algo.
+
+---
+
+## 2. La escalada fue leer la intranet
+
+La primera cuenta comprometida no servía para el objetivo: no tenía acceso a las
+herramientas internas de administración de cuentas.
+
+Lo que hicieron con ella es lo que haría cualquiera: **recorrer los sitios internos y
+leer la documentación.** Las páginas de la intranet explicaban cómo acceder a otras
+aplicaciones internas y, con eso, quiénes las usaban. Con ese mapa, el 15 de julio
+llamaron a empleados que sí tenían el acceso que buscaban.
+
+Vale la pena detenerse acá, porque describe un activo que casi nunca aparece en un
+inventario de riesgos: **la documentación interna es material de reconocimiento.** No
+es información secreta, no está clasificada, y no tiene por qué estarlo. Pero para
+alguien que ya entró con una cuenta cualquiera, es el mapa que convierte un acceso
+inútil en uno valioso.
+
+De ahí se desprende una detección concreta y barata: una cuenta que consulta
+documentación interna sobre sistemas que no usa, y directorios de personal de áreas con
+las que no trabaja, es una anomalía observable. No prueba nada por sí sola, pero es
+exactamente el tipo de señal que sirve para dar peso a otras.
+
+---
+
+## 3. La ventana que el SOC tuvo, y qué se hace con ella
+
+Este es el corazón del caso para quien trabaja en un turno.
+
+**Varios empleados reportaron las llamadas y los inicios de sesión sospechosos la
+mañana del 15.** El equipo de respuesta estaba investigando esos reportes cuando, a las
+15:18, empezó la parte pública.
+
+Entre una cosa y la otra hubo horas. La pregunta no es si se detectó —se detectó— sino
+qué se puede hacer en esas horas con información incompleta.
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-019"
+  type="verificacion"
+  title="Qué hacer ante un reporte de llamada sospechosa, en orden"
+  data={{
+    "verificación inmediata, minutos": {
+      "confirmar con quien reportó": "Qué le pidieron exactamente y si llegó a escribir credenciales",
+      "buscar el dominio del sitio falso": "En el registro de navegación y de DNS, para toda la organización",
+      "revisar registros de esa cuenta": "Inicios de sesión, origen y aprobaciones de segundo factor en las últimas 48 horas",
+      "verdict": "clean"
+    },
+    "ampliación, primera hora": {
+      "otras cuentas contra el mismo dominio": "Un solo reporte casi nunca es un solo llamado",
+      "aprobaciones de segundo factor fuera de horario": "O desde orígenes que no coinciden con la persona",
+      "cuentas con acceso a herramientas de administración": "Cuáles son, y si alguna registró actividad inhabitual",
+      "verdict": "clean"
+    },
+    "acciones que no requieren confirmar el alcance": {
+      "bloquear el dominio del sitio falso": "En resolución de nombres y en el proxy",
+      "revocar sesiones de la cuenta reportada": "Barato y reversible, como en el caso 011",
+      "avisar a toda la organización": "Que hay llamadas en curso y que sistemas no pide credenciales por teléfono",
+      "verdict": "clean"
+    },
+    "lo que se decide arriba, no en el turno": {
+      "restringir temporalmente las herramientas internas": "Alto impacto operativo, hay que escalarlo con quien pueda asumirlo",
+      "elevar la verificación para acciones sensibles": "Segunda persona para operaciones sobre cuentas de terceros",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+El tercer bloque es el que más rinde y el que más se demora, porque parece exagerado
+cuando todavía no hay confirmación. **Avisar a la organización que hay llamadas en
+curso vale más que cualquier control técnico en esa ventana**: convierte a cada persona
+que reciba la siguiente llamada en un detector, y no cuesta nada si resulta ser un
+falso positivo.
+
+---
+
+## 4. Contener también hace daño
+
+La contención terminó impidiendo publicar a muchas cuentas verificadas y bloqueando las
+que habían cambiado su contraseña en los treinta días previos.
+
+El informe registra el efecto: **el servicio meteorológico nacional no pudo publicar un
+aviso de tornado**, y hasta la cuenta del propio regulador quedó fuera de servicio
+varias horas.
+
+No lo traigo para criticar la decisión. La traigo porque **es la única forma honesta de
+hablar de contención.** Detener un incidente en curso sobre una plataforma pública
+significa apagar funciones que otros necesitan, y alguien tiene que decidir eso con
+información incompleta y con el reloj corriendo.
+
+Lo que un SOC puede hacer de antemano es preparar esa decisión:
+
+- **Saber qué se apaga y a quién afecta**, antes de necesitarlo
+- **Tener escrito quién autoriza** cada medida de alto impacto, con nombre y suplente
+- **Distinguir lo reversible de lo que no lo es.** Revocar sesiones se deshace; borrar,
+  no
+
+Internamente la medida fue igual de drástica: se restringió el acceso de los empleados
+a los sistemas internos, con demoras largas en la atención a usuarios, y cada persona
+tuvo que cambiar su contraseña por videollamada frente a su supervisor. Es la respuesta
+correcta cuando no se sabe cuántas cuentas están comprometidas: **se asume que
+cualquiera puede estarlo.**
+
+---
+
+## 5. Los que sí cortaron la cadena
+
+Hay una parte del caso que suele contarse poco y es la más alentadora.
+
+Las empresas de criptomonedas reguladas reaccionaron rápido y bloquearon las
+transferencias hacia las direcciones publicadas. El informe deja las cifras:
+
+| Empresa | Transferencias bloqueadas | Valor aproximado |
+| --- | --- | --- |
+| Una casa de cambio grande | unas 5.670 | 1.294.000 dólares |
+| Una empresa de pagos | 358 | 51.000 dólares |
+| Otra casa de cambio | 2 | 1.800 dólares |
+| Otra más | 1 | 250 dólares |
+
+Las pérdidas efectivas de clientes de esas empresas fueron de unos 22.000 dólares:
+**1,63 por ciento de lo que se alcanzó a bloquear.**
+
+La lección es directa. El incidente ocurrió en una organización, y el daño se contuvo
+en otras que no estaban comprometidas y que actuaron sobre un indicador público —una
+dirección de billetera— en cuestión de minutos. **Defenderse no siempre es defender lo
+propio.**
+
+---
+
+## 6. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-019"
+  tactics={[
+    {
+      id: "TA0043",
+      name: "Reconnaissance",
+      techniques: ["T1598.004", "T1589.002"]
+    },
+    {
+      id: "TA0042",
+      name: "Resource Development",
+      techniques: ["T1583.001", "T1585.001"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.002", "T1078"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1621", "T1056.003"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1087.002", "T1213"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1213"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1531", "T1565.001"]
+    }
+  ]}
+/>
+
+**T1621 · Multi-Factor Authentication Request Generation** es la técnica que hay que
+mirar. Describe exactamente lo que pasó: el atacante provoca la solicitud legítima de
+segundo factor y espera que la persona la apruebe. No hay robo del código ni evasión
+del control; hay una persona confirmando lo que cree que está haciendo.
+
+---
+
+## Marcos de análisis
+
+<KillChain
+  client:load
+  lang="es"
+  caseId="soc-019"
+  phases={[
+    {
+      state: "reached",
+      detail: "Identificación de empleados y de información personal suya para sostener el pretexto. La organización acababa de pasar a trabajo remoto, un hecho público."
+    },
+    {
+      state: "reached",
+      detail: "Registro de un dominio parecido y copia del sitio de acceso remoto. Ninguna herramienta ofensiva."
+    },
+    {
+      state: "reached",
+      detail: "El teléfono. No hay adjunto ni enlace enviado: la persona llega al sitio guiada por la voz."
+    },
+    {
+      state: "reached",
+      detail: "Credenciales capturadas y segundo factor aprobado por la propia persona, en vivo."
+    },
+    {
+      state: "not-reached",
+      detail: "No hubo instalación de nada. El acceso se sostiene con la sesión y las credenciales, no con software."
+    },
+    {
+      state: "not-reached",
+      detail: "No hubo canal de mando y control. El atacante trabaja desde las aplicaciones internas, con un navegador."
+    },
+    {
+      state: "reached",
+      detail: "Toma de cuentas con la herramienta interna, venta de nombres cortos y publicación de la estafa."
+    }
+  ]}
+  note="Los dos eslabones vacíos no son mérito de la defensa: el ataque no los necesitó. Eso vale como advertencia sobre el modelo, que asume una intrusión con malware. Una detección construida sobre las etapas de instalación y mando y control no tenía nada que ver acá, y quien mida su cobertura sobre esas dos etapas se va a sentir cubierto contra un ataque que no puede ver."
+/>
+
+**No incluyo el Diamond Model.** Los cuatro vértices tienen datos —hay autores
+identificados y condenados, capacidad descrita, infraestructura conocida y víctima
+pública—, pero el caso no se explica por el pivoteo entre vértices, que es para lo que
+sirve el modelo. Se explica por una secuencia temporal, y esa ya está en la línea de
+tiempo.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-019"
+  summary={{
+    incidentId: "Incidente del 15 de julio de 2020, informe del regulador de octubre de 2020",
+    title: "Toma de cuentas mediante ingeniería social telefónica contra la mesa de ayuda",
+    status: "Documentado públicamente",
+    severity: "HIGH",
+    triageInicial: "Reportes de empleados sobre llamadas e inicios de sesión sospechosos, la mañana del 15 de julio",
+    causaRaiz: "Credenciales y segundo factor entregados por teléfono y por un sitio idéntico al de acceso remoto, sobre una organización sin responsable de seguridad de la información desde hacía siete meses",
+    tiempoDeContencion: "Alrededor de 24 horas desde las primeras llamadas; horas desde el primer reporte interno hasta expulsar a los atacantes",
+    datosComprometidos: "130 cuentas comprometidas, 45 usadas para publicar, descarga de información de 7 cuentas y unos 118.000 dólares en criptomonedas",
+    resolutionCode: "Caso de estudio"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**El mejor pretexto es el que ya es verdad.** Nadie tuvo que inventar un problema: la
+conexión remota fallaba de verdad, todos los días. Cualquier fricción conocida de la
+organización es material de ingeniería social.
+
+**Un segundo factor que la persona aprueba puede ser entregado.** La pregunta no es si
+hay segundo factor, sino si el factor verifica el sitio o si esa verificación queda a
+cargo del usuario.
+
+**La documentación interna es reconocimiento.** No hay que esconderla, pero conviene
+saber que convierte un acceso sin valor en uno valioso, y que consultarla desde una
+cuenta que no le corresponde es una señal observable.
+
+**El reporte de una persona llegó antes que cualquier herramienta.** Y llegó con horas
+de ventaja. Lo que decide el resultado no es la detección, es qué se hace con ella
+mientras la información todavía es incompleta.
+
+**Contener tiene costo y hay que haberlo pensado antes.** Cuando la contención impide
+publicar una alerta de tornado, la discusión sobre quién autoriza qué ya llegó tarde.
+
+**Un tercero no comprometido puede cortar el impacto.** Bloquear una dirección de
+billetera publicada evitó más de un millón de dólares en transferencias.
+
+---
+
+## Recomendaciones
+
+**Un canal de reporte que la gente use, y que no la castigue.** Todo el caso descansa
+sobre empleados que levantaron el teléfono para avisar. Si reportar es engorroso o
+expone a quien reporta, esa señal no existe.
+
+**Segundo factor resistente a la suplantación de sitio** para el acceso remoto y para
+las herramientas internas de administración. Es el único control que habría cortado
+esta cadena en el cuarto eslabón.
+
+**Una regla clara y repetida: sistemas nunca pide credenciales por teléfono.** Y un
+número interno conocido al que devolver la llamada cuando alguien lo intente.
+
+**Acceso a herramientas de administración de cuentas por excepción y con registro.**
+Cuántas personas pueden operar sobre la cuenta de un tercero, y si esa cantidad se
+justifica.
+
+**Verificación de dos personas para acciones irreversibles** sobre cuentas ajenas.
+
+**Un plan de contención con impacto declarado.** Qué se apaga, a quién afecta, quién lo
+autoriza y qué es reversible. Escrito antes, no durante.
+
+---
+
+## Referencias
+
+- Departamento de Servicios Financieros del Estado de Nueva York, *Twitter
+  Investigation Report*, octubre de 2020
+- MITRE ATT&CK: T1598.004, T1566.002, T1621, T1078, T1213, T1531
+
+---
+
+## Próximas lecturas
+
+- **Caso 011**, para el mismo vector contra una empresa de soporte contratada y el
+  problema de enterarse tarde.
+- **Caso 017**, para la otra cara del segundo factor: allá un dispositivo registrado de
+  más fue lo que destapó todo.
+- **Caso 001**, para el phishing por correo, que es el pariente conocido de esta
+  técnica.
