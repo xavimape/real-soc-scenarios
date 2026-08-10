@@ -1,0 +1,513 @@
+---
+title: "Twitter 2020 - A call from the IT department"
+description: "Real case: no malware, no exploits and no backdoors. Phone calls to employees with VPN trouble, a site identical to the real one and a second factor handed over live. The SOC had the signal six hours before the impact"
+pubDate: 2020-10-14
+caseId: "soc-019"
+caseNumber: 19
+difficulty: "intermediate"
+caseType: "real_case_classic"
+severity: "HIGH"
+tags: ["social-engineering", "vishing", "help-desk", "mfa", "phishing", "insider-tooling", "containment", "remote-work"]
+author: "Investigation report by the New York State Department of Financial Services on the 15 July 2020 incident, published in October 2020"
+discoveryDate: "2020-07-15"
+locations:
+  - { lat: 37.7749, lng: -122.4194, label: "San Francisco, Twitter headquarters" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+
+## Executive summary
+
+On 15 July 2020, a seventeen-year-old and his accomplices took control of dozens of
+accounts on the social platform most used to spread public information, and posted a
+cryptocurrency scam from them.
+
+The regulator's report is explicit about the method: **there was no malware, no
+exploits and no backdoors.** There were phone calls. Someone rang employees claiming to
+be from the IT department, offered help with a remote access problem that was real and
+frequent, and walked them to a site identical to the real one.
+
+For a SOC there is one fact that organises the whole case and tends to get overlooked:
+**several employees reported the suspicious calls that same morning**, and the response
+team was investigating those reports when, at 15:18, the public account takeovers
+began.
+
+The signal existed, it arrived in time and it arrived through the right channel: people.
+**The question in this case is not how to detect it, it is what you do with a report
+like that in the hours between suspicion and impact.**
+
+**Key metrics:**
+
+- Total duration of the incident: about 24 hours
+- Accounts compromised: 130
+- Accounts used to post: 45
+- Accounts whose data was downloaded with the internal tool: 7
+- Amount stolen in cryptocurrency: about 118,000 dollars
+- Time without a chief information security officer: seven months
+- Main techniques: T1598.004, T1566.002, T1621, T1078, T1552.001
+
+<Warn />**Real case.** The facts, times and figures come from the investigation report
+by the New York State Department of Financial Services, published in October 2020. It
+is a document by a regulator with investigative powers, not a journalistic
+reconstruction.
+
+---
+
+## Context: why the pretext worked
+
+The pretext was a problem with remote access. It is worth understanding why it was
+credible, because that is where the transferable lesson sits.
+
+In March 2020 the organisation moved to fully remote work, like almost everyone. That
+change pushed the infrastructure to its limits and **connection problems were
+frequent.** Everybody had them and everybody talked about them.
+
+```
+Invented pretext:       "There's a problem with your VPN"
+Employee's reality:      They did have problems with the VPN
+Result:                  The pretext did not need believing, it was already lived
+```
+
+A good pretext does not convince: **it confirms something the person already believes.**
+And in 2020 that sentence described the daily experience of millions of people.
+
+The attackers also used personal information about each employee to sound legitimate.
+The report puts something on the record that is worth stating: it found no evidence
+that any employee knowingly helped.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-019"
+  events={[
+    {
+      time: "14 Jul, afternoon",
+      title: "First calls",
+      description: "The attackers ring several employees claiming to be from the IT department's help desk, offering to fix a remote access problem.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "14 Jul",
+      title: "Credentials and second factor, live",
+      description: "The employee types their credentials into a site identical to the real one. The attackers enter them into the real site at the same moment, which triggers the second-factor prompt, which the person approves.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "14 Jul",
+      title: "The first account was not enough",
+      description: "The first person compromised had no access to the internal account administration tools. The attackers use that access to browse the intranet and learn who does.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "15 Jul, morning",
+      title: "The signal reaches the response team",
+      description: "Several employees report suspicious sign-ins and calls. The internal response team begins investigating.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul, 03:00 to 10:00",
+      title: "Sale of short usernames",
+      description: "The attackers negotiate and sell access to short, coveted usernames, without drawing public attention.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    },
+    {
+      time: "15 Jul, ~14:00",
+      title: "First public exposure",
+      description: "They post screenshots of an internal tool from hijacked accounts. The incident stops being quiet.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "15 Jul, 15:18",
+      title: "The cryptocurrency company accounts begin",
+      description: "They take over an exchange's account and post the scam. Between 15:26 and 16:12 ten more accounts in the sector fall.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "15 Jul, 16:17 to 18:05",
+      title: "Mass-reach accounts",
+      description: "They post from accounts with millions of followers. The scam's reach multiplies.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "15 Jul, 17:45",
+      title: "First public acknowledgement",
+      description: "The company posts that it is aware of a security incident. Until then its only visible action had been deleting posts.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul, 18:18",
+      title: "Containment with collateral damage",
+      description: "Many verified accounts are prevented from posting, and accounts that changed their password in the last thirty days are locked. Public institutions are left unable to communicate.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "15 Jul, 20:41",
+      title: "Partial restoration",
+      description: "Most accounts are reported back in service. Internally, every employee has to change their password on a video call with their supervisor.",
+      severity: "INFO",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. The second factor did not fail: it was handed over
+
+This is the technical point of the case and it is worth taking apart slowly, because it
+contradicts a very widespread belief.
+
+The scheme went like this:
+
+```
+1. The person enters the fake site and types username and password
+2. The attacker types them into the real site at the same time
+3. The real site asks the person for the second factor
+4. The person, believing they are signing in, approves it
+5. The attacker is in
+```
+
+<Fail />The second factor worked exactly as designed: it asked the account holder for
+confirmation and the account holder confirmed.
+
+<Pass />What that design lacks is for the confirmation to be bound to the site being
+entered, not only to the person.
+
+**A second factor a person can transcribe or approve is one more secret, with a shorter
+shelf life.** Factors resistant to this attack — the ones that cryptographically verify
+the domain before responding — would not have worked on the fake site, because the
+domain does not match and the factor itself refuses.
+
+For an analyst this changes a habitual question. Faced with a suspicious access, "did it
+have a second factor?" is not enough. The useful question is **what kind it was**, and
+whether the user had to decide anything.
+
+---
+
+## 2. The escalation was reading the intranet
+
+The first compromised account was useless for the objective: it had no access to the
+internal account administration tools.
+
+What they did with it is what anyone would do: **browse the internal sites and read the
+documentation.** The intranet pages explained how to access other internal applications
+and, with that, who used them. Armed with that map, on 15 July they called employees who
+did have the access they were after.
+
+This is worth pausing on, because it describes an asset that almost never appears in a
+risk inventory: **internal documentation is reconnaissance material.** It is not secret,
+it is not classified, and it does not need to be. But to someone already inside with any
+account, it is the map that turns a useless access into a valuable one.
+
+From that follows a concrete, cheap detection: an account reading internal
+documentation about systems it does not use, and staff directories for teams it does not
+work with, is an observable anomaly. It proves nothing on its own, but it is exactly the
+kind of signal that adds weight to others.
+
+---
+
+## 3. The window the SOC had, and what to do with it
+
+This is the heart of the case for anyone working a shift.
+
+**Several employees reported the calls and suspicious sign-ins on the morning of the
+15th.** The response team was investigating those reports when, at 15:18, the public
+part began.
+
+Hours passed between the two. The question is not whether it was detected — it was —
+but what can be done in those hours with incomplete information.
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-019"
+  type="verificacion"
+  title="What to do about a suspicious call report, in order"
+  data={{
+    "immediate verification, minutes": {
+      "confirm with whoever reported": "Exactly what they were asked for and whether they typed credentials",
+      "search for the fake site's domain": "In browsing and DNS logs, across the whole organisation",
+      "review that account's logs": "Sign-ins, origin and second-factor approvals over the last 48 hours",
+      "verdict": "clean"
+    },
+    "widening, first hour": {
+      "other accounts against the same domain": "A single report is almost never a single call",
+      "second-factor approvals outside working hours": "Or from origins that do not match the person",
+      "accounts with access to administration tools": "Which ones they are, and whether any shows unusual activity",
+      "verdict": "clean"
+    },
+    "actions that do not require confirming scope": {
+      "block the fake site's domain": "In name resolution and at the proxy",
+      "revoke the reported account's sessions": "Cheap and reversible, as in case 011",
+      "tell the whole organisation": "That calls are in progress and that IT does not ask for credentials by phone",
+      "verdict": "clean"
+    },
+    "what gets decided above, not on the shift": {
+      "temporarily restricting internal tools": "High operational impact, must be escalated to someone who can own it",
+      "raising verification for sensitive actions": "A second person for operations on other people's accounts",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+The third block pays off most and is the most delayed, because it feels excessive while
+nothing is confirmed. **Telling the organisation that calls are in progress is worth
+more than any technical control in that window**: it turns everyone who receives the
+next call into a detector, and it costs nothing if it turns out to be a false positive.
+
+---
+
+## 4. Containment does damage too
+
+Containment ended up preventing many verified accounts from posting and locking those
+that had changed their password in the previous thirty days.
+
+The report records the effect: **the national weather service could not post a tornado
+advisory**, and even the regulator's own account was out of service for several hours.
+
+I do not bring this up to criticise the decision. I bring it up because **it is the only
+honest way to talk about containment.** Stopping an incident in progress on a public
+platform means switching off functions other people need, and someone has to decide that
+with incomplete information and the clock running.
+
+What a SOC can do in advance is prepare that decision:
+
+- **Know what gets switched off and whom it affects**, before needing to
+- **Have it written down who authorises** each high-impact measure, with a name and a
+  deputy
+- **Separate the reversible from the irreversible.** Revoking sessions can be undone;
+  deleting cannot
+
+Internally the measure was just as drastic: employee access to internal systems was
+restricted, with long delays in serving users, and every person had to change their
+password on a video call in front of their supervisor. That is the right response when
+you do not know how many accounts are compromised: **you assume any of them could be.**
+
+---
+
+## 5. The ones who did cut the chain
+
+There is a part of the case that gets told less often and is the most encouraging.
+
+The regulated cryptocurrency companies reacted fast and blocked transfers to the
+published addresses. The report gives the figures:
+
+| Company | Transfers blocked | Approximate value |
+| --- | --- | --- |
+| A large exchange | about 5,670 | 1,294,000 dollars |
+| A payments company | 358 | 51,000 dollars |
+| Another exchange | 2 | 1,800 dollars |
+| One more | 1 | 250 dollars |
+
+Actual customer losses at those companies came to about 22,000 dollars: **1.63 per cent
+of what was blocked in time.**
+
+The lesson is direct. The incident happened at one organisation, and the damage was
+contained at others that were not compromised and that acted on a public indicator — a
+wallet address — within minutes. **Defending is not always defending your own.**
+
+---
+
+## 6. MITRE ATT&CK mapping
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-019"
+  tactics={[
+    {
+      id: "TA0043",
+      name: "Reconnaissance",
+      techniques: ["T1598.004", "T1589.002"]
+    },
+    {
+      id: "TA0042",
+      name: "Resource Development",
+      techniques: ["T1583.001", "T1585.001"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1566.002", "T1078"]
+    },
+    {
+      id: "TA0006",
+      name: "Credential Access",
+      techniques: ["T1621", "T1056.003"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1087.002", "T1213"]
+    },
+    {
+      id: "TA0009",
+      name: "Collection",
+      techniques: ["T1213"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1531", "T1565.001"]
+    }
+  ]}
+/>
+
+**T1621 · Multi-Factor Authentication Request Generation** is the technique to look at.
+It describes exactly what happened: the attacker triggers the legitimate second-factor
+prompt and waits for the person to approve it. There is no code theft and no bypass of
+the control; there is a person confirming what they believe they are doing.
+
+---
+
+## Analysis frameworks
+
+<KillChain
+  client:load
+  lang="en"
+  caseId="soc-019"
+  phases={[
+    {
+      state: "reached",
+      detail: "Identification of employees and of personal information about them to sustain the pretext. The organisation had just moved to remote work, a public fact."
+    },
+    {
+      state: "reached",
+      detail: "Registration of a lookalike domain and a copy of the remote access site. No offensive tooling."
+    },
+    {
+      state: "reached",
+      detail: "The telephone. No attachment and no link sent: the person reaches the site guided by a voice."
+    },
+    {
+      state: "reached",
+      detail: "Credentials captured and the second factor approved by the person themselves, live."
+    },
+    {
+      state: "not-reached",
+      detail: "Nothing was installed. Access is sustained by the session and the credentials, not by software."
+    },
+    {
+      state: "not-reached",
+      detail: "There was no command-and-control channel. The attacker works from the internal applications, with a browser."
+    },
+    {
+      state: "reached",
+      detail: "Account takeovers with the internal tool, sale of short usernames and posting of the scam."
+    }
+  ]}
+  note="The two empty links are not to the defence's credit: the attack did not need them. That is worth taking as a warning about the model, which assumes an intrusion involving malware. A detection built on the installation and command-and-control stages had nothing to do here, and anyone measuring their coverage over those two stages will feel protected against an attack they cannot see."
+/>
+
+**I am not including the Diamond Model.** All four vertices have data — there are
+identified and convicted authors, described capability, known infrastructure and a
+public victim — but the case is not explained by pivoting between vertices, which is
+what the model is for. It is explained by a sequence in time, and that is already in the
+timeline.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-019"
+  summary={{
+    incidentId: "Incident of 15 July 2020, regulator's report of October 2020",
+    title: "Account takeover through telephone social engineering against the help desk",
+    status: "Publicly documented",
+    severity: "HIGH",
+    triageInicial: "Employee reports of suspicious calls and sign-ins, on the morning of 15 July",
+    causaRaiz: "Credentials and second factor handed over by phone and through a site identical to the remote access one, at an organisation with no chief information security officer for seven months",
+    tiempoDeContencion: "About 24 hours from the first calls; hours from the first internal report to expelling the attackers",
+    datosComprometidos: "130 accounts compromised, 45 used to post, data downloaded for 7 accounts and about 118,000 dollars in cryptocurrency",
+    resolutionCode: "Case study"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**The best pretext is the one that is already true.** Nobody had to invent a problem:
+remote access really did fail, every day. Any known friction in the organisation is
+social engineering material.
+
+**A second factor the person approves can be handed over.** The question is not whether
+there is a second factor, but whether the factor verifies the site or leaves that
+verification to the user.
+
+**Internal documentation is reconnaissance.** It does not need hiding, but it is worth
+knowing that it turns a worthless access into a valuable one, and that reading it from
+an account that has no business there is an observable signal.
+
+**A person's report arrived before any tool.** And it arrived with hours to spare. What
+decides the outcome is not the detection, it is what gets done with it while the
+information is still incomplete.
+
+**Containment has a cost and it has to have been thought through in advance.** When
+containment prevents a tornado advisory from going out, the discussion about who
+authorises what has already arrived late.
+
+**An uncompromised third party can cut the impact.** Blocking a published wallet address
+prevented more than a million dollars in transfers.
+
+---
+
+## Recommendations
+
+**A reporting channel people actually use, and that does not punish them.** The whole
+case rests on employees who picked up the phone to warn. If reporting is cumbersome or
+exposes the reporter, that signal does not exist.
+
+**A second factor resistant to site impersonation** for remote access and for internal
+administration tools. It is the only control that would have cut this chain at the
+fourth link.
+
+**A clear, repeated rule: IT never asks for credentials by phone.** And a known internal
+number to call back on when someone tries.
+
+**Access to account administration tools by exception and with logging.** How many
+people can operate on someone else's account, and whether that number is justified.
+
+**Two-person verification for irreversible actions** on other people's accounts.
+
+**A containment plan with declared impact.** What gets switched off, whom it affects, who
+authorises it and what is reversible. Written beforehand, not during.
+
+---
+
+## References
+
+- New York State Department of Financial Services, *Twitter Investigation Report*,
+  October 2020
+- MITRE ATT&CK: T1598.004, T1566.002, T1621, T1078, T1213, T1531
+
+---
+
+## Further reading
+
+- **Case 011**, for the same vector against a contracted support company and the problem
+  of finding out late.
+- **Case 017**, for the other side of the second factor: there, one device registered too
+  many is what blew the whole thing open.
+- **Case 001**, for email phishing, the better-known relative of this technique.
