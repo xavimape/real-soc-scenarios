@@ -115,6 +115,7 @@ tools/                     Checks and generators that run over the source
 | `npm run dev`            | Development server at `localhost:4321`                        |
 | `npm run build`          | Generate the site in `./dist/`                                |
 | `npm run preview`        | Serve the local build before deploying                        |
+| `npm run deploy`         | Build, verify and publish to Cloudflare, in that order         |
 | `npm run check`          | Catalogue, defanging, language, globe contrast and style        |
 | `npm run check:catalogo` | Coherence across case files, over the `.mdx`                  |
 | `npm run check:idioma`   | Sections written in the wrong language                        |
@@ -197,6 +198,19 @@ names, detection rules and protocol codes.
 The site is published on Cloudflare Workers, from the domain root. The
 configuration is in `wrangler.jsonc`.
 
+**`git push` does not publish anything.** It pushes the code to GitHub and stops
+there; what the reader sees comes from a separate deployment. The two can drift
+apart with nothing to warn you, so deployment goes through a single path:
+
+```bash
+npm run deploy
+```
+
+That command builds, verifies against the freshly made `dist/` and only then
+publishes. If verification fails, there is no publication. It is also the only
+place where `SITE_URL` is injected, so the real address travels with the moment
+that matters.
+
 Two environment variables govern the output, and `astro.config.mjs` reads them
 with defaults for local development:
 
@@ -204,8 +218,9 @@ with defaults for local development:
   the site lives at the root. It exists so the same commit can be served from a
   subdirectory without touching the content.
 - **`SITE_URL`** — the absolute URL used by the sharing tags and the `hreflang`
-  links. Without that variable, the share card image is not emitted: better no
-  image than one pointing at an address that does not exist.
+  links. `npm run deploy` injects it. Its default is still `localhost` on
+  purpose: without the variable the layout does not emit the share card image,
+  and better no image than one pointing at an address that does not exist.
 
 No internal link is written by hand: they all go through `withBase()`, which is
 what makes both forms work without touching the content.

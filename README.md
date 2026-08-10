@@ -118,6 +118,7 @@ tools/                     Verificaciones y generadores que corren sobre el cód
 | `npm run dev`           | Servidor de desarrollo en `localhost:4321`                       |
 | `npm run build`         | Genera el sitio en `./dist/`                                    |
 | `npm run preview`       | Sirve el build local antes de desplegar                         |
+| `npm run deploy`        | Compila, verifica y publica en Cloudflare, en ese orden          |
 | `npm run check`         | Catálogo, defangueo, idioma, contraste del globo y estilo       |
 | `npm run check:catalogo`| Coherencia entre archivos de caso, sobre los `.mdx`             |
 | `npm run check:idioma`  | Secciones escritas en el idioma equivocado                      |
@@ -199,6 +200,19 @@ familia de malware, reglas de detección y códigos de protocolo.
 El sitio se publica en Cloudflare Workers, desde la raíz del dominio. La
 configuración está en `wrangler.jsonc`.
 
+**`git push` no publica nada.** Sube el código a GitHub y ahí termina; lo que ve
+el lector sale de un despliegue aparte. Las dos cosas pueden quedar desfasadas
+sin que nada avise, así que el despliegue va por un solo camino:
+
+```bash
+npm run deploy
+```
+
+Ese comando compila, verifica sobre el `dist/` recién hecho y recién entonces
+publica. Si la verificación falla, no hay publicación. También es el único lugar
+donde se inyecta `SITE_URL`, para que la dirección real acompañe al momento en
+que importa.
+
 Dos variables de entorno gobiernan la salida, y `astro.config.mjs` las lee con
 valores por defecto para desarrollo local:
 
@@ -206,8 +220,10 @@ valores por defecto para desarrollo local:
   el sitio vive en la raíz. Existe para que el mismo commit pueda servirse desde
   un subdirectorio sin tocar el contenido.
 - **`SITE_URL`** — la URL absoluta que usan las etiquetas para compartir y los
-  `hreflang`. Sin esa variable, la imagen de la tarjeta no se emite: es preferible
-  que no haya imagen a que haya una que apunte a una dirección que no existe.
+  `hreflang`. La inyecta `npm run deploy`. Su valor por defecto sigue siendo
+  `localhost` a propósito: sin la variable, el layout no emite la imagen de la
+  tarjeta, y es preferible que no haya imagen a que haya una que apunte a una
+  dirección que no existe.
 
 Ningún enlace interno se escribe a mano: todos pasan por `withBase()`, que es lo
 que hace que las dos formas funcionen sin tocar el contenido.

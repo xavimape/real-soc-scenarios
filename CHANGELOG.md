@@ -29,6 +29,15 @@ ser de hace diez años.
   el cliente de correo. La dirección se arma en tiempo de ejecución y no aparece
   en claro en el sitio publicado.
 
+### Despliegue
+
+- `npm run deploy` encadena compilación, verificación y publicación en ese orden,
+  y corta en la primera etapa que falle. `git push` sube el código y no publica
+  nada; las dos cosas podían quedar desfasadas sin que nada lo avisara.
+- Ese comando es también el único lugar donde se inyecta `SITE_URL`, así que las
+  etiquetas para compartir y los `hreflang` salen con la dirección real. Antes
+  apuntaban a `localhost`.
+
 ### Verificación
 
 - El verificador de catálogo comprueba las cifras que los README declaran sobre
