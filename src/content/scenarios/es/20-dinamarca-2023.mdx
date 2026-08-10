@@ -1,0 +1,532 @@
+---
+title: "Dinamarca 2023 - Veintidós empresas a la vez, vistas desde un solo puesto"
+description: "Caso real: un paquete UDP contra el cortafuegos que protegía el control industrial. Dieciséis objetivos simultáneos, ninguno elegido al azar, y un CERT sectorial que vio el patrón porque miraba a trescientas empresas al mismo tiempo"
+pubDate: 2023-11-01
+caseId: "soc-020"
+caseNumber: 20
+difficulty: "advanced"
+caseType: "real_case_ot"
+severity: "CRITICAL"
+tags: ["ot", "energy", "edge-devices", "patching", "zero-day", "botnet", "sector-cert", "asset-inventory"]
+author: "Informe de SektorCERT, The attack against Danish critical infrastructure, publicado en noviembre de 2023"
+discoveryDate: "2023-05-11"
+locations:
+  - { lat: 55.6761, lng: 12.5683, label: "Copenhague, sede de SektorCERT" }
+  - { lat: 56.1629, lng: 10.2039, label: "Aarhus, región de las empresas afectadas" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+import KillChain from '@/components/soc/KillChain.jsx';
+
+## Resumen ejecutivo
+
+En mayo de 2023, veintidós empresas que operan parte de la infraestructura energética
+danesa fueron comprometidas en un ataque coordinado. Varias tuvieron que pasar a
+operación aislada, desconectándose de internet para seguir funcionando.
+
+El punto de entrada fue el cortafuegos. **El mismo equipo que separaba los sistemas de
+control industrial del resto del mundo era el que tenía la vulnerabilidad**, y bastaba
+con un único paquete al puerto 500 por UDP para ejecutar comandos con máximos
+privilegios sin conocer ninguna credencial.
+
+Pero lo que hace único a este caso no es la vulnerabilidad. Es **desde dónde está
+contado.** Los otros diecinueve casos de este sitio miran una organización. Este está
+escrito por un CERT sectorial que vigilaba a trescientos miembros con una red de
+doscientos setenta sensores, y que vio el patrón porque podía comparar entre empresas
+lo que en cada una, por separado, podría haber pasado desapercibido.
+
+**La pregunta del caso es qué se ve desde arriba que no se ve desde adentro**, y qué
+hace un equipo cuando tiene dieciséis incidentes simultáneos y no tiene gente para
+atenderlos.
+
+**Métricas clave:**
+
+- Empresas comprometidas en total: 22
+- Objetivos de la primera oleada: 16, de los cuales 11 comprometidos
+- Miembros de la organización sectorial: unos 300
+- Sensores desplegados: 270
+- Puntaje de la primera vulnerabilidad: 9,8 sobre 10
+- Días entre el aviso del fabricante y el ataque: 16
+- Técnicas principales: T1190, T0819, T1584.005, T1498
+
+<Warn />**Caso real, con la separación de hechos y análisis hecha por la propia
+fuente.** El informe de SektorCERT divide explícitamente lo observado de lo
+interpretado, y advierte que su análisis es subjetivo y puede estar equivocado. Acá se
+respeta esa separación: cuando algo es evaluación y no observación, está dicho.
+
+---
+
+## Contexto: el cortafuegos como único control
+
+En muchas plantas pequeñas, la separación entre los sistemas de control industrial e
+internet la hace un solo equipo.
+
+```
+internet  ──►  cortafuegos  ──►  sistemas de control industrial
+                    ▲
+                    └── único control, y el que tenía la vulnerabilidad
+```
+
+Ese diseño no es un descuido: es lo que puede costear una empresa chica que opera un
+tramo de red eléctrica o de calefacción. Y funciona, mientras el equipo esté sano.
+
+Cuando la vulnerabilidad está en el propio control, **la profundidad de la defensa
+pasa a ser cero.** No hay una segunda capa que compense, porque la segunda capa era
+esa. Una organización que monitorea las alertas de la red interna no ve nada, porque el
+atacante todavía no está en la red interna: está en la puerta.
+
+Una organización dedicada a monitorear internet lo dijo sin vueltas cuando salió el
+aviso: si tenés un equipo vulnerable expuesto, asumí que está comprometido.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-020"
+  events={[
+    {
+      time: "25 abr 2023",
+      title: "El fabricante publica la vulnerabilidad",
+      description: "Se anuncia una falla crítica, con puntaje 9,8 sobre 10, en cortafuegos muy usados para proteger entornos industriales en empresas chicas.",
+      severity: "HIGH",
+      actor: "System"
+    },
+    {
+      time: "1 may 2023",
+      title: "Aviso extraordinario del CERT sectorial",
+      description: "Sin ataques observados todavía en el país, se pide instalar la actualización de inmediato: los socios de otros países indicaban que era cuestión de tiempo.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "11 may 2023",
+      title: "Primera oleada, dieciséis a la vez",
+      description: "Ataque coordinado contra dieciséis objetivos elegidos. Once quedan comprometidos; en cinco el intento falla. Los atacantes no yerran ni un objetivo.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "11 may, horas siguientes",
+      title: "Cuatro frentes en paralelo",
+      description: "El equipo de incidentes trabaja a la vez en identificar a todos los atacados, asistir a los afectados, coordinar con los proveedores para llegar a los que faltaban actualizar, y avisar a las autoridades.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "11 may, noche",
+      title: "La decisión que resultó decisiva",
+      description: "El equipo sigue trabajando fuera del horario laboral aunque no hay personal previsto para eso. Las once empresas comprometidas quedan aseguradas antes de que el acceso se use contra el control industrial.",
+      severity: "MEDIUM",
+      actor: "Defender"
+    },
+    {
+      time: "12 al 21 may",
+      title: "Diez días de silencio",
+      description: "No se observa actividad del atacante.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "22 may, 14:44",
+      title: "Segunda oleada, con otro estilo",
+      description: "Una alarma avisa que un cortafuegos está descargando software nuevo por una conexión insegura. La alarma salta recién en la descarga: el ataque previo no se había visto.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "22 may, ~15:00",
+      title: "Operación aislada",
+      description: "El equipo afectado se había sumado a una red de equipos comprometidos y participaba en ataques de denegación de servicio contra terceros. La empresa corta su conexión a internet por completo.",
+      severity: "HIGH",
+      actor: "Defender"
+    },
+    {
+      time: "22 may, 18:13",
+      title: "Otro miembro, mismo método",
+      description: "Se repite el patrón. Hacia las 20 la empresa pasa a operación aislada. Ese cortafuegos hubo que reemplazarlo por completo: no volvió a usarse.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "23 may, 18:43",
+      title: "Infraestructura usada contra terceros",
+      description: "Un nuevo miembro comprometido participa en un ataque de fuerza bruta por SSH contra una empresa en Canadá, antes de que se lo detenga.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "24 may",
+      title: "El fabricante anuncia dos vulnerabilidades más",
+      description: "Se publican las dos fallas usadas en la segunda oleada. Hasta ese momento eran desconocidas: la evaluación del CERT es que los atacantes las conocían antes del anuncio.",
+      severity: "CRITICAL",
+      actor: "System"
+    },
+    {
+      time: "24 may, 10:31 a 10:58",
+      title: "Tres miembros en diecisiete minutos",
+      description: "Tres compromisos consecutivos con la misma carga. En un caso el volumen de tráfico saturó el propio cortafuegos y dejó sin red a la empresa.",
+      severity: "CRITICAL",
+      actor: "Attacker"
+    },
+    {
+      time: "24 may, 15:59",
+      title: "El equipo que nadie sabía que existía",
+      description: "Un miembro atacado creía no tener ninguno de esos cortafuegos. Tras revisar, aparece uno que un proveedor había instalado junto con unas cámaras.",
+      severity: "HIGH",
+      actor: "Defender"
+    }
+  ]}
+/>
+
+---
+
+## 1. Por qué no estaban actualizados
+
+El informe enumera los motivos que dieron los propios afectados, y son el material más
+aprovechable del caso porque **ninguno es negligencia en el sentido en que solemos
+usar la palabra:**
+
+- **"El equipo es nuevo, viene actualizado."** Un supuesto razonable y falso.
+- **"El proveedor se encarga de las actualizaciones."** Nadie lo había verificado por
+  escrito.
+- **"La actualización cuesta dinero."** El software era gratuito, pero el proveedor
+  cobraba por instalarlo, y alguien decidió postergarlo.
+- **"No sabíamos que teníamos ese equipo."** Instalado por un proveedor, sin avisar, o
+  simplemente sin inventario.
+
+<Fail />Los cuatro son problemas de gestión, no de seguridad, y ninguno se resuelve
+comprando una herramienta de detección.
+
+<Pass />Los cuatro se responden con una sola pregunta, hecha a tiempo: **¿quién
+actualiza este equipo y cómo lo comprobamos?**
+
+El cuarto es el más grave y el que más se repite en la práctica. El caso del proveedor
+de cámaras que dejó un cortafuegos instalado sin decirlo no es una anécdota: es la
+forma habitual en que aparece equipamiento no inventariado en una red. Cada instalación
+de un tercero —cámaras, control de acceso, climatización, medición— puede traer un
+equipo de red que nadie registró.
+
+**Un inventario que se arma preguntando a sistemas está incompleto por diseño.** Hay
+que armarlo mirando la red.
+
+---
+
+## 2. Lo que el ataque necesitó, y lo que no
+
+La primera vulnerabilidad se explotaba **con un único paquete** dirigido al puerto 500
+por UDP. Ese paquete lo procesaba el decodificador del protocolo de intercambio de
+claves, y ahí estaba la falla. El resultado era ejecución de comandos con privilegios
+máximos, sin usuario ni contraseña.
+
+Conviene detenerse en lo que eso implica para la detección:
+
+- **No hay intento de autenticación fallido.** El registro de accesos no muestra nada.
+- **No hay tráfico previo de exploración.** No hubo un barrido que anticipara el
+  ataque.
+- **Un paquete no hace un patrón.** Las detecciones basadas en volumen o repetición no
+  tienen a qué agarrarse.
+
+En los once equipos comprometidos, lo primero que hicieron los atacantes fue pedirle al
+cortafuegos su configuración y sus nombres de usuario. La evaluación del CERT es que
+eso fue reconocimiento: mirar cómo estaba armado cada uno antes de decidir cómo seguir.
+
+**Eso deja una señal.** Un dispositivo de borde que de golpe manda su configuración
+hacia afuera es un evento raro, observable en el tráfico, y no depende de conocer la
+vulnerabilidad.
+
+---
+
+## 3. Lo que solo se ve desde arriba
+
+Acá está lo que distingue este caso de todos los anteriores del sitio.
+
+Los atacantes eligieron dieciséis objetivos y **acertaron los dieciséis.** Todos tenían
+efectivamente el equipo vulnerable. El informe señala algo inquietante: en ese momento
+la información sobre quién tenía equipos vulnerables no estaba disponible en los
+buscadores públicos de dispositivos expuestos, y el CERT no pudo identificar en sus
+datos ninguna exploración previa que se la hubiera dado. Hasta hoy no hay explicación
+clara.
+
+El ataque simultáneo tampoco es casual. **Atacar a todos a la vez anula el intercambio
+de información**, que es la principal defensa de un sector: cuando la primera víctima
+se da cuenta, ya no queda nadie a quien avisar.
+
+Contra esa táctica, lo único que funciona es ver a todos al mismo tiempo. Y eso es
+exactamente lo que hizo la red de sensores: identificar el patrón cruzando datos entre
+empresas, cuando cada ataque individual **podría haber pasado desapercibido en su
+propia organización.**
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-020"
+  type="verificacion"
+  title="Lo que ve cada nivel de observación"
+  data={{
+    "desde una sola empresa": {
+      "un paquete UDP al puerto 500": "Indistinguible de tráfico legítimo de túneles cifrados",
+      "el cortafuegos descarga software": "Puede ser una actualización programada",
+      "tráfico saliente nuevo": "Sin línea base, no dice nada",
+      "verdict": "clean"
+    },
+    "cruzando varias empresas": {
+      "el mismo paquete en dieciséis lugares el mismo día": "Deja de ser tráfico y pasa a ser una campaña",
+      "el mismo destino de descarga en varios miembros": "Confirma origen común",
+      "la misma secuencia horaria": "Coordinación, y por lo tanto planificación",
+      "verdict": "clean"
+    },
+    "lo que ninguno de los dos ve": {
+      "cómo supieron a quién atacar": "Sin exploración previa observable y sin exposición pública",
+      "qué comandos llegaron por el canal cifrado": "Solo se vieron las consecuencias",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+**El tercer bloque es el más honesto del informe** y conviene imitarlo: hay cosas que
+quedaron sin explicación, y están escritas como tales en lugar de rellenarse con una
+hipótesis cómoda.
+
+---
+
+## 4. El botín fue el equipo, no la planta
+
+Hay un giro que hace al caso más útil de lo que parece.
+
+Después de comprometer los cortafuegos, buena parte de los atacantes de la segunda
+oleada **no fue hacia los sistemas de control.** Sumó los equipos a redes de
+dispositivos comprometidos y los usó para atacar a terceros: denegación de servicio
+contra objetivos en Estados Unidos y Hong Kong, fuerza bruta por SSH contra una empresa
+en Canadá.
+
+La lectura del CERT es que eso fue, dentro de todo, una buena noticia: sugiere que esos
+atacantes querían el equipo y no la infraestructura crítica que había detrás, a la que
+quizá habían accedido sin saberlo.
+
+Para un analista hay dos conclusiones prácticas:
+
+**Primera: un dispositivo de borde comprometido tiene valor propio.** No hace falta que
+el atacante entienda ni le interese lo que hay detrás. Eso amplía enormemente el
+conjunto de quienes pueden atacar una planta: no hacen falta especialistas en sistemas
+industriales.
+
+**Segunda: la señal más visible fue el tráfico saliente.** En un caso el volumen saturó
+el propio cortafuegos y dejó a la empresa sin red. Vigilar lo que sale de un equipo de
+borde —no solo lo que entra— es barato y fue lo que hizo saltar varias alarmas.
+
+---
+
+## 5. Cortar la conexión como decisión de defensa
+
+Varias empresas pasaron a operación aislada: desconectaron internet y siguieron
+operando.
+
+Es la medida más drástica disponible y en este caso fue la correcta. Vale la pena
+mirarla con cuidado porque **contradice el reflejo habitual de mantener el servicio a
+toda costa.**
+
+En un entorno industrial la pregunta no es "¿podemos seguir conectados?" sino "¿podemos
+seguir operando sin conexión?". Si la respuesta es sí, desconectar es barato. Si es no,
+eso mismo es un hallazgo grave que conviene descubrir en una mesa de trabajo y no
+durante un incidente.
+
+En un caso hizo falta reemplazar el cortafuegos por completo: no se pudo confiar en
+volver a ponerlo en servicio. **Cuando el equipo comprometido es el que ejecuta el
+control de seguridad, limpiarlo no es una opción razonable.**
+
+---
+
+## 6. Mapeo MITRE ATT&CK
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-020"
+  tactics={[
+    {
+      id: "TA0043",
+      name: "Reconnaissance",
+      techniques: ["T1595.002", "T1590.005"]
+    },
+    {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190", "T0819"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1059.004"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1592.004"]
+    },
+    {
+      id: "TA0042",
+      name: "Resource Development",
+      techniques: ["T1584.005", "T1587.001"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1498", "T1499.001"]
+    }
+  ]}
+/>
+
+**T0819 · Exploit Public-Facing Application** viene de la matriz para sistemas de
+control industrial, la misma que usa el caso 013. Está acá porque el equipo explotado
+es el que protege el entorno industrial, aunque el compromiso ocurra en su cara
+expuesta a internet.
+
+**T1584.005 · Compromise Infrastructure: Botnet** es la que sorprende. El objetivo
+final de buena parte de la actividad no fue la víctima: fue usarla. Es infrecuente en
+un mapeo de infraestructura crítica y describe con precisión lo que pasó.
+
+---
+
+## Marcos de análisis
+
+<KillChain
+  client:load
+  lang="es"
+  caseId="soc-020"
+  phases={[
+    {
+      state: "reached",
+      detail: "Los atacantes sabían exactamente quién tenía el equipo vulnerable. No se pudo identificar exploración previa ni exposición en buscadores públicos, y sigue sin explicación."
+    },
+    {
+      state: "reached",
+      detail: "Un único paquete contra el decodificador del protocolo de intercambio de claves. En la segunda oleada, con fallas que el fabricante todavía no había publicado."
+    },
+    {
+      state: "reached",
+      detail: "Envío directo al puerto expuesto. No hay usuario a quien engañar ni archivo que entregar."
+    },
+    {
+      state: "reached",
+      detail: "Ejecución de comandos con privilegios máximos, sin autenticación."
+    },
+    {
+      state: "blocked",
+      detail: "Primera oleada: las once empresas comprometidas quedaron aseguradas la misma noche, antes de que el acceso se convirtiera en presencia dentro del entorno industrial. Acá se cortó."
+    },
+    {
+      state: "reached",
+      detail: "En la segunda oleada sí hubo canal de mando y control, cifrado. Solo se pudieron ver las consecuencias, no los comandos."
+    },
+    {
+      state: "reached",
+      detail: "Uso de los equipos comprometidos contra terceros: denegación de servicio y fuerza bruta. Ninguna acción observada contra los sistemas de control."
+    }
+  ]}
+  note="La cadena se corta en el quinto eslabón y solo en la primera oleada. Lo que la cortó no fue un control técnico sino una decisión de gestión: seguir trabajando fuera de horario cuando no había personal previsto para eso. Conviene decirlo así de crudo, porque es lo que separó un incidente contenido de uno con consecuencias operativas, y no figura en ninguna arquitectura de referencia."
+/>
+
+**No incluyo la pirámide del dolor ni el Diamond Model.** La pirámide tendría los
+escalones de abajo llenos de indicadores que el propio informe publica, pero el caso no
+enseña sobre la durabilidad de los indicadores. Y el vértice del adversario no tiene
+datos firmes: la fuente habla de indicios de participación de un actor estatal y de la
+posibilidad de dos grupos distintos, con la salvedad expresa de que es evaluación y
+puede estar equivocada. **Un diamante armado sobre un vértice dudoso presenta como
+conocimiento lo que la fuente presenta como duda.**
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-020"
+  summary={{
+    incidentId: "Ataque coordinado de mayo de 2023, informe publicado en noviembre de 2023",
+    title: "Compromiso de cortafuegos de borde en veintidós empresas de infraestructura energética",
+    status: "Documentado públicamente",
+    severity: "CRITICAL",
+    triageInicial: "Detección en la red de sensores del CERT sectorial, por comparación entre empresas",
+    causaRaiz: "Vulnerabilidades críticas en cortafuegos de borde sin actualizar, y en la segunda oleada fallas no publicadas todavía por el fabricante",
+    tiempoDeContencion: "Primera oleada asegurada la misma noche; la campaña se extendió unas dos semanas",
+    datosComprometidos: "Sin acciones observadas contra los sistemas de control. Los equipos comprometidos se usaron para atacar a terceros",
+    resolutionCode: "Contenido antes del impacto operativo"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**Cuando el control es el vulnerable, no hay segunda capa.** Un cortafuegos de borde
+que protege un entorno industrial concentra todo el riesgo, y su actualización deja de
+ser mantenimiento para pasar a ser control crítico.
+
+**El inventario que falta es el que instaló un tercero.** Cámaras, accesos,
+climatización: cualquier obra puede dejar un equipo de red que nadie registró. Un
+inventario armado preguntando no encuentra esos equipos; uno armado mirando la red, sí.
+
+**"El proveedor se encarga" es una afirmación verificable, y hay que verificarla.**
+Preferentemente por escrito y con una fecha.
+
+**Atacar a todos a la vez anula el intercambio de información.** La única defensa
+contra esa táctica es la observación simultánea, que ninguna organización puede tener
+sobre sí misma.
+
+**Un equipo de borde vale por sí mismo.** El atacante puede no tener ningún interés en
+la planta, y eso amplía enormemente quién puede llegar a comprometerla.
+
+**Lo que cortó la cadena fue una decisión de gestión.** Trabajar fuera de horario sin
+tener personal previsto no aparece en ninguna arquitectura de seguridad, y fue lo
+decisivo.
+
+---
+
+## Recomendaciones
+
+**Inventario de equipos de borde armado desde la red**, no desde la memoria ni desde
+las órdenes de compra. Con marca, modelo, versión y responsable de actualización.
+
+**Un acuerdo explícito sobre quién actualiza cada equipo**, con nombre y plazo. Si el
+proveedor cobra por instalar una actualización gratuita, esa discusión hay que darla
+antes del aviso, no después.
+
+**Monitoreo del tráfico saliente de los equipos de borde.** Fue la señal que más
+funcionó: descargas iniciadas por el propio equipo, y volumen anómalo hacia afuera.
+
+**Alerta sobre el envío de configuración hacia el exterior.** Es reconocimiento y es
+observable sin conocer la vulnerabilidad usada.
+
+**Un ensayo de operación aislada.** Saber de antemano cuánto tiempo puede operar la
+planta sin conexión, y descubrir el número en un ejercicio y no en un incidente.
+
+**Participar en el mecanismo sectorial que exista.** Este caso es la demostración
+práctica de que hay ataques que solo son visibles desde arriba, y que ninguna empresa
+puede ver sola.
+
+---
+
+## Referencias
+
+- SektorCERT, *The attack against Danish critical infrastructure*, noviembre de 2023
+- CVE-2023-28771, CVE-2023-33009 y CVE-2023-33010
+- MITRE ATT&CK for ICS: T0819
+- MITRE ATT&CK: T1190, T1584.005, T1498
+
+---
+
+## Próximas lecturas
+
+- **Caso 013**, para el otro extremo del entorno industrial: allá el atacante llega
+  hasta la operación y le mueve el mouse al operador.
+- **Caso 005**, para la otra forma de la explotación masiva, cuando el producto
+  vulnerable es de un proveedor y no está en tu borde.
+- **Caso 011**, para la dependencia de terceros y el intercambio de información entre
+  organizaciones.
