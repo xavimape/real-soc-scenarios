@@ -1,0 +1,520 @@
+---
+title: "Oldelval 2026 - The case with almost no information"
+description: "Real case: the pipeline carrying Vaca Muerta's oil was attacked on its administrative side and the crude never stopped. There is no forensic report, the claim predates the official notice and two groups claim it. This is how you work with that"
+pubDate: 2026-07-31
+caseId: "soc-021"
+caseNumber: 21
+difficulty: "advanced"
+caseType: "real_case_critical_recent"
+severity: "HIGH"
+tags: ["argentina", "critical-infrastructure", "it-ot-segmentation", "ransomware", "raas", "attribution", "open-source-intelligence", "disclosure"]
+author: "Oldelval's material-event filing with Argentina's National Securities Commission of 31 July 2026, the analysis of The Gentlemen published by Microsoft Threat Intelligence on 28 May 2026, the claim recorded on a public leak-site tracker and Argentine press coverage"
+discoveryDate: "2026-07-23"
+locations:
+  - { lat: -38.9333, lng: -67.9833, label: "Cipolletti, Río Negro, Oldelval headquarters" }
+  - { lat: -38.7183, lng: -62.2663, label: "Puerto Rosales, export terminal" }
+  - { lat: 4.7110, lng: -74.0721, label: "Bogotá, the same group's previous victim" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+
+## Executive summary
+
+On 31 July 2026, the company operating the pipeline that carries most of the oil out of
+Vaca Muerta told Argentina's National Securities Commission that it had suffered a
+cyberattack on its administrative systems.
+
+The crude never stopped for a minute. The company activated its protocol, restored the
+affected platforms and called the episode **"100% controlled"**. What matters to an
+analyst is the next sentence: the attack reached administration and **did not reach the
+systems that move the oil.**
+
+But this case is here for another reason, and it is worth stating up front.
+
+**There is no forensic report. The entry vector is unknown. The company did not say what
+kind of threat it was. One group claimed the attack eight days before the company
+acknowledged it, a different group turned up claiming it a week later, and neither
+thing is confirmed.**
+
+That is the normal situation for an analyst in the region: an incident at critical
+infrastructure with nothing but a three-paragraph regulatory filing, press reports that
+contradict each other, and criminals' posts that nobody verified. **The case is how you
+work with that without inventing what is missing.**
+
+**Key metrics:**
+
+- Claim recorded on a leak site: 23 July 2026
+- Official filing with the securities regulator: 31 July 2026
+- Distance between the two: eight days
+- Declared impact on crude transport: none
+- Kilometres of pipeline operated: more than 1,700
+- Publicly known entry vector: none
+- Ransom payment reported: none
+
+<Warn />**Real case, with scarce information and sources that do not agree.** The facts
+come from the material-event filing with the National Securities Commission, from the
+technical analysis of the group published by Microsoft Threat Intelligence, from the
+public record of the claim and from Argentine press coverage. Contradictions between
+sources are noted where they appear, without picking one. What is unknown is stated as
+such.
+
+---
+
+## Context: why this company matters
+
+The company transports liquid hydrocarbons from the Neuquén basin to the export
+terminals on the Atlantic. Its shareholders are the state-controlled oil company, with
+37 per cent, and the main operators in the country and the world. Its customers are,
+essentially, every producer in the play.
+
+```
+Vaca Muerta fields
+        │
+        ▼
+more than 1,700 km of pipeline ──► domestic refineries
+        │
+        └───────────────────────► export terminals
+```
+
+That concentration is the point of the system and also its fragility: **funnelling a
+whole basin's output through a single operator is efficient, and it turns that operator
+into a national matter.**
+
+One clarification the case needs: the share of crude it carries is published two ways.
+The official filing and most of the press say **75 per cent** of Vaca Muerta's output;
+other industry sources estimate close to **90 per cent**. They are not the same, and
+there is no public way to settle it. When a case opens with a discrepancy in its first
+figure, treat it as a preview of what follows.
+
+---
+
+## Interactive timeline
+
+<AlertTimeline
+  client:load
+  lang="en"
+  caseId="soc-021"
+  events={[
+    {
+      time: "May 2026",
+      title: "The group is documented technically",
+      description: "Microsoft Threat Intelligence publishes a full analysis of The Gentlemen's encryptor and tracks its operators as Storm-2697. None of this has anything to do with this company yet.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "Jul 2026",
+      title: "The Colombian oil company",
+      description: "Days earlier, Colombia's largest oil company is hit by the same group. It detects the irregular access and prevents mass encryption, but cannot stop the download of data from about 3,300 user accounts and cloud information tied to fifteen group companies.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "23 Jul 2026, 15:13 UTC",
+      title: "The claim appears",
+      description: "A public leak-site tracker records the Argentine company's listing on the group's site. Nobody outside the attacker confirms anything.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "31 Jul 2026",
+      title: "The company files with the regulator",
+      description: "A material-event filing is submitted to the National Securities Commission: cyberattack on administrative systems, protocol activated, platforms restored, crude transport uninterrupted.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "2 and 3 Aug 2026",
+      title: "The press picks it up",
+      description: "Coverage spreads the filing. Outlets differ on the share of crude carried and on whether there was an attack or an attempted attack.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "4 Aug 2026",
+      title: "A second claim, unconfirmed",
+      description: "A monitoring service reports another ransomware group claiming the same company. The tracker flags the entry as a possible duplicate and warns it could also be a legitimate second attack. The company says nothing.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    }
+  ]}
+/>
+
+---
+
+## 1. The only thing the company asserted
+
+The regulatory filing is the sole first-hand source, and it is worth reading for what it
+says and for what it does not.
+
+**It says:**
+
+- There was a cyberattack on administrative and IT systems.
+- The cybersecurity protocol was activated.
+- The affected platforms were restored and administrative work returned to normal.
+- Crude transport operated without interruption.
+- The full scope was still being assessed and the authorities had been notified.
+
+**It does not say:**
+
+- What kind of threat it was.
+- How they got in.
+- Whether data was exfiltrated, and which.
+- How long they were inside.
+- Whether a ransom was demanded.
+
+<Pass />The company chose disclosure over silence, and did it through a channel that
+leaves a public record.
+
+<Warn />What it disclosed is the minimum the regulatory obligation requires, and it is
+not enough for anyone else to learn from what happened.
+
+Both things are true at once, and the tension is real: a company that discloses exposes
+itself, so it discloses the minimum. Without a rule requiring more, there is no
+incentive to give detail.
+
+---
+
+## 2. The separation that worked
+
+This is the technical finding of the case, and it is good news worth understanding
+properly so as not to draw the wrong conclusion.
+
+At a company that moves hydrocarbons, two worlds coexist:
+
+```
+INFORMATION TECHNOLOGY              OPERATIONAL TECHNOLOGY
+email, billing, records             pumps, valves, telemetry
+users coming and going              processes that do not stop
+patched on a Tuesday                patched during a planned outage
+```
+
+The attack stayed on the left. **That does not happen by accident: it happens when
+someone designed the separation and maintained it.**
+
+Now, the wrong conclusion would be "so nothing happened". Three reasons not to draw it:
+
+**First: the administrative side matters too.** That is where contracts, dispatched
+volumes, customer information and personnel data live. Exfiltrating that material is a
+problem even if no valve moves.
+
+**Second: separation is tested, not declared.** That the attacker did not reach the
+other side in this incident says nothing about how hard it would have been. That
+question is answered by looking at the architecture, not at the outcome.
+
+**Third, and the one most worth looking at: continuing to operate is a decision.** In
+2021 the operator of the largest pipeline in the United States suffered an attack that
+was **also on the administrative side**, and stopped pumping anyway as a precaution,
+because it could not bill and because it was not sure how separated its network was.
+That shutdown caused fuel shortages on the east coast.
+
+Three cases, three different endings to the same question:
+
+| Case | Where the attacker got to | What happened to operations |
+| --- | --- | --- |
+| Ukraine 2015, case 013 | The operator's own console | They opened the breakers by hand |
+| United States 2021 | Administration only | The company stopped it itself |
+| This case | Administration only | It did not stop |
+
+**The difference between the last two rows is not technical, it is confidence.** You
+stop operations when you are not sure about the separation. You keep going when you
+are. And that certainty is built beforehand, with architecture and rehearsals, not
+during the incident.
+
+---
+
+## 3. What a claim is worth
+
+Here is the part no other case on this site teaches.
+
+A ransomware group listed this company on its leak site on 23 July. The company
+disclosed the attack on the 31st. It is tempting to join the two and close the matter.
+**Do not, and it is worth understanding why.**
+
+**A post on a leak site is a criminal's assertion, not evidence.** Groups:
+
+- Claim attacks they did not carry out, to inflate their standing with affiliates
+- Exaggerate the scope of the ones they did
+- Repost old data from other leaks as if it were new
+- Sometimes list a victim who negotiated and paid, to pressure others
+
+Two different groups claiming the same company within two weeks admits several
+readings, and none can be ruled out with the information available:
+
+1. There were two separate attacks by two separate groups. It happens, especially when
+   initial access is bought and resold.
+2. One group took credit for another's work.
+3. One of the two, or both, are claiming something they did not do.
+4. The same affiliate worked for two programs at different times.
+
+**The honest thing is to write that down and not choose.** An analyst who reports "the
+company was attacked by group X" because they read it on a tracker is reporting an
+attacker's assertion as if it were their own finding.
+
+The correct formulation has this shape: *a group identifying itself as X listed the
+organisation on its leak site on such a date; the organisation did not confirm the
+attribution; there is no independent public evidence supporting it.* It is longer, and
+it is the only one that survives a follow-up question.
+
+---
+
+## 4. What can be asserted about the named attacker
+
+About the group that claimed it, on the other hand, **there is first-rate technical
+material**, published by Microsoft Threat Intelligence two months before this incident.
+The two things must be kept apart: **what follows describes the group and its tool, not
+this particular attack.** None of these techniques is confirmed at this company.
+
+The group operates as a service: its operators maintain the platform and affiliates
+carry out the attacks in exchange for a share of the ransom. It began as a closed group
+in mid-2025 and opened its affiliate program in September of that year.
+
+Its encryptor is what matters to a defender:
+
+- **Written in Go and obfuscated**, with per-file encryption using ephemeral Curve25519
+  keys and the XChaCha20 stream cipher
+- **Before encrypting**, it disables the antivirus's real-time protection, adds itself
+  to the exclusions, excludes the whole volume, deletes shadow copies, event logs,
+  prefetch files, remote desktop logs and the PowerShell command history of every
+  profile
+- **It persists twice over**: two scheduled tasks, one in system and one in user
+  context, and two run keys in the registry
+
+And then there is the propagation, which is what sets it apart. With one command-line
+argument, the encryptor **stops being a program and becomes a worm**: it sets up a
+hidden share on the infected machine to serve itself, carries an embedded copy of a
+legitimate remote execution tool, enumerates the network, and against each discovered
+machine attempts **twenty-one distinct remote execution operations** — copy over the
+administrative share, remote execution, process creation via management instrumentation,
+three user scheduled tasks, three system ones, three services, PowerShell remoting and
+process creation by another route.
+
+**It attempts all of them, regardless of whether the earlier ones failed.**
+
+That is the detail to take away. A defence that blocks ninety per cent of lateral
+movement methods does not reduce risk by ninety per cent: **one working method on one
+machine is enough for the propagation to continue.**
+
+---
+
+## 5. What an analyst at another company in the sector can do today
+
+This case leaves no indicators. No hashes, no addresses, no domains: the company did not
+publish them and nobody else has them. What it does leave is a checklist any similar
+organisation can run against itself.
+
+<IOCViewer
+  client:load
+  lang="en"
+  caseId="soc-021"
+  type="verificacion"
+  title="Self-assessment for an organisation in the same sector"
+  data={{
+    "separation between administration and operations": {
+      "inventory of paths between the two networks": "How many there are, who uses them and the documented reason for each",
+      "accounts that exist on both sides": "Especially administrative ones and those of maintenance vendors",
+      "vendor remote access to the industrial environment": "Who can, from where, and with what supervision",
+      "verdict": "clean"
+    },
+    "against mass lateral movement": {
+      "administrative shares": "Whether they are enabled on workstations, and why",
+      "remote execution via management instrumentation": "Restricted to authorised sources, not open to the whole network",
+      "remote service and scheduled task creation": "Alert on creation from one machine against another",
+      "SMB1 and tamper protection": "The first disabled, the second active — verified, not assumed",
+      "verdict": "clean"
+    },
+    "ability to decide under pressure": {
+      "how long operations can run without administrative systems": "In days, and with which manual procedures",
+      "who authorises stopping operations": "By name and with a deputy, written beforehand",
+      "what information is needed not to stop": "Defined in advance, not improvised at three in the morning",
+      "verdict": "clean"
+    },
+    "credentials outside your own perimeter": {
+      "domain exposure in stolen material": "Public services report whether the organisation's credentials have surfaced",
+      "contractor machines": "As in case 018: the infection happens where the SOC does not look",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+**About that last block, a clarification is needed.** Public claim trackers publish,
+alongside each victim, exposure information: how many employee credentials have appeared
+in infostealer material, which cloud services were detected, and the external attack
+surface. For this company, that data **is publicly visible and anyone can look it up.**
+
+It is not reproduced here. It concerns a real, identifiable organisation that gave no
+authorisation for this site to spread it, and naming it would teach nothing that saying
+it exists does not already make clear. **That a piece of data is accessible does not
+make it publishable**, and that distinction is part of the job.
+
+---
+
+## 6. MITRE ATT&CK mapping
+
+<Warn />**This map describes the tool of the group that claimed the attack, per
+Microsoft's published analysis. It does not describe this incident**, for which no
+technique is known. It is included because it is what a defender in the sector can use
+to prepare, not as a reconstruction of what happened.
+
+<MitreATTACKMap
+  client:load
+  lang="en"
+  caseId="soc-021"
+  tactics={[
+    {
+      id: "TA0005",
+      name: "Defense Evasion",
+      techniques: ["T1562.001", "T1070.001", "T1070.003", "T1027"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1053.005", "T1547.001"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1021.002", "T1021.006", "T1570"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1047", "T1569.002", "T1059.001"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1486", "T1490", "T1489", "T1657"]
+    }
+  ]}
+/>
+
+**T1570 · Lateral Tool Transfer** sums up the design: the encryptor copies itself to
+every reachable machine, which is why a single successful execution on one forgotten
+host hands the attacker the whole network back.
+
+---
+
+## Analysis frameworks
+
+**This case carries none of the three, and the reason is the case itself.**
+
+The **kill chain** needs to know how they got in and how far they went. Neither is
+known; seven empty boxes are not an analysis.
+
+The **pyramid of pain** ranks indicators by what it costs the attacker to change them.
+There is not a single public indicator from this incident.
+
+The **Diamond Model** needs data at all four vertices. There is a victim, there is
+capability described by a solid third party, there is a **presumed and unconfirmed**
+adversary, and there is absolutely nothing about the infrastructure used in this attack.
+Two vertices out of four, and one of those in doubt.
+
+This site's invariant is that a framework goes in when there is real data to fill it.
+There is none here, and **saying so is more honest than drawing a diamond with two
+invented vertices.** A case without frameworks teaches something too: it teaches how to
+tell what is known from what is assumed.
+
+---
+
+## Final report
+
+<IncidentReportGenerator
+  client:load
+  lang="en"
+  caseId="soc-021"
+  summary={{
+    incidentId: "Material-event filing with the regulator, 31 July 2026",
+    title: "Attack on a pipeline operator's administrative systems, with no impact on transport",
+    status: "Publicly documented, no forensic report",
+    severity: "HIGH",
+    triageInicial: "No public data. The first external signal was a leak-site post, eight days before the official notice",
+    causaRaiz: "Not disclosed. The company did not report the entry vector or the type of threat",
+    tiempoDeContencion: "Not disclosed. The company declared the episode 100% controlled and the platforms restored",
+    datosComprometidos: "Not disclosed. No exfiltration and no ransom payment were reported",
+    resolutionCode: "Case study with incomplete information"
+  }}
+/>
+
+---
+
+## Lessons learned
+
+**The separation between administration and operations is what decides the size of the
+incident.** Here the difference between a nuisance and a national problem was that
+boundary, and it has to be tested beforehand, not verified during.
+
+**Continuing to operate during an incident is a decision made with information.** If you
+do not know how separated the networks are, the prudent move is to stop, and stopping
+has a cost too. That information is built in peacetime.
+
+**A claim is not an attribution.** It is a criminal's assertion about their own work,
+published where it suits them to be read. It works as a lead and as a warning; it does
+not work as a conclusion.
+
+**When there is no report, honest analysis has declared gaps.** Filling in an entry
+vector with what usually happens is writing fiction in the format of a report.
+
+**That a piece of data is accessible does not make it publishable.** Trackers publish
+exposure data on identifiable victims; using it to prepare yourself is legitimate,
+spreading it is not.
+
+**In Argentina there is no obligation to say more.** A 2019 resolution defines sectors
+of critical information infrastructure, but it does not identify specific operators or
+set enforceable requirements, and compelling private companies would require a law that
+does not exist. **The consequence is exactly this case: with no rule, what anyone learns
+from an incident at critical infrastructure depends on the victim's goodwill.**
+
+---
+
+## Recommendations
+
+**Verify the separation with evidence**, not with the network diagram. What path exists
+today between administration and operations, who uses it, and what happens if that
+account is compromised.
+
+**Define the threshold for stopping operations in advance**, and who decides. Written
+down, with a name and a deputy.
+
+**Harden against redundant lateral movement.** Against a tool that tries twenty-one
+routes per machine, blocking most is not enough: close the remote execution paths that
+are not used and alert on remote service and task creation.
+
+**Check your own credential exposure** with monitoring services. It is cheap and answers
+a question internal telemetry cannot.
+
+**Write your own reports with the line between fact and assumption marked.** "Group X
+claimed" and "group X attacked" are different assertions, and whoever reads the report
+will make decisions on that difference.
+
+**Take part in the sector's information-sharing mechanisms**, which in this case would
+have flagged that the same group had hit a regional oil company days earlier.
+
+---
+
+## References
+
+- Oldelval's material-event filing with the National Securities Commission,
+  31 July 2026
+- Microsoft Threat Intelligence, *The Gentlemen ransomware: Dissecting a
+  self-propagating Go encryptor*, 28 May 2026
+- Public record of leak-site claims, entry of 23 July 2026
+- Argentine press coverage, 2 and 3 August 2026
+- Resolution 1523/2019 on critical information infrastructure
+- MITRE ATT&CK: T1486, T1490, T1570, T1562.001, T1021.002
+
+---
+
+## Further reading
+
+- **Case 013**, for the scenario this case avoided: when the attacker does reach the
+  operator's console.
+- **Case 020**, for the other way of looking at a whole sector, with a sector CERT that
+  sees what no single company can.
+- **Case 018**, for the mechanism by which an organisation's credentials end up for sale
+  without anyone inside finding out.
+- **Case 011**, for the problem of deciding on partial information that arrives late and
+  from sources that do not agree.
