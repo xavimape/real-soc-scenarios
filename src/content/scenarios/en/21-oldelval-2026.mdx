@@ -24,20 +24,20 @@ import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.js
 ## Executive summary
 
 On 31 July 2026, the company operating the pipeline that carries most of the oil out of
-Vaca Muerta told Argentina's National Securities Commission that it had suffered a
-cyberattack on its administrative systems.
+Vaca Muerta told the securities regulator that it had identified **an information
+security incident** affecting certain administrative systems.
 
-The crude never stopped for a minute. The company activated its protocol, restored the
-affected platforms and called the episode **"100% controlled"**. What matters to an
-analyst is the next sentence: the attack reached administration and **did not reach the
-systems that move the oil.**
+The crude never stopped for a minute. The company applied its protocol, restored all of
+its administrative systems and stated that it **was still assessing the definitive
+scope**. What matters to an analyst is the rest of the sentence: the incident reached
+administration and **did not reach the systems that move the oil.**
 
 But this case is here for another reason, and it is worth stating up front.
 
 **There is no forensic report. The entry vector is unknown. The company did not say what
-kind of threat it was. One group claimed the attack eight days before the company
-acknowledged it, a different group turned up claiming it a week later, and neither
-thing is confirmed.**
+kind of threat it was — in fact, it never used the word "attack". One group claimed the
+event eight days before the company disclosed it, a different group turned up claiming
+it a week later, and neither thing is confirmed.**
 
 That is the normal situation for an analyst in the region: an incident at critical
 infrastructure with nothing but a three-paragraph regulatory filing, press reports that
@@ -46,8 +46,8 @@ work with that without inventing what is missing.**
 
 **Key metrics:**
 
-- Claim recorded on a leak site: 23 July 2026
-- Official filing with the securities regulator: 31 July 2026
+- Claim recorded on a leak site: 23 July 2026, 15:13 UTC
+- Official filing with the regulator: 31 July 2026, 15:50, filing 3551175
 - Distance between the two: eight days
 - Declared impact on crude transport: none
 - Kilometres of pipeline operated: more than 1,700
@@ -125,14 +125,14 @@ figure, treat it as a preview of what follows.
     {
       time: "31 Jul 2026",
       title: "The company files with the regulator",
-      description: "A material-event filing is submitted to the National Securities Commission: cyberattack on administrative systems, protocol activated, platforms restored, crude transport uninterrupted.",
+      description: "Material-event filing 3551175 is submitted: an information security incident affecting certain administrative systems, protocol applied, systems restored, transport uninterrupted and the definitive scope still under assessment.",
       severity: "CRITICAL",
       actor: "Defender"
     },
     {
       time: "2 and 3 Aug 2026",
       title: "The press picks it up",
-      description: "Coverage spreads the filing. Outlets differ on the share of crude carried and on whether there was an attack or an attempted attack.",
+      description: "Coverage spreads the filing. Outlets differ on the share of crude carried, speak of a cyberattack where the document says incident, and attribute to it a phrase it does not contain.",
       severity: "INFO",
       actor: "System"
     },
@@ -153,31 +153,80 @@ figure, treat it as a preview of what follows.
 The regulatory filing is the sole first-hand source, and it is worth reading for what it
 says and for what it does not.
 
-**It says:**
+Starting with how it is catalogued, which already says something. In the regulator's own
+form, the filing was recorded like this:
 
-- There was a cyberattack on administrative and IT systems.
-- The cybersecurity protocol was activated.
-- The affected platforms were restored and administrative work returned to normal.
-- Crude transport operated without interruption.
-- The full scope was still being assessed and the authorities had been notified.
+```
+Date            31/07/2026, 15:50
+Type            Events or situations affecting the entity's activity
+Detail          Other
+Summary         Cybersecurity incident, Oleoductos del Valle
+Filing          3551175
+```
 
-**It does not say:**
+**The disclosure regime has no category for this.** The form's menu offers "mass
+redundancies", "casualties" and "other", and a cyberattack on critical infrastructure
+comes in under the last one. That is not a bureaucratic detail: **what a regime does not
+classify, it does not measure**, and that is why there is no public statistic on
+cybersecurity incidents at Argentina's listed companies.
+
+The full text fits in one paragraph, and it is worth reading as written:
+
+> The Company has identified an information security incident, which affected certain
+> administrative systems, with no impact or service interruption to the transport
+> operation. The Company applied its cybersecurity protocol and managed to restore all
+> administrative systems, allowing administrative activity to resume normally. The
+> Company continues to assess the definitive scope of the incident and is formalising
+> the corresponding filings with the competent authorities.
+
+It is signed by the officer holding the Market Relations Officer role and addressed to
+the regulator and to the two markets where the company lists debt.
+
+### What it says, in the words it chose
+
+**"Information security incident", not "cyberattack".** The difference is not stylistic.
+An attack implies a third party acting with intent; an incident can be many things. The
+company **never asserted it had been attacked.**
+
+**"Certain administrative systems", not "the administrative systems".** It narrowed the
+scope with an adjective, without saying which ones.
+
+**"Continues to assess the definitive scope of the incident".** As of 31 July, the
+company itself was stating that it **did not yet fully know what had happened.**
+
+### What it does not say, and that needs saying
 
 - What kind of threat it was.
 - How they got in.
-- Whether data was exfiltrated, and which.
+- Whether data was exfiltrated.
 - How long they were inside.
 - Whether a ransom was demanded.
+- The phrase **"100% controlled"**, which the press attributes to this document.
 
-<Pass />The company chose disclosure over silence, and did it through a channel that
-leaves a public record.
+### The detail that turns this case into an exercise
 
-<Warn />What it disclosed is the minimum the regulatory obligation requires, and it is
-not enough for anyone else to learn from what happened.
+That last line deserves a pause, because it is the heart of the matter.
 
-Both things are true at once, and the tension is real: a company that discloses exposes
-itself, so it discloses the minimum. Without a rule requiring more, there is no
-incentive to give detail.
+**The phrase "100% controlled" is not in the filing.** It appears in quotation marks
+across much of the coverage, presented as what the company told the regulator. It may
+come from later statements to the press; what is certain is that it is not in the
+document.
+
+And there is a tension between that phrase and what the document does say. "100%
+controlled" suggests a closed incident. The text says the Company **continues to assess
+the definitive scope**. Those are two different assertions about the same event, and the
+more reassuring one has no documentary backing.
+
+<Fail />Repeating "100% controlled" as the official position means reproducing a quote
+without checking it against its source.
+
+<Pass />Reading the document takes three minutes and it is available to anyone on the
+regulator's site.
+
+**This is not a criticism of the press, it is the demonstration of why the rule exists.**
+A phrase gets repeated, it settles in, and by the third article nobody remembers that
+nobody verified it. An analyst who builds a report out of press clippings inherits that
+error and signs it as their own.
 
 ---
 
@@ -530,12 +579,12 @@ tell what is known from what is assumed.
   caseId="soc-021"
   summary={{
     incidentId: "Material-event filing with the regulator, 31 July 2026",
-    title: "Attack on a pipeline operator's administrative systems, with no impact on transport",
+    title: "Information security incident in a pipeline operator's administrative systems, with no impact on transport",
     status: "Publicly documented, no forensic report",
     severity: "HIGH",
     triageInicial: "No public data. The first external signal was a leak-site post, eight days before the official notice",
-    causaRaiz: "Not disclosed. The company did not report the entry vector or the type of threat",
-    tiempoDeContencion: "Not disclosed. The company declared the episode 100% controlled and the platforms restored",
+    causaRaiz: "Not disclosed. The company did not report the entry vector or the type of threat, and did not characterise the event as an attack",
+    tiempoDeContencion: "Not disclosed. The company reported restoring all administrative systems, and stated it was still assessing the definitive scope",
     datosComprometidos: "Not disclosed. No exfiltration and no ransom payment were reported",
     resolutionCode: "Case study with incomplete information"
   }}
@@ -561,6 +610,16 @@ to protect.
 **The date of the impact is not the date of entry.** A group holding thousands of bought
 or stolen accesses in reserve can use them months later. A timeline that starts when the
 encryption appears looks for initial access in the wrong window.
+
+**A quote is checked against its source, not against another article.** The most repeated
+phrase in this case is not in the document it is attributed to, and it contradicts what
+that document does say. Three minutes of reading separate a verified quote from an
+inherited one.
+
+**The words a company chooses are evidence.** "Incident" is not "attack", "certain
+systems" is not "the systems", and "continues to assess" is not "controlled". Whoever
+drafts a regulatory filing weighs every term, and the analyst reading it should weigh
+them the same way.
 
 **A claim is not an attribution.** It is a criminal's assertion about their own work,
 published where it suits them to be read. It works as a lead and as a warning; it does
@@ -613,8 +672,8 @@ have flagged that the same group had hit a regional oil company days earlier.
 
 ## References
 
-- Oldelval's material-event filing with the National Securities Commission,
-  31 July 2026
+- Oldelval's material-event filing 3551175 with the National Securities Commission,
+  31 July 2026, consulted on the regulator's site
 - Trend Micro, *Unmasking The Gentlemen Ransomware: Tactics, Techniques, and
   Procedures Revealed*, 9 September 2025
 - Microsoft Threat Intelligence, *The Gentlemen ransomware: Dissecting a

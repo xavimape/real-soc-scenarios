@@ -24,20 +24,21 @@ import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.js
 ## Resumen ejecutivo
 
 El 31 de julio de 2026, la empresa que opera el oleoducto por el que sale la mayor
-parte del petróleo de Vaca Muerta informó a la Comisión Nacional de Valores que había
-sufrido un ciberataque en sus sistemas administrativos.
+parte del petróleo de Vaca Muerta informó al regulador del mercado de capitales que
+había identificado **un incidente de seguridad informática** que afectó determinados
+sistemas administrativos.
 
-El crudo no dejó de correr un solo minuto. La empresa activó su protocolo, restauró las
-plataformas afectadas y calificó el episodio de **"100% controlado"**. Lo importante
-para un analista está en la frase siguiente: el ataque llegó a la administración y **no
-llegó a los sistemas que mueven el petróleo.**
+El crudo no dejó de correr un solo minuto. La empresa aplicó su protocolo, restauró la
+totalidad de los sistemas administrativos y declaró que **seguía evaluando el alcance
+definitivo**. Lo importante para un analista está en el resto de la frase: el incidente
+llegó a la administración y **no llegó a los sistemas que mueven el petróleo.**
 
 Pero este caso está acá por otra razón, y conviene decirla de entrada.
 
 **No hay informe forense. No se conoce el vector de entrada. La empresa no dijo qué tipo
-de amenaza fue. Un grupo reivindicó el ataque ocho días antes de que la empresa lo
-reconociera, otro grupo distinto apareció reclamándolo una semana después, y ninguna de
-las dos cosas está confirmada.**
+de amenaza fue —de hecho, nunca usó la palabra "ataque"—. Un grupo reivindicó el hecho
+ocho días antes de que la empresa lo informara, otro grupo distinto apareció
+reclamándolo una semana después, y ninguna de las dos cosas está confirmada.**
 
 Esa es la situación normal de un analista en la región: un incidente en infraestructura
 crítica del que solo hay una comunicación regulatoria de tres párrafos, notas de prensa
@@ -46,8 +47,8 @@ cómo se trabaja con eso sin inventar lo que falta.**
 
 **Métricas clave:**
 
-- Reivindicación registrada en un sitio de filtraciones: 23 de julio de 2026
-- Comunicación oficial a la Comisión Nacional de Valores: 31 de julio de 2026
+- Reivindicación registrada en un sitio de filtraciones: 23 de julio de 2026, 15:13 UTC
+- Comunicación oficial al regulador: 31 de julio de 2026, 15:50, presentación 3551175
 - Distancia entre una cosa y la otra: ocho días
 - Impacto sobre el transporte de crudo: ninguno declarado
 - Kilómetros de ductos operados: más de 1.700
@@ -126,14 +127,14 @@ anticipo de lo que viene.
     {
       time: "31 jul 2026",
       title: "La empresa lo informa al regulador",
-      description: "Se presenta un hecho relevante ante la Comisión Nacional de Valores: ciberataque a los sistemas administrativos, protocolo activado, plataformas restauradas, transporte de crudo sin interrupciones.",
+      description: "Se presenta el hecho relevante 3551175: incidente de seguridad informática que afectó determinados sistemas administrativos, protocolo aplicado, sistemas restaurados, transporte sin interrupciones y alcance definitivo todavía en evaluación.",
       severity: "CRITICAL",
       actor: "Defender"
     },
     {
       time: "2 y 3 ago 2026",
       title: "La prensa toma el caso",
-      description: "La cobertura difunde el hecho relevante. Los medios difieren en el porcentaje de crudo transportado y en si hubo ataque o intento de ataque.",
+      description: "La cobertura difunde el hecho relevante. Los medios difieren en el porcentaje de crudo transportado, hablan de ciberataque donde el documento dice incidente, y atribuyen al escrito una frase que no contiene.",
       severity: "INFO",
       actor: "System"
     },
@@ -154,31 +155,81 @@ anticipo de lo que viene.
 El hecho relevante ante el regulador es la única fuente de primera mano, y conviene
 leerlo por lo que dice y por lo que no.
 
-**Dice:**
+Empezando por cómo está catalogado, que ya dice algo. En el formulario del organismo la
+presentación quedó registrada así:
 
-- Hubo un ciberataque a los sistemas administrativos e informáticos.
-- Se activó el protocolo de ciberseguridad.
-- Las plataformas afectadas fueron restauradas y el trabajo administrativo se normalizó.
-- El transporte de crudo operó sin interrupciones.
-- Se estaba evaluando el alcance total y se dio intervención a las autoridades.
+```
+Fecha           31/07/2026, 15:50
+Tipo            Hechos o situaciones que afecten la actividad de la entidad
+Detalle         Otros
+Resumen         Incidente de ciberseguridad Oleoductos del Valle
+Presentación    3551175
+```
 
-**No dice:**
+**El régimen de información no tiene una categoría para esto.** El menú del formulario
+ofrece "desvinculaciones masivas", "siniestros" y "otros", y un ataque informático a
+infraestructura crítica entra por la última. No es un detalle burocrático: **lo que un
+régimen no clasifica, tampoco lo mide**, y por eso no existe una estadística pública de
+incidentes de ciberseguridad en las empresas argentinas que cotizan.
+
+El texto completo cabe en un párrafo, y conviene leerlo tal cual:
+
+> La Sociedad ha identificado un incidente de seguridad informática, el cual afectó
+> determinados sistemas administrativos, sin impacto ni interrupción de servicio en la
+> operación de transporte. La Sociedad aplicó su protocolo de ciberseguridad y logró
+> restaurar la totalidad de los sistemas administrativos lo que permitió reanudar la
+> actividad administrativa con normalidad. La Sociedad continúa evaluando el alcance
+> definitivo del incidente y se encuentra formalizando las presentaciones
+> correspondientes ante las autoridades competentes.
+
+Va firmado por quien ocupa el cargo de Responsable de Relaciones con el Mercado y está
+dirigido al regulador y a los dos mercados donde la empresa lista deuda.
+
+### Lo que dice, con las palabras que eligió
+
+**"Incidente de seguridad informática", no "ciberataque".** La diferencia no es de
+estilo. Un ataque supone un tercero que actúa con intención; un incidente puede ser
+muchas cosas. La empresa **nunca afirmó haber sido atacada.**
+
+**"Determinados sistemas administrativos", no "los sistemas administrativos".** Acotó el
+alcance con un adjetivo, sin decir cuáles.
+
+**"Continúa evaluando el alcance definitivo del incidente".** Al 31 de julio, la propia
+empresa declaraba que **no sabía todavía qué había pasado del todo.**
+
+### Lo que no dice, y hay que decir que no dice
 
 - Qué tipo de amenaza fue.
 - Por dónde entraron.
-- Si hubo exfiltración de datos, y de cuáles.
+- Si hubo exfiltración de datos.
 - Cuánto tiempo estuvieron adentro.
 - Si hubo pedido de rescate.
+- La expresión **"100% controlado"**, que la prensa atribuye a este documento.
 
-<Pass />La empresa eligió informar en lugar de callar, y lo hizo por un canal que deja
-constancia pública.
+### El detalle que convierte a este caso en un ejercicio
 
-<Warn />Lo que informó es el mínimo que exige la obligación regulatoria, y no alcanza
-para que nadie más aprenda de lo que pasó.
+Esa última línea merece detenerse, porque es el corazón del asunto.
 
-Las dos cosas son ciertas a la vez, y esa tensión es real: una empresa que informa se
-expone, y por eso informa lo mínimo. Sin una norma que obligue a más, no hay incentivo
-para dar detalle.
+**La frase "100% controlado" no está en el hecho relevante.** Aparece entrecomillada en
+buena parte de la cobertura, presentada como lo que la empresa le dijo al regulador.
+Puede provenir de declaraciones posteriores a la prensa; lo que es seguro es que no está
+en el documento.
+
+Y hay una tensión entre esa frase y lo que el documento sí dice. "100% controlado"
+sugiere un incidente cerrado. El texto dice que la Sociedad **continúa evaluando el
+alcance definitivo**. Son dos afirmaciones distintas sobre el mismo hecho, y la más
+tranquilizadora es la que no tiene respaldo documental.
+
+<Fail />Repetir "100% controlado" como si fuera la posición oficial es reproducir una
+cita sin verificarla contra su fuente.
+
+<Pass />Leer el documento cuesta tres minutos y está disponible para cualquiera en el
+sitio del organismo.
+
+**Esto no es un reproche a la prensa, es la demostración de por qué existe la regla.**
+Una frase se repite, se instala, y a la tercera nota ya nadie recuerda que nadie la
+verificó. Un analista que arme su informe con recortes de prensa hereda ese error y lo
+firma como propio.
 
 ---
 
@@ -539,12 +590,12 @@ lo que se supone.
   caseId="soc-021"
   summary={{
     incidentId: "Hecho relevante ante el regulador, 31 de julio de 2026",
-    title: "Ataque a sistemas administrativos de un operador de oleoducto, sin impacto en el transporte",
+    title: "Incidente de seguridad informática en sistemas administrativos de un operador de oleoducto, sin impacto en el transporte",
     status: "Documentado públicamente, sin informe forense",
     severity: "HIGH",
     triageInicial: "Sin datos públicos. La primera señal externa fue una publicación en un sitio de filtraciones, ocho días antes del aviso oficial",
-    causaRaiz: "No divulgada. La empresa no informó el vector de entrada ni el tipo de amenaza",
-    tiempoDeContencion: "No divulgado. La empresa declaró el episodio 100% controlado y las plataformas restauradas",
+    causaRaiz: "No divulgada. La empresa no informó el vector de entrada ni el tipo de amenaza, y no calificó el hecho como ataque",
+    tiempoDeContencion: "No divulgado. La empresa informó haber restaurado la totalidad de los sistemas administrativos, y declaró que continuaba evaluando el alcance definitivo",
     datosComprometidos: "No divulgado. No se informó exfiltración ni pago de rescate",
     resolutionCode: "Caso de estudio con información incompleta"
   }}
@@ -570,6 +621,15 @@ que se compró para proteger.
 **La fecha del impacto no es la fecha de la entrada.** Un grupo que mantiene miles de
 accesos comprados o robados en reserva puede usarlos meses después. Una línea de tiempo
 que arranca cuando aparece el cifrado busca el acceso inicial en la ventana equivocada.
+
+**Una cita se verifica contra su fuente, no contra otra nota.** La frase más repetida de
+este caso no está en el documento que se le atribuye, y contradice lo que el documento sí
+dice. Tres minutos de lectura separan una cita verificada de una heredada.
+
+**Las palabras que elige una empresa son evidencia.** "Incidente" no es "ataque",
+"determinados sistemas" no es "los sistemas", y "continúa evaluando" no es "controlado".
+Quien redacta un hecho relevante mide cada término, y el analista que lo lee debería
+medirlos igual.
 
 **Una reivindicación no es una atribución.** Es la afirmación de un delincuente sobre su
 propio trabajo, publicada donde le conviene que se lea. Sirve como indicio y como
@@ -621,8 +681,8 @@ avisado que el mismo grupo había golpeado a una petrolera de la región días a
 
 ## Referencias
 
-- Hecho relevante presentado por Oldelval ante la Comisión Nacional de Valores,
-  31 de julio de 2026
+- Hecho relevante 3551175 presentado por Oldelval ante la Comisión Nacional de Valores,
+  31 de julio de 2026, consultado en el sitio del organismo
 - Trend Micro, *Unmasking The Gentlemen Ransomware: Tactics, Techniques, and
   Procedures Revealed*, 9 de septiembre de 2025
 - Microsoft Threat Intelligence, *The Gentlemen ransomware: Dissecting a
