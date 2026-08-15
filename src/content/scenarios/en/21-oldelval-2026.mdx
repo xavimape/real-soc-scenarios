@@ -7,8 +7,8 @@ caseNumber: 21
 difficulty: "advanced"
 caseType: "real_case_critical_recent"
 severity: "HIGH"
-tags: ["argentina", "critical-infrastructure", "it-ot-segmentation", "ransomware", "raas", "attribution", "open-source-intelligence", "disclosure"]
-author: "Oldelval's material-event filing with Argentina's National Securities Commission of 31 July 2026, the analysis of The Gentlemen published by Microsoft Threat Intelligence on 28 May 2026, the claim recorded on a public leak-site tracker and Argentine press coverage"
+tags: ["argentina", "critical-infrastructure", "it-ot-segmentation", "ransomware", "raas", "attribution", "open-source-intelligence", "disclosure", "edge-devices", "initial-access-brokers"]
+author: "Oldelval's material-event filing with Argentina's National Securities Commission of 31 July 2026; analyses of The Gentlemen by Trend Micro (September 2025), Microsoft Threat Intelligence (May 2026) and Halcyon (2026); the claim recorded on a public leak-site tracker and Argentine press coverage"
 discoveryDate: "2026-07-23"
 locations:
   - { lat: -38.9333, lng: -67.9833, label: "Cipolletti, Río Negro, Oldelval headquarters" }
@@ -53,11 +53,14 @@ work with that without inventing what is missing.**
 - Kilometres of pipeline operated: more than 1,700
 - Publicly known entry vector: none
 - Ransom payment reported: none
+- Share the group offers its affiliates: 90 per cent of the ransom
+- Edge devices the group is estimated to have already compromised, per a research
+  firm: around 14,700
 
 <Warn />**Real case, with scarce information and sources that do not agree.** The facts
 come from the material-event filing with the National Securities Commission, from the
-technical analysis of the group published by Microsoft Threat Intelligence, from the
-public record of the claim and from Argentine press coverage. Contradictions between
+technical analyses of the group published by Trend Micro, Microsoft Threat Intelligence
+and Halcyon, from the public record of the claim and from Argentine press coverage. Contradictions between
 sources are noted where they appear, without picking one. What is unknown is stated as
 such.
 
@@ -263,34 +266,95 @@ it is the only one that survives a follow-up question.
 
 ## 4. What can be asserted about the named attacker
 
-About the group that claimed it, on the other hand, **there is first-rate technical
-material**, published by Microsoft Threat Intelligence two months before this incident.
-The two things must be kept apart: **what follows describes the group and its tool, not
-this particular attack.** None of these techniques is confirmed at this company.
+About the group that claimed it, on the other hand, **there is abundant, good-quality
+research**, published by several firms between September 2025 and 2026. The two things
+must be kept apart: **what follows describes the group and its methods, not this
+particular attack.** None of these techniques is confirmed at this company.
 
-The group operates as a service: its operators maintain the platform and affiliates
-carry out the attacks in exchange for a share of the ransom. It began as a closed group
-in mid-2025 and opened its affiliate program in September of that year.
+### Where it came from
 
-Its encryptor is what matters to a defender:
+It is not a new group, it is a splinter. Its members previously operated as affiliates
+of another ransomware program, and the break came over money: in July 2025 one of them
+publicly complained on an underground forum that he was owed some 48,000 dollars in
+commissions. Four days before that complaint, the first sample of their own encryptor
+had already appeared, with the address of their leak site embedded inside. **The split
+was prepared before the fight went public.**
 
-- **Written in Go and obfuscated**, with per-file encryption using ephemeral Curve25519
-  keys and the XChaCha20 stream cipher
-- **Before encrypting**, it disables the antivirus's real-time protection, adds itself
-  to the exclusions, excludes the whole volume, deletes shadow copies, event logs,
-  prefetch files, remote desktop logs and the PowerShell command history of every
-  profile
-- **It persists twice over**: two scheduled tasks, one in system and one in user
-  context, and two run keys in the registry
+Their business model is what explains the scale: they offer affiliates **90 per cent**
+of the ransom, where the market norm is between 70 and 80. With that incentive they went
+from not existing to accumulating hundreds of victims across dozens of countries in
+under a year, and most recent attacks are carried out by affiliates rather than the core
+team.
 
-And then there is the propagation, which is what sets it apart. With one command-line
-argument, the encryptor **stops being a program and becomes a worm**: it sets up a
-hidden share on the infected machine to serve itself, carries an embedded copy of a
-legitimate remote execution tool, enumerates the network, and against each discovered
-machine attempts **twenty-one distinct remote execution operations** — copy over the
-administrative share, remote execution, process creation via management instrumentation,
-three user scheduled tasks, three system ones, three services, PowerShell remoting and
-process creation by another route.
+One detail of that profile matters for this case: **the geographic distribution of their
+victims departs from the ecosystem average.** Only a small fraction is in the United
+States, where ransomware as a whole concentrates about half its victims. One research
+firm reads that deviation as a sign that their affiliate base draws from Southeast Asia
+and Latin America. Right or not, it fits two oil-sector victims in the region in the
+same month.
+
+### How they get in
+
+Here is the finding that helps a defender most, and the one that connects this case to
+case 020.
+
+**The main documented vector is an edge device**: an authentication bypass flaw in the
+operating system of a widely deployed firewall vendor, which lets an attacker with no
+credentials skip the login, create administrator accounts and stay. In a Trend Micro
+investigation of one of the group's incidents, the entry point was exactly that: an
+appliance from that vendor **reachable from the internet**, with the internal scanning
+tools later run from its administrative account profile.
+
+The rest of the chain, in that same incident, is textbook:
+
+```
+exposed edge ──► reconnaissance with legitimate scanning tools
+                 mass domain account enumeration with a .bat script
+                 abuse of a signed, vulnerable driver to kill the antivirus
+                 bespoke tool built against the environment's security product
+                 commercial remote access installed as a persistent channel
+                 manipulation of domain group policies
+                 exfiltration via an encrypted transfer utility
+                 encryptor deployed from the domain's logon share
+```
+
+Two things on that list are worth pausing on.
+
+**First: they changed tools mid-attack.** They started with a generic antivirus-killing
+utility, looked at which security product was in the environment, and then deployed a
+variant purpose-built against that product. This is not a template attack: someone is
+watching and adapting.
+
+**Second: the final deployment went through the domain logon share**, which reaches
+every machine joined to it. Combined with group policy manipulation, that turns a domain
+administrator compromise into simultaneous encryption of the whole organisation.
+
+### The date of the impact is not the date of entry
+
+And this is the most uncomfortable fact of all. One research firm estimates the group
+maintains an **inventory of around 14,700 already-compromised edge devices**, plus about
+a thousand VPN credentials obtained by brute force, ready to use whenever it suits them.
+
+If that is so, the consequence for any investigation is significant: **the day the
+encryption appears may be very far from the day they got in.** An analysis that starts
+its timeline at the date of impact will look for initial access in the wrong window.
+
+### What the encryptor does
+
+On the tool itself there is a detailed analysis by Microsoft Threat Intelligence, which
+tracks the operators as Storm-2697. Written in Go and obfuscated, with per-file
+encryption using ephemeral Curve25519 keys and the XChaCha20 stream cipher. Before
+encrypting it disables the antivirus's real-time protection, adds itself to the
+exclusions, deletes shadow copies, event logs and command history. It persists through
+two scheduled tasks and two registry keys.
+
+And then there is the propagation. With one command-line argument, the encryptor **stops
+being a program and becomes a worm**: it sets up a hidden share to serve itself, carries
+an embedded legitimate remote execution tool, enumerates the network and against each
+discovered machine attempts **twenty-one distinct remote execution operations** — copy
+over the administrative share, remote execution, process creation via management
+instrumentation, three user scheduled tasks, three system ones, three services,
+PowerShell remoting and process creation by another route.
 
 **It attempts all of them, regardless of whether the earlier ones failed.**
 
@@ -298,7 +362,15 @@ That is the detail to take away. A defence that blocks ninety per cent of latera
 movement methods does not reduce risk by ninety per cent: **one working method on one
 machine is enough for the propagation to continue.**
 
----
+### An aside on why so much is known
+
+In May 2026 the group itself suffered a leak of its internal database, exposing operator
+accounts and working conversations. Much of the detail about how they organise, which
+vulnerabilities they were evaluating and how they negotiate comes from there.
+
+It works as a reminder of something easily forgotten: **threat intelligence has
+provenance too, and this group's improved a great deal the day what they do to others
+happened to them.**
 
 ## 5. What an analyst at another company in the sector can do today
 
@@ -313,6 +385,13 @@ organisation can run against itself.
   type="verificacion"
   title="Self-assessment for an organisation in the same sector"
   data={{
+    "edge devices, which is how they get in": {
+      "inventory of exposed firewalls and concentrators": "Make, model, version and date of the last update",
+      "patch status against authentication bypass flaws": "An appliance left unpatched during the window is treated as potentially compromised",
+      "administrator accounts on those devices": "Which exist, which were created and when. The group creates its own",
+      "phishing-resistant second factor on the VPN": "It is what turns a brute-forced credential into something insufficient",
+      "verdict": "clean"
+    },
     "separation between administration and operations": {
       "inventory of paths between the two networks": "How many there are, who uses them and the documented reason for each",
       "accounts that exist on both sides": "Especially administrative ones and those of maintenance vendors",
@@ -365,24 +444,39 @@ to prepare, not as a reconstruction of what happened.
   caseId="soc-021"
   tactics={[
     {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190", "T1078.002", "T1133"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1018", "T1046", "T1087.002", "T1482"]
+    },
+    {
       id: "TA0005",
       name: "Defense Evasion",
-      techniques: ["T1562.001", "T1070.001", "T1070.003", "T1027"]
+      techniques: ["T1562.001", "T1014", "T1070.001", "T1070.003", "T1112"]
+    },
+    {
+      id: "TA0004",
+      name: "Privilege Escalation",
+      techniques: ["T1484.001"]
     },
     {
       id: "TA0003",
       name: "Persistence",
-      techniques: ["T1053.005", "T1547.001"]
+      techniques: ["T1219", "T1053.005", "T1547.001"]
     },
     {
       id: "TA0008",
       name: "Lateral Movement",
-      techniques: ["T1021.002", "T1021.006", "T1570"]
+      techniques: ["T1021.002", "T1021.001", "T1021.006", "T1570"]
     },
     {
-      id: "TA0002",
-      name: "Execution",
-      techniques: ["T1047", "T1569.002", "T1059.001"]
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1048.001"]
     },
     {
       id: "TA0040",
@@ -391,6 +485,14 @@ to prepare, not as a reconstruction of what happened.
     }
   ]}
 />
+
+**T1190 · Exploit Public-Facing Application** heads the map because it heads the chain:
+the group's documented route comes in through an exposed edge device. It is the same
+door as case 020, with a different vendor and a different year.
+
+**T1484.001 · Group Policy Modification** is what multiplies the damage. With the
+domain's policies in hand, encryption stops being machine by machine and becomes
+simultaneous.
 
 **T1570 · Lateral Tool Transfer** sums up the design: the encryptor copies itself to
 every reachable machine, which is why a single successful execution on one forgotten
@@ -451,6 +553,15 @@ boundary, and it has to be tested beforehand, not verified during.
 do not know how separated the networks are, the prudent move is to stop, and stopping
 has a cost too. That information is built in peacetime.
 
+**The edge is the door, and case 020 already said so.** This group's documented route
+comes in through an exposed, unpatched firewall. Two cases in the catalogue, two
+different vendors and three years apart, end up pointing at the same box: the one bought
+to protect.
+
+**The date of the impact is not the date of entry.** A group holding thousands of bought
+or stolen accesses in reserve can use them months later. A timeline that starts when the
+encryption appears looks for initial access in the wrong window.
+
 **A claim is not an attribution.** It is a criminal's assertion about their own work,
 published where it suits them to be read. It works as a lead and as a warning; it does
 not work as a conclusion.
@@ -471,6 +582,11 @@ from an incident at critical infrastructure depends on the victim's goodwill.**
 ---
 
 ## Recommendations
+
+**Treat edge devices as the critical asset they are.** Inventory with version and
+owner, patching with a deadline, review of the administrator accounts that exist on
+them, and a phishing-resistant second factor on the VPN. If an appliance sat exposed and
+unpatched during a known window, audit it before calling it healthy.
 
 **Verify the separation with evidence**, not with the network diagram. What path exists
 today between administration and operations, who uses it, and what happens if that
@@ -499,12 +615,17 @@ have flagged that the same group had hit a regional oil company days earlier.
 
 - Oldelval's material-event filing with the National Securities Commission,
   31 July 2026
+- Trend Micro, *Unmasking The Gentlemen Ransomware: Tactics, Techniques, and
+  Procedures Revealed*, 9 September 2025
 - Microsoft Threat Intelligence, *The Gentlemen ransomware: Dissecting a
   self-propagating Go encryptor*, 28 May 2026
+- Halcyon, threat assessment of the group, 2026
+- Complementary reports by Cybereason, Group-IB and Check Point Research cited by the
+  sources above
 - Public record of leak-site claims, entry of 23 July 2026
 - Argentine press coverage, 2 and 3 August 2026
 - Resolution 1523/2019 on critical information infrastructure
-- MITRE ATT&CK: T1486, T1490, T1570, T1562.001, T1021.002
+- MITRE ATT&CK: T1190, T1484.001, T1570, T1486, T1562.001, T1021.002
 
 ---
 
@@ -512,8 +633,9 @@ have flagged that the same group had hit a regional oil company days earlier.
 
 - **Case 013**, for the scenario this case avoided: when the attacker does reach the
   operator's console.
-- **Case 020**, for the other way of looking at a whole sector, with a sector CERT that
-  sees what no single company can.
+- **Case 020**, the direct companion: there the exposed edge really was the way in, it
+  is documented, and it also shows what a sector CERT watching many companies at once
+  can see.
 - **Case 018**, for the mechanism by which an organisation's credentials end up for sale
   without anyone inside finding out.
 - **Case 011**, for the problem of deciding on partial information that arrives late and

@@ -7,8 +7,8 @@ caseNumber: 21
 difficulty: "advanced"
 caseType: "real_case_critical_recent"
 severity: "HIGH"
-tags: ["argentina", "critical-infrastructure", "it-ot-segmentation", "ransomware", "raas", "attribution", "open-source-intelligence", "disclosure"]
-author: "Hecho relevante de Oldelval ante la Comisión Nacional de Valores del 31 de julio de 2026, análisis de The Gentlemen publicado por Microsoft Threat Intelligence el 28 de mayo de 2026, registro de la reivindicación en un rastreador público de sitios de filtración y cobertura de prensa argentina"
+tags: ["argentina", "critical-infrastructure", "it-ot-segmentation", "ransomware", "raas", "attribution", "open-source-intelligence", "disclosure", "edge-devices", "initial-access-brokers"]
+author: "Hecho relevante de Oldelval ante la Comisión Nacional de Valores del 31 de julio de 2026; análisis de The Gentlemen de Trend Micro (septiembre de 2025), de Microsoft Threat Intelligence (mayo de 2026) y de Halcyon (2026); registro de la reivindicación en un rastreador público de sitios de filtración y cobertura de prensa argentina"
 discoveryDate: "2026-07-23"
 locations:
   - { lat: -38.9333, lng: -67.9833, label: "Cipolletti, Río Negro, sede de Oldelval" }
@@ -53,11 +53,14 @@ cómo se trabaja con eso sin inventar lo que falta.**
 - Kilómetros de ductos operados: más de 1.700
 - Vector de entrada conocido públicamente: ninguno
 - Pago de rescate informado: ninguno
+- Reparto que el grupo ofrece a sus afiliados: 90 por ciento del rescate
+- Dispositivos de borde que el grupo tendría ya comprometidos, según una firma
+  de investigación: alrededor de 14.700
 
 <Warn />**Caso real, con información escasa y fuentes que no coinciden.** Los hechos
 salen del hecho relevante presentado ante la Comisión Nacional de Valores, del análisis
-técnico del grupo publicado por Microsoft Threat Intelligence, del registro público de
-la reivindicación y de la cobertura de prensa argentina. Las contradicciones entre
+técnico del grupo publicado por Trend Micro, Microsoft Threat Intelligence y Halcyon,
+del registro público de la reivindicación y de la cobertura de prensa argentina. Las contradicciones entre
 fuentes están anotadas donde aparecen, sin elegir una. Lo que no se sabe está dicho
 como lo que es.
 
@@ -265,35 +268,100 @@ la única que se banca una repregunta.
 
 ## 4. Lo que sí se puede afirmar del atacante nombrado
 
-Sobre el grupo que reivindicó, en cambio, **sí hay material técnico de primera calidad**,
-publicado por Microsoft Threat Intelligence dos meses antes de este incidente. Conviene
-separar bien las dos cosas: **lo que sigue describe al grupo y a su herramienta, no a
-este ataque en particular.** Ninguna de estas técnicas está confirmada en esta empresa.
+Sobre el grupo que reivindicó, en cambio, **hay material de investigación abundante y de
+buena calidad**, publicado por varias firmas entre septiembre de 2025 y 2026. Conviene
+separar bien las dos cosas: **lo que sigue describe al grupo y a sus métodos, no a este
+ataque en particular.** Ninguna de estas técnicas está confirmada en esta empresa.
 
-El grupo opera como servicio: sus operadores mantienen la plataforma y los afiliados
-hacen los ataques a cambio de una parte del rescate. Nació como grupo cerrado a
-mediados de 2025 y abrió su programa de afiliados en septiembre de ese año.
+### De dónde salió
 
-Su cifrador es lo interesante para un defensor:
+No es un grupo nuevo, es una escisión. Sus integrantes operaban antes como afiliados de
+otro programa de ransomware, y la ruptura se produjo por una disputa de plata: en julio
+de 2025 uno de ellos reclamó públicamente en un foro clandestino que le debían unos
+48.000 dólares en comisiones. Cuatro días antes de esa queja ya había aparecido la
+primera muestra de su propio cifrador, con la dirección de su sitio de filtraciones
+incrustada adentro. **La separación estaba preparada antes de la pelea.**
 
-- **Escrito en Go y ofuscado**, con cifrado por archivo usando claves efímeras
-  Curve25519 y el cifrador de flujo XChaCha20
-- **Antes de cifrar**, desactiva la protección en tiempo real del antivirus, se agrega a
-  las exclusiones, excluye el volumen entero, borra copias sombra, registros de eventos,
-  archivos de prefetch, registros de escritorio remoto y el historial de comandos de
-  PowerShell de todos los perfiles
-- **Persiste por partida doble**: dos tareas programadas, una en contexto de sistema y
-  otra de usuario, y dos claves de arranque en el registro
+Su modelo de negocio es lo que explica la escala: ofrecen a sus afiliados el **90 por
+ciento** del rescate, cuando lo habitual en el mercado es entre 70 y 80. Con ese
+incentivo pasaron de no existir a acumular cientos de víctimas en decenas de países en
+menos de un año, y la mayor parte de los ataques recientes los ejecutan afiliados y no
+el equipo central.
 
-Y después está la propagación, que es lo que lo distingue. Con un argumento de línea de
-comandos, el cifrador **deja de ser un programa y pasa a ser un gusano**: arma un
-recurso compartido oculto en el equipo infectado para servirse a sí mismo, lleva una
-copia de una herramienta legítima de ejecución remota embebida, enumera la red, y
-contra cada equipo descubierto intenta **veintiuna operaciones de ejecución remota
-distintas** —copia por recurso administrativo, ejecución remota, creación de procesos
-por instrumental de administración, tres tareas programadas de usuario, tres de
-sistema, tres servicios, ejecución remota de PowerShell y creación de procesos por otra
-vía—.
+Hay un dato de ese perfil que importa para este caso: **la distribución geográfica de
+sus víctimas se aparta del promedio del ecosistema.** Solo una fracción chica está en
+los Estados Unidos, cuando en el conjunto del ransomware ese país concentra cerca de la
+mitad. Una firma de investigación interpreta esa desviación como señal de que su base
+de afiliados se nutre del sudeste asiático y de América Latina. Sea o no correcta la
+lectura, encaja con dos víctimas del rubro petrolero en la región en el mismo mes.
+
+### Por dónde entran
+
+Acá está el hallazgo que más le sirve a un defensor, y es el que conecta este caso con
+el 020.
+
+**El vector principal documentado es un dispositivo de borde**: una falla de omisión de
+autenticación en el sistema operativo de un fabricante muy extendido de cortafuegos, que
+permite a un atacante sin credenciales saltarse el inicio de sesión, crear cuentas de
+administrador y quedarse. En una investigación de Trend Micro sobre un incidente del
+grupo, el punto de entrada fue exactamente eso: un equipo de ese fabricante **accesible
+desde internet**, y las herramientas de exploración interna se ejecutaron después desde
+el perfil de su cuenta administrativa.
+
+El resto de la cadena, en ese mismo incidente, es rutina de manual:
+
+```
+borde expuesto ──► reconocimiento con herramientas legítimas de escaneo
+                   enumeración masiva de cuentas de dominio con un .bat
+                   abuso de un controlador firmado y vulnerable para matar el antivirus
+                   herramienta a medida contra el producto de seguridad del entorno
+                   acceso remoto comercial instalado como canal persistente
+                   manipulación de políticas de grupo del dominio
+                   exfiltración por una utilidad de transferencia cifrada
+                   despliegue del cifrador desde el recurso compartido del dominio
+```
+
+Dos cosas de esa lista merecen detenerse.
+
+**Primera: cambiaron de herramienta a mitad del ataque.** Empezaron con un utilitario
+genérico para desactivar antivirus, vieron qué producto de seguridad había en el
+entorno, y desplegaron después una variante hecha a medida contra ese producto. No es
+un ataque de plantilla: hay alguien mirando y adaptándose.
+
+**Segunda: el despliegue final fue por el recurso compartido de inicio de sesión del
+dominio**, que llega a todos los equipos que pertenecen a él. Combinado con la
+manipulación de políticas de grupo, eso convierte un compromiso de administrador de
+dominio en cifrado simultáneo de toda la organización.
+
+### La fecha del ataque no es la fecha de la entrada
+
+Y este es el dato más incómodo de todos. Una firma de investigación estima que el grupo
+mantiene un **inventario de alrededor de 14.700 dispositivos de borde ya comprometidos**,
+más unos mil accesos de VPN obtenidos por fuerza bruta, listos para usar cuando les
+convenga.
+
+Si eso es así, la consecuencia para cualquier investigación es fuerte: **el día en que
+aparece el cifrado puede estar muy lejos del día en que entraron.** Un análisis que
+arranca la línea de tiempo en la fecha del impacto va a buscar el acceso inicial en la
+ventana equivocada.
+
+### Qué hace el cifrador
+
+Sobre la herramienta hay un análisis detallado de Microsoft Threat Intelligence, que
+rastrea a los operadores como Storm-2697. Escrito en Go y ofuscado, con cifrado por
+archivo usando claves efímeras Curve25519 y el cifrador de flujo XChaCha20. Antes de
+cifrar desactiva la protección en tiempo real del antivirus, se agrega a las
+exclusiones, borra copias sombra, registros de eventos y el historial de comandos.
+Persiste por dos tareas programadas y dos claves de registro.
+
+Y después está la propagación. Con un argumento de línea de comandos, el cifrador **deja
+de ser un programa y pasa a ser un gusano**: arma un recurso compartido oculto para
+servirse a sí mismo, lleva embebida una herramienta legítima de ejecución remota,
+enumera la red y contra cada equipo descubierto intenta **veintiuna operaciones de
+ejecución remota distintas** —copia por recurso administrativo, ejecución remota,
+creación de procesos por instrumental de administración, tres tareas programadas de
+usuario, tres de sistema, tres servicios, ejecución remota de PowerShell y creación de
+procesos por otra vía—.
 
 **Las intenta todas, sin importar si las anteriores fallaron.**
 
@@ -301,7 +369,16 @@ Ese detalle es el que hay que llevarse. Una defensa que bloquea el noventa por c
 los métodos de movimiento lateral no reduce el riesgo en un noventa por ciento:
 **alcanza con que uno funcione en un solo equipo para que la propagación siga.**
 
----
+### Un paréntesis sobre por qué se sabe tanto
+
+En mayo de 2026 el propio grupo sufrió una filtración de su base de datos interna, que
+expuso cuentas de sus operadores y conversaciones de trabajo. De ahí salió buena parte
+del detalle sobre cómo se organizan, qué vulnerabilidades estaban evaluando y cómo
+negocian.
+
+Vale como recordatorio de algo que se olvida: **la información de amenazas también tiene
+procedencia, y la de este grupo mejoró mucho el día que a ellos les pasó lo que le hacen
+a otros.**
 
 ## 5. Qué puede hacer hoy un analista de otra empresa del sector
 
@@ -316,6 +393,13 @@ que cualquier organización parecida puede correr sobre sí misma.
   type="verificacion"
   title="Autoevaluación para una organización del mismo sector"
   data={{
+    "dispositivos de borde, que es por donde entran": {
+      "inventario de cortafuegos y concentradores expuestos": "Marca, modelo, versión y fecha de la última actualización",
+      "estado de parcheo frente a fallas de omisión de autenticación": "Un equipo que estuvo sin parchear durante la ventana se trata como potencialmente comprometido",
+      "cuentas de administrador en esos equipos": "Cuáles existen, cuáles se crearon y cuándo. El grupo crea las suyas",
+      "segundo factor resistente en la VPN": "Es lo que convierte una credencial robada por fuerza bruta en algo insuficiente",
+      "verdict": "clean"
+    },
     "separación entre administración y operación": {
       "inventario de caminos entre las dos redes": "Cuántos hay, quién los usa y cuál es el motivo documentado de cada uno",
       "cuentas que existen de los dos lados": "Especialmente las de administración y las de proveedores de mantenimiento",
@@ -369,24 +453,39 @@ prepararse, no como reconstrucción de lo ocurrido.
   caseId="soc-021"
   tactics={[
     {
+      id: "TA0001",
+      name: "Initial Access",
+      techniques: ["T1190", "T1078.002", "T1133"]
+    },
+    {
+      id: "TA0007",
+      name: "Discovery",
+      techniques: ["T1018", "T1046", "T1087.002", "T1482"]
+    },
+    {
       id: "TA0005",
       name: "Defense Evasion",
-      techniques: ["T1562.001", "T1070.001", "T1070.003", "T1027"]
+      techniques: ["T1562.001", "T1014", "T1070.001", "T1070.003", "T1112"]
+    },
+    {
+      id: "TA0004",
+      name: "Privilege Escalation",
+      techniques: ["T1484.001"]
     },
     {
       id: "TA0003",
       name: "Persistence",
-      techniques: ["T1053.005", "T1547.001"]
+      techniques: ["T1219", "T1053.005", "T1547.001"]
     },
     {
       id: "TA0008",
       name: "Lateral Movement",
-      techniques: ["T1021.002", "T1021.006", "T1570"]
+      techniques: ["T1021.002", "T1021.001", "T1021.006", "T1570"]
     },
     {
-      id: "TA0002",
-      name: "Execution",
-      techniques: ["T1047", "T1569.002", "T1059.001"]
+      id: "TA0010",
+      name: "Exfiltration",
+      techniques: ["T1048.001"]
     },
     {
       id: "TA0040",
@@ -395,6 +494,14 @@ prepararse, no como reconstrucción de lo ocurrido.
     }
   ]}
 />
+
+**T1190 · Exploit Public-Facing Application** encabeza el mapa porque encabeza la
+cadena: el camino documentado del grupo entra por un dispositivo de borde expuesto. Es
+la misma puerta del caso 020, con otro fabricante y otro año.
+
+**T1484.001 · Group Policy Modification** es la que multiplica el daño. Con las
+políticas del dominio en la mano, el cifrado deja de ser equipo por equipo y pasa a ser
+simultáneo.
 
 **T1570 · Lateral Tool Transfer** es la que resume el diseño: el cifrador se copia a sí
 mismo a cada equipo alcanzable, y por eso una sola ejecución exitosa en un equipo
@@ -455,6 +562,15 @@ frontera, y hay que probarla antes, no verificarla durante.
 no se sabe cuán separadas están las redes, lo prudente es detener, y detener también
 tiene costo. Esa información se construye en tiempos de paz.
 
+**El borde es la puerta, y esto ya lo dijo el caso 020.** El camino documentado de este
+grupo entra por un cortafuegos expuesto sin parchear. Dos casos del catálogo, con dos
+fabricantes distintos y tres años de diferencia, terminan señalando el mismo equipo: el
+que se compró para proteger.
+
+**La fecha del impacto no es la fecha de la entrada.** Un grupo que mantiene miles de
+accesos comprados o robados en reserva puede usarlos meses después. Una línea de tiempo
+que arranca cuando aparece el cifrado busca el acceso inicial en la ventana equivocada.
+
 **Una reivindicación no es una atribución.** Es la afirmación de un delincuente sobre su
 propio trabajo, publicada donde le conviene que se lea. Sirve como indicio y como
 alerta; no sirve como conclusión.
@@ -474,6 +590,11 @@ un incidente en infraestructura crítica depende de la buena voluntad de la víc
 ---
 
 ## Recomendaciones
+
+**Tratar los dispositivos de borde como el activo crítico que son.** Inventario con
+versión y responsable, parcheo con plazo, revisión de las cuentas administrativas que
+existen en ellos y segundo factor resistente en la VPN. Si un equipo estuvo expuesto y
+sin parchear durante una ventana conocida, se audita antes de darlo por sano.
 
 **Verificar la separación con evidencia**, no con el diagrama de red. Qué camino existe
 hoy entre administración y operación, quién lo usa y qué pasa si esa cuenta se
@@ -502,13 +623,18 @@ avisado que el mismo grupo había golpeado a una petrolera de la región días a
 
 - Hecho relevante presentado por Oldelval ante la Comisión Nacional de Valores,
   31 de julio de 2026
+- Trend Micro, *Unmasking The Gentlemen Ransomware: Tactics, Techniques, and
+  Procedures Revealed*, 9 de septiembre de 2025
 - Microsoft Threat Intelligence, *The Gentlemen ransomware: Dissecting a
   self-propagating Go encryptor*, 28 de mayo de 2026
+- Halcyon, evaluación de amenaza sobre el grupo, 2026
+- Informes complementarios de Cybereason, Group-IB y Check Point Research citados por
+  las fuentes anteriores
 - Registro público de reivindicaciones en sitios de filtración, entrada del 23 de julio
   de 2026
 - Cobertura de prensa argentina, 2 y 3 de agosto de 2026
 - Resolución 1523/2019 sobre infraestructuras críticas de información
-- MITRE ATT&CK: T1486, T1490, T1570, T1562.001, T1021.002
+- MITRE ATT&CK: T1190, T1484.001, T1570, T1486, T1562.001, T1021.002
 
 ---
 
@@ -516,8 +642,9 @@ avisado que el mismo grupo había golpeado a una petrolera de la región días a
 
 - **Caso 013**, para el escenario que este caso evitó: cuando el atacante sí llega a la
   consola del operador.
-- **Caso 020**, para la otra manera de mirar un sector entero, con un CERT sectorial que
-  ve lo que ninguna empresa puede ver sola.
+- **Caso 020**, que es el complemento directo: allá el borde expuesto sí fue la puerta
+  de entrada, está documentado, y además muestra qué se ve desde un CERT sectorial que
+  mira a muchas empresas a la vez.
 - **Caso 018**, para el mecanismo por el que las credenciales de una organización
   aparecen a la venta sin que nadie de adentro se entere.
 - **Caso 011**, para el problema de decidir con información parcial que llega tarde y de
