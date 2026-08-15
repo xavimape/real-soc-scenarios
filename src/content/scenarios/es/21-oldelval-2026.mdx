@@ -1,0 +1,524 @@
+---
+title: "Oldelval 2026 - El caso del que casi no hay información"
+description: "Caso real: el oleoducto por el que sale el petróleo de Vaca Muerta sufrió un ataque en su administración y el crudo no dejó de correr. No hay informe forense, la reivindicación es anterior al aviso oficial y dos grupos la reclaman. Así se trabaja con eso"
+pubDate: 2026-07-31
+caseId: "soc-021"
+caseNumber: 21
+difficulty: "advanced"
+caseType: "real_case_critical_recent"
+severity: "HIGH"
+tags: ["argentina", "critical-infrastructure", "it-ot-segmentation", "ransomware", "raas", "attribution", "open-source-intelligence", "disclosure"]
+author: "Hecho relevante de Oldelval ante la Comisión Nacional de Valores del 31 de julio de 2026, análisis de The Gentlemen publicado por Microsoft Threat Intelligence el 28 de mayo de 2026, registro de la reivindicación en un rastreador público de sitios de filtración y cobertura de prensa argentina"
+discoveryDate: "2026-07-23"
+locations:
+  - { lat: -38.9333, lng: -67.9833, label: "Cipolletti, Río Negro, sede de Oldelval" }
+  - { lat: -38.7183, lng: -62.2663, label: "Puerto Rosales, terminal de exportación" }
+  - { lat: 4.7110, lng: -74.0721, label: "Bogotá, la víctima anterior del mismo grupo" }
+---
+
+import AlertTimeline from '@/components/soc/AlertTimeline.jsx';
+import IOCViewer from '@/components/soc/IOCViewer.jsx';
+import MitreATTACKMap from '@/components/soc/MitreATTACKMap.jsx';
+import IncidentReportGenerator from '@/components/soc/IncidentReportGenerator.jsx';
+
+## Resumen ejecutivo
+
+El 31 de julio de 2026, la empresa que opera el oleoducto por el que sale la mayor
+parte del petróleo de Vaca Muerta informó a la Comisión Nacional de Valores que había
+sufrido un ciberataque en sus sistemas administrativos.
+
+El crudo no dejó de correr un solo minuto. La empresa activó su protocolo, restauró las
+plataformas afectadas y calificó el episodio de **"100% controlado"**. Lo importante
+para un analista está en la frase siguiente: el ataque llegó a la administración y **no
+llegó a los sistemas que mueven el petróleo.**
+
+Pero este caso está acá por otra razón, y conviene decirla de entrada.
+
+**No hay informe forense. No se conoce el vector de entrada. La empresa no dijo qué tipo
+de amenaza fue. Un grupo reivindicó el ataque ocho días antes de que la empresa lo
+reconociera, otro grupo distinto apareció reclamándolo una semana después, y ninguna de
+las dos cosas está confirmada.**
+
+Esa es la situación normal de un analista en la región: un incidente en infraestructura
+crítica del que solo hay una comunicación regulatoria de tres párrafos, notas de prensa
+que se contradicen y publicaciones de delincuentes que nadie verificó. **El caso es
+cómo se trabaja con eso sin inventar lo que falta.**
+
+**Métricas clave:**
+
+- Reivindicación registrada en un sitio de filtraciones: 23 de julio de 2026
+- Comunicación oficial a la Comisión Nacional de Valores: 31 de julio de 2026
+- Distancia entre una cosa y la otra: ocho días
+- Impacto sobre el transporte de crudo: ninguno declarado
+- Kilómetros de ductos operados: más de 1.700
+- Vector de entrada conocido públicamente: ninguno
+- Pago de rescate informado: ninguno
+
+<Warn />**Caso real, con información escasa y fuentes que no coinciden.** Los hechos
+salen del hecho relevante presentado ante la Comisión Nacional de Valores, del análisis
+técnico del grupo publicado por Microsoft Threat Intelligence, del registro público de
+la reivindicación y de la cobertura de prensa argentina. Las contradicciones entre
+fuentes están anotadas donde aparecen, sin elegir una. Lo que no se sabe está dicho
+como lo que es.
+
+---
+
+## Contexto: por qué esta empresa importa
+
+La compañía transporta hidrocarburos líquidos desde la cuenca neuquina hasta las
+terminales de exportación sobre el Atlántico. Sus accionistas son la petrolera de
+control estatal, con el 37 por ciento, y las principales operadoras del país y del
+mundo. Sus clientes son, básicamente, todos los productores de la cuenca.
+
+```
+Yacimientos de Vaca Muerta
+        │
+        ▼
+más de 1.700 km de ductos ──► refinerías del país
+        │
+        └──────────────────► terminales de exportación
+```
+
+Esa concentración es el punto del sistema y también su fragilidad: **hacer pasar la
+producción de una cuenca entera por un solo operador es eficiente, y convierte a ese
+operador en un asunto nacional.**
+
+Vale una aclaración que el caso necesita: el porcentaje de crudo que transporta se
+publica de dos maneras. La comunicación oficial y la mayoría de la prensa hablan del
+**75 por ciento** de lo producido en Vaca Muerta; otras fuentes del sector estiman
+cerca del **90 por ciento**. No es lo mismo, y no hay forma pública de resolverlo.
+Cuando un caso arranca con una discrepancia en la primera cifra, conviene tomarlo como
+anticipo de lo que viene.
+
+---
+
+## Timeline interactivo
+
+<AlertTimeline
+  client:load
+  lang="es"
+  caseId="soc-021"
+  events={[
+    {
+      time: "may 2026",
+      title: "El grupo queda documentado técnicamente",
+      description: "Microsoft Threat Intelligence publica un análisis completo del cifrador de The Gentlemen y rastrea a sus operadores como Storm-2697. Nada de esto tiene que ver todavía con esta empresa.",
+      severity: "INFO",
+      actor: "Defender"
+    },
+    {
+      time: "jul 2026",
+      title: "La petrolera colombiana",
+      description: "Días antes, la mayor petrolera de Colombia sufre un ataque del mismo grupo. Detecta el acceso irregular y evita el cifrado masivo, pero no impide la descarga de datos de unas 3.300 cuentas de usuario y de información en la nube de quince empresas del grupo.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "23 jul 2026, 15:13 UTC",
+      title: "Aparece la reivindicación",
+      description: "Un rastreador público de sitios de filtración registra la publicación de la empresa argentina en el sitio del grupo. Nadie fuera del atacante confirma nada.",
+      severity: "HIGH",
+      actor: "Attacker"
+    },
+    {
+      time: "31 jul 2026",
+      title: "La empresa lo informa al regulador",
+      description: "Se presenta un hecho relevante ante la Comisión Nacional de Valores: ciberataque a los sistemas administrativos, protocolo activado, plataformas restauradas, transporte de crudo sin interrupciones.",
+      severity: "CRITICAL",
+      actor: "Defender"
+    },
+    {
+      time: "2 y 3 ago 2026",
+      title: "La prensa toma el caso",
+      description: "La cobertura difunde el hecho relevante. Los medios difieren en el porcentaje de crudo transportado y en si hubo ataque o intento de ataque.",
+      severity: "INFO",
+      actor: "System"
+    },
+    {
+      time: "4 ago 2026",
+      title: "Una segunda reivindicación, sin confirmar",
+      description: "Un servicio de seguimiento reporta que otro grupo de ransomware reclama a la misma empresa. El rastreador marca la entrada como posible duplicado y advierte que también podría ser un segundo ataque legítimo. La empresa no se pronuncia.",
+      severity: "MEDIUM",
+      actor: "Attacker"
+    }
+  ]}
+/>
+
+---
+
+## 1. Lo único que la empresa afirmó
+
+El hecho relevante ante el regulador es la única fuente de primera mano, y conviene
+leerlo por lo que dice y por lo que no.
+
+**Dice:**
+
+- Hubo un ciberataque a los sistemas administrativos e informáticos.
+- Se activó el protocolo de ciberseguridad.
+- Las plataformas afectadas fueron restauradas y el trabajo administrativo se normalizó.
+- El transporte de crudo operó sin interrupciones.
+- Se estaba evaluando el alcance total y se dio intervención a las autoridades.
+
+**No dice:**
+
+- Qué tipo de amenaza fue.
+- Por dónde entraron.
+- Si hubo exfiltración de datos, y de cuáles.
+- Cuánto tiempo estuvieron adentro.
+- Si hubo pedido de rescate.
+
+<Pass />La empresa eligió informar en lugar de callar, y lo hizo por un canal que deja
+constancia pública.
+
+<Warn />Lo que informó es el mínimo que exige la obligación regulatoria, y no alcanza
+para que nadie más aprenda de lo que pasó.
+
+Las dos cosas son ciertas a la vez, y esa tensión es real: una empresa que informa se
+expone, y por eso informa lo mínimo. Sin una norma que obligue a más, no hay incentivo
+para dar detalle.
+
+---
+
+## 2. La separación que funcionó
+
+Este es el hallazgo técnico del caso, y es una buena noticia que conviene entender bien
+para no sacarle la conclusión equivocada.
+
+En una empresa que mueve hidrocarburos conviven dos mundos:
+
+```
+TECNOLOGÍA DE LA INFORMACIÓN        TECNOLOGÍA DE OPERACIÓN
+correo, facturación, expedientes    bombas, válvulas, telemetría
+usuarios que entran y salen         procesos que no se detienen
+se parchea un martes                se parchea en una parada programada
+```
+
+El ataque quedó del lado izquierdo. **Eso no ocurre por casualidad: ocurre cuando
+alguien diseñó la separación y la sostuvo.**
+
+Ahora, la conclusión equivocada sería "entonces no pasó nada". Tres razones para no
+sacarla:
+
+**Primera: el lado administrativo también importa.** Ahí viven los contratos, los
+volúmenes despachados, la información de clientes y los datos de personal. Una
+exfiltración de ese material es un problema aunque ninguna válvula se mueva.
+
+**Segunda: la separación se prueba, no se declara.** Que el atacante no haya llegado al
+otro lado en este incidente no dice cuánto le habría costado llegar. Esa pregunta se
+responde mirando la arquitectura, no el resultado.
+
+**Tercera, y es la que más conviene mirar: la decisión de seguir operando es una
+decisión.** En 2021, la operadora del mayor oleoducto de los Estados Unidos sufrió un
+ataque que **también fue del lado administrativo**, y aun así detuvo el bombeo por
+precaución, porque no podía facturar y porque no estaba segura de cuán separada estaba
+su red. Aquella parada provocó desabastecimiento en la costa este.
+
+Tres casos, tres finales distintos ante la misma pregunta:
+
+| Caso | Dónde llegó el atacante | Qué pasó con la operación |
+| --- | --- | --- |
+| Ucrania 2015, caso 013 | Hasta la consola del operador | La abrieron ellos, a mano |
+| Estados Unidos 2021 | Solo administración | La detuvo la propia empresa |
+| Este caso | Solo administración | No se detuvo |
+
+**La diferencia entre las dos últimas filas no es técnica, es de confianza.** Detenés la
+operación cuando no estás seguro de la separación. Seguís operando cuando lo estás. Y
+esa certeza se construye antes, con arquitectura y con ensayos, no durante el incidente.
+
+---
+
+## 3. Qué vale una reivindicación
+
+Acá está la parte que ningún otro caso del sitio enseña.
+
+Un grupo de ransomware publicó a esta empresa en su sitio de filtraciones el 23 de
+julio. La empresa informó el ataque el 31. Es tentador unir las dos cosas y cerrar el
+tema. **No hay que hacerlo, y vale la pena entender por qué.**
+
+**Una publicación en un sitio de filtraciones es una afirmación de un delincuente, no
+una prueba.** Los grupos:
+
+- Reclaman ataques que no hicieron, para inflar su reputación ante afiliados
+- Exageran el alcance de los que sí hicieron
+- Republican datos viejos de otras filtraciones como si fueran nuevos
+- A veces publican a una víctima que negoció y pagó, para presionar a otras
+
+Que dos grupos distintos reclamen la misma empresa en dos semanas admite varias
+lecturas, y ninguna se puede descartar con la información disponible:
+
+1. Hubo dos ataques distintos, de dos grupos distintos. Pasa, sobre todo cuando el
+   acceso inicial se compra y se revende.
+2. Un grupo se atribuyó el trabajo de otro.
+3. Uno de los dos, o los dos, están reclamando algo que no hicieron.
+4. El mismo afiliado trabajó para dos programas en momentos distintos.
+
+**Lo honesto es escribir eso y no elegir.** Un analista que reporta "la empresa fue
+atacada por tal grupo" porque lo leyó en un rastreador está reportando la afirmación de
+un atacante como si fuera un hallazgo propio.
+
+La formulación correcta tiene esta forma: *un grupo que se identifica como X publicó a
+la organización en su sitio de filtraciones el día tal; la organización no confirmó la
+atribución; no hay evidencia pública independiente que la sostenga.* Es más larga y es
+la única que se banca una repregunta.
+
+---
+
+## 4. Lo que sí se puede afirmar del atacante nombrado
+
+Sobre el grupo que reivindicó, en cambio, **sí hay material técnico de primera calidad**,
+publicado por Microsoft Threat Intelligence dos meses antes de este incidente. Conviene
+separar bien las dos cosas: **lo que sigue describe al grupo y a su herramienta, no a
+este ataque en particular.** Ninguna de estas técnicas está confirmada en esta empresa.
+
+El grupo opera como servicio: sus operadores mantienen la plataforma y los afiliados
+hacen los ataques a cambio de una parte del rescate. Nació como grupo cerrado a
+mediados de 2025 y abrió su programa de afiliados en septiembre de ese año.
+
+Su cifrador es lo interesante para un defensor:
+
+- **Escrito en Go y ofuscado**, con cifrado por archivo usando claves efímeras
+  Curve25519 y el cifrador de flujo XChaCha20
+- **Antes de cifrar**, desactiva la protección en tiempo real del antivirus, se agrega a
+  las exclusiones, excluye el volumen entero, borra copias sombra, registros de eventos,
+  archivos de prefetch, registros de escritorio remoto y el historial de comandos de
+  PowerShell de todos los perfiles
+- **Persiste por partida doble**: dos tareas programadas, una en contexto de sistema y
+  otra de usuario, y dos claves de arranque en el registro
+
+Y después está la propagación, que es lo que lo distingue. Con un argumento de línea de
+comandos, el cifrador **deja de ser un programa y pasa a ser un gusano**: arma un
+recurso compartido oculto en el equipo infectado para servirse a sí mismo, lleva una
+copia de una herramienta legítima de ejecución remota embebida, enumera la red, y
+contra cada equipo descubierto intenta **veintiuna operaciones de ejecución remota
+distintas** —copia por recurso administrativo, ejecución remota, creación de procesos
+por instrumental de administración, tres tareas programadas de usuario, tres de
+sistema, tres servicios, ejecución remota de PowerShell y creación de procesos por otra
+vía—.
+
+**Las intenta todas, sin importar si las anteriores fallaron.**
+
+Ese detalle es el que hay que llevarse. Una defensa que bloquea el noventa por ciento de
+los métodos de movimiento lateral no reduce el riesgo en un noventa por ciento:
+**alcanza con que uno funcione en un solo equipo para que la propagación siga.**
+
+---
+
+## 5. Qué puede hacer hoy un analista de otra empresa del sector
+
+Este caso no deja indicadores. No hay hashes, no hay direcciones, no hay dominios: la
+empresa no los publicó y nadie más los tiene. Lo que sí deja es una lista de verificación
+que cualquier organización parecida puede correr sobre sí misma.
+
+<IOCViewer
+  client:load
+  lang="es"
+  caseId="soc-021"
+  type="verificacion"
+  title="Autoevaluación para una organización del mismo sector"
+  data={{
+    "separación entre administración y operación": {
+      "inventario de caminos entre las dos redes": "Cuántos hay, quién los usa y cuál es el motivo documentado de cada uno",
+      "cuentas que existen de los dos lados": "Especialmente las de administración y las de proveedores de mantenimiento",
+      "acceso remoto de proveedores al entorno industrial": "Quién puede, desde dónde y con qué supervisión",
+      "verdict": "clean"
+    },
+    "contra el movimiento lateral masivo": {
+      "recursos compartidos administrativos": "Si están habilitados en estaciones de trabajo y por qué",
+      "ejecución remota por instrumental de administración": "Restringida a orígenes autorizados, no abierta a toda la red",
+      "creación de servicios y tareas programadas remotas": "Alerta sobre creación desde un equipo hacia otro",
+      "SMB1 y protecciones contra manipulación": "El primero deshabilitado, las segundas activas, verificado y no supuesto",
+      "verdict": "clean"
+    },
+    "capacidad de decidir bajo presión": {
+      "hasta cuándo puede operar sin sistemas administrativos": "Días, y con qué procedimientos manuales",
+      "quién autoriza detener la operación": "Con nombre y con suplente, escrito antes",
+      "qué información hace falta para no detenerla": "Definida de antemano, no improvisada a las tres de la mañana",
+      "verdict": "clean"
+    },
+    "credenciales fuera del propio perímetro": {
+      "exposición del dominio en material robado": "Servicios públicos informan si aparecieron credenciales de la organización",
+      "equipos de contratistas": "Como en el caso 018: la infección ocurre donde el SOC no mira",
+      "verdict": "clean"
+    }
+  }}
+/>
+
+**Sobre el último bloque, una aclaración que hace falta hacer.** Los rastreadores
+públicos de reivindicaciones publican, junto a cada víctima, información de exposición:
+cantidad de credenciales de empleados aparecidas en material de ladrones de
+información, servicios en la nube detectados y superficie externa. Para esta empresa,
+esos datos **están visibles públicamente y cualquiera puede consultarlos.**
+
+No se reproducen acá. Están referidos a una organización real e identificable que no dio
+autorización para que este sitio los difunda, y nombrarlos no enseñaría nada que no
+quede claro diciendo que existen. **Que un dato sea accesible no lo vuelve publicable**,
+y esa distinción es parte del oficio.
+
+---
+
+## 6. Mapeo MITRE ATT&CK
+
+<Warn />**Este mapa describe la herramienta del grupo que reivindicó el ataque, según el
+análisis publicado por Microsoft. No describe este incidente**, del que no se conoce
+ninguna técnica. Se incluye porque es lo que un defensor del sector puede usar para
+prepararse, no como reconstrucción de lo ocurrido.
+
+<MitreATTACKMap
+  client:load
+  lang="es"
+  caseId="soc-021"
+  tactics={[
+    {
+      id: "TA0005",
+      name: "Defense Evasion",
+      techniques: ["T1562.001", "T1070.001", "T1070.003", "T1027"]
+    },
+    {
+      id: "TA0003",
+      name: "Persistence",
+      techniques: ["T1053.005", "T1547.001"]
+    },
+    {
+      id: "TA0008",
+      name: "Lateral Movement",
+      techniques: ["T1021.002", "T1021.006", "T1570"]
+    },
+    {
+      id: "TA0002",
+      name: "Execution",
+      techniques: ["T1047", "T1569.002", "T1059.001"]
+    },
+    {
+      id: "TA0040",
+      name: "Impact",
+      techniques: ["T1486", "T1490", "T1489", "T1657"]
+    }
+  ]}
+/>
+
+**T1570 · Lateral Tool Transfer** es la que resume el diseño: el cifrador se copia a sí
+mismo a cada equipo alcanzable, y por eso una sola ejecución exitosa en un equipo
+olvidado devuelve al atacante a toda la red.
+
+---
+
+## Marcos de análisis
+
+**Este caso no lleva ninguno de los tres, y el motivo es el caso mismo.**
+
+La **cadena de ataque** necesita saber por dónde entraron y hasta dónde llegaron. No se
+sabe ni lo uno ni lo otro; siete casillas vacías no son un análisis.
+
+La **pirámide del dolor** ordena indicadores según lo que le cuesta al atacante
+cambiarlos. Acá no hay ni un indicador público de este incidente.
+
+El **Diamond Model** necesita datos en sus cuatro vértices. Hay víctima, hay capacidad
+descrita por un tercero solvente, hay un adversario **presunto y no confirmado**, y no
+hay absolutamente nada sobre la infraestructura usada en este ataque. Dos vértices de
+cuatro, y uno de ellos en duda.
+
+La invariante de este sitio es que un marco entra cuando hay datos reales para llenarlo.
+Acá no los hay, y **decirlo es más honesto que dibujar un diamante con dos vértices
+inventados.** Un caso sin marcos también enseña: enseña a distinguir lo que se sabe de
+lo que se supone.
+
+---
+
+## Reporte final
+
+<IncidentReportGenerator
+  client:load
+  lang="es"
+  caseId="soc-021"
+  summary={{
+    incidentId: "Hecho relevante ante el regulador, 31 de julio de 2026",
+    title: "Ataque a sistemas administrativos de un operador de oleoducto, sin impacto en el transporte",
+    status: "Documentado públicamente, sin informe forense",
+    severity: "HIGH",
+    triageInicial: "Sin datos públicos. La primera señal externa fue una publicación en un sitio de filtraciones, ocho días antes del aviso oficial",
+    causaRaiz: "No divulgada. La empresa no informó el vector de entrada ni el tipo de amenaza",
+    tiempoDeContencion: "No divulgado. La empresa declaró el episodio 100% controlado y las plataformas restauradas",
+    datosComprometidos: "No divulgado. No se informó exfiltración ni pago de rescate",
+    resolutionCode: "Caso de estudio con información incompleta"
+  }}
+/>
+
+---
+
+## Lecciones aprendidas
+
+**La separación entre administración y operación es la que decide el tamaño del
+incidente.** Acá la diferencia entre una molestia y un problema nacional fue esa
+frontera, y hay que probarla antes, no verificarla durante.
+
+**Seguir operando durante un incidente es una decisión que se toma con información.** Si
+no se sabe cuán separadas están las redes, lo prudente es detener, y detener también
+tiene costo. Esa información se construye en tiempos de paz.
+
+**Una reivindicación no es una atribución.** Es la afirmación de un delincuente sobre su
+propio trabajo, publicada donde le conviene que se lea. Sirve como indicio y como
+alerta; no sirve como conclusión.
+
+**Cuando no hay informe, el análisis honesto tiene huecos declarados.** Rellenar un
+vector de entrada con lo que suele pasar es escribir ficción con formato de informe.
+
+**Que un dato esté accesible no lo hace publicable.** Los rastreadores publican
+exposición de víctimas identificables; usarla para prepararse es legítimo, difundirla no.
+
+**En Argentina no hay obligación de contar más.** Existe una resolución de 2019 que
+define sectores de infraestructura crítica de información, pero no identifica operadores
+concretos ni fija requisitos exigibles, y obligar a empresas privadas requiere una ley
+que no está. **La consecuencia es exactamente este caso: sin norma, lo que se aprende de
+un incidente en infraestructura crítica depende de la buena voluntad de la víctima.**
+
+---
+
+## Recomendaciones
+
+**Verificar la separación con evidencia**, no con el diagrama de red. Qué camino existe
+hoy entre administración y operación, quién lo usa y qué pasa si esa cuenta se
+compromete.
+
+**Definir de antemano el umbral para detener la operación**, y quién lo decide. Escrito,
+con nombre y suplente.
+
+**Endurecer contra movimiento lateral redundante.** Contra una herramienta que intenta
+veintiún caminos por equipo, bloquear la mayoría no alcanza: hay que cerrar las vías de
+ejecución remota que no se usan y alertar sobre la creación remota de servicios y tareas.
+
+**Consultar exposición de credenciales propias** en servicios de vigilancia. Es barato y
+responde una pregunta que la telemetría interna no puede responder.
+
+**Escribir los informes propios con la distinción entre hecho y suposición marcada.**
+"El grupo X reivindicó" y "el grupo X atacó" son afirmaciones distintas, y quien lea el
+informe va a tomar decisiones con esa diferencia.
+
+**Participar de los mecanismos de intercambio del sector**, que en este caso habrían
+avisado que el mismo grupo había golpeado a una petrolera de la región días antes.
+
+---
+
+## Referencias
+
+- Hecho relevante presentado por Oldelval ante la Comisión Nacional de Valores,
+  31 de julio de 2026
+- Microsoft Threat Intelligence, *The Gentlemen ransomware: Dissecting a
+  self-propagating Go encryptor*, 28 de mayo de 2026
+- Registro público de reivindicaciones en sitios de filtración, entrada del 23 de julio
+  de 2026
+- Cobertura de prensa argentina, 2 y 3 de agosto de 2026
+- Resolución 1523/2019 sobre infraestructuras críticas de información
+- MITRE ATT&CK: T1486, T1490, T1570, T1562.001, T1021.002
+
+---
+
+## Próximas lecturas
+
+- **Caso 013**, para el escenario que este caso evitó: cuando el atacante sí llega a la
+  consola del operador.
+- **Caso 020**, para la otra manera de mirar un sector entero, con un CERT sectorial que
+  ve lo que ninguna empresa puede ver sola.
+- **Caso 018**, para el mecanismo por el que las credenciales de una organización
+  aparecen a la venta sin que nadie de adentro se entere.
+- **Caso 011**, para el problema de decidir con información parcial que llega tarde y de
+  fuentes que no coinciden.
