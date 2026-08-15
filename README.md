@@ -22,18 +22,18 @@ ruta.
 
 ## Estado actual
 
-Veinte casos, completos en español e inglés. Cada idioma tiene su propia ruta
+Veintiún casos, completos en español e inglés. Cada idioma tiene su propia ruta
 y su propio archivo de contenido.
 
 | | |
 | --- | --- |
-| Casos | 20, del `soc-001` al `soc-020` |
+| Casos | 21, del `soc-001` al `soc-021` |
 | Idiomas | Español e inglés, con paridad verificada |
-| Páginas generadas | 43 |
+| Páginas generadas | 45 |
 | Dificultad | De `beginner` a `expert` |
 | Marcos usados | ATT&CK Enterprise, ICS y Mobile; OWASP para API y para modelos de lenguaje |
 
-Once de los casos reconstruyen incidentes documentados públicamente. Los otros
+Doce de los casos reconstruyen incidentes documentados públicamente. Los otros
 nueve son escenarios construidos para el ejercicio, y lo declaran en su primera
 pantalla.
 
